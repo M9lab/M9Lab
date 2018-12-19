@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1,  target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <title>M9Lab - TrenIno App v. 1.3.3</title>
+    </head>
+    <body>
+        <div class="app">
+			<div class="header">
+				<h2>TrenIno App </h2><img class="logo" src="img/TrenIno.jpg"/>
+				<span class="versione">v. 1.3.3</span>
+			</div>	
+            <div id="mainPage">
+                <ul id="deviceList">
+                </ul>
+                <button id="refreshButton">Ricarica</button>
+            </div>
+            <div id="detailPage">
+                <div id="resultDiv"></div>
+                <div class="trainlist">
+				
+					<h3 class="noborder">Treno A</h3>
+					
+					<div class="slide-content">
+					  <button class="display-left" onclick="plusDivs_TA(-1)">&#10094;</button>
+					  <img class="mySlides_TA" src="img/trains/60051.png">
+					  <img class="mySlides_TA" src="img/trains/4558.png">
+					  <img class="mySlides_TA" src="img/trains/10233.png">					  
+					  <img class="mySlides_TA" src="img/trains/7938.png">					  
+					  <img class="mySlides_TA" src="img/trains/4512.png">
+					  <img class="mySlides_TA" src="img/trains/4564.png">
+					  <img class="mySlides_TA" src="img/trains/7939.png">					  
+					  <img class="mySlides_TA" src="img/trains/10219.png">					  
+					  <img class="mySlides_TA" src="img/trains/60052.png">						  					  
+					  <button class="display-right" onclick="plusDivs_TA(1)">&#10095;</button>
+					</div>
+					
+					<script>
+					var slideIndex_TA = 1;
+					showDivs_TA(slideIndex_TA);
+
+					function plusDivs_TA(n) {
+					  showDivs_TA(slideIndex_TA += n);
+					}
+
+					function showDivs_TA(n) {
+					  var i;
+					  var x = document.getElementsByClassName("mySlides_TA");
+					  if (n > x.length) {slideIndex_TA = 1}    
+					  if (n < 1) {slideIndex_TA = x.length}
+					  for (i = 0; i < x.length; i++) {
+						 x[i].style.display = "none";  
+					  }
+					  x[slideIndex_TA-1].style.display = "block";  
+					}
+					</script>						
+					
+					
+					<button class="greenbtn" id="setstatus_TA_1" value="ta|1">Parti</button>
+					<button class="redbtn" id="setstatus_TA_0" value="ta|0">Entra</button>	
+
+				
+					<label class="clear">Velocità </label>
+					<select id="setspeed_TA">
+						<option value="va1|100">Lentissimo (100)</option>	
+						<option value="va1|110">Lentissimo (110)</option>	
+						<option value="va1|120">Lentissimo (120)</option>	
+						<option value="va1|130">Lento (130)</option>	
+						<option value="va1|140">Lento (140)</option>	
+						<option value="va1|150">Lento (150)</option>					
+						<option value="va1|160">Normale (160)</option>					
+						<option value="va1|170">Normale (170)</option>	
+						<option value="va1|180">Normale (180)</option>	
+						<option value="va1|190">Veloce (190)</option>	
+						<option value="va1|200">Veloce (200)</option>	
+						<option value="va1|210">Veloce (210)</option>	
+						<option value="va1|220">Velocissimo (210)</option>	
+						<option value="va1|230" selected>Velocissimo (230)</option>		
+						<option value="va1|240">Velocissimo (240)</option>		
+					</select>						
+
+					<h3>Treno B</h3>
+					
+					<div class="slide-content">
+					  <button class="display-left" onclick="plusDivs_TB(-1)">&#10094;</button>
+					  <img class="mySlides_TB" src="img/trains/4512.png">
+					  <img class="mySlides_TB" src="img/trains/4558.png">					  
+					  <img class="mySlides_TB" src="img/trains/4564.png">
+					  <img class="mySlides_TB" src="img/trains/7939.png">					  
+					  <img class="mySlides_TB" src="img/trains/10219.png">					  
+					  <img class="mySlides_TB" src="img/trains/60052.png">						
+					  <img class="mySlides_TB" src="img/trains/10233.png">
+					  <img class="mySlides_TB" src="img/trains/60051.png">
+					  <img class="mySlides_TB" src="img/trains/7938.png">					  
+					  
+					  <button class="display-right" onclick="plusDivs_TB(1)">&#10095;</button>
+					</div>
+					
+					<script>
+					var slideIndex_TB = 1;
+					showDivs_TB(slideIndex_TB);
+
+					function plusDivs_TB(n) {
+					  showDivs_TB(slideIndex_TB += n);
+					}
+
+					function showDivs_TB(n) {
+					  var i;
+					  var x = document.getElementsByClassName("mySlides_TB");
+					  if (n > x.length) {slideIndex_TB = 1}    
+					  if (n < 1) {slideIndex_TB = x.length}
+					  for (i = 0; i < x.length; i++) {
+						 x[i].style.display = "none";  
+					  }
+					  x[slideIndex_TB-1].style.display = "block";  
+					}
+					</script>							
+					
+					
+					<button class="greenbtn" id="setstatus_TB_1" value="tb|1">Parti</button>
+					<button class="redbtn" id="setstatus_TB_0" value="tb|0">Entra</button>		
+					
+					<label class="clear">Velocità </label>
+					<select id="setspeed_TB">
+						<option value="va2|100">Lentissimo (100)</option>	
+						<option value="va2|110">Lentissimo (110)</option>	
+						<option value="va2|120">Lentissimo (120)</option>	
+						<option value="va2|130">Lento (130)</option>	
+						<option value="va2|140">Lento (140)</option>	
+						<option value="va2|150">Lento (150)</option>					
+						<option value="va2|160">Normale (160)</option>					
+						<option value="va2|170">Normale (170)</option>	
+						<option value="va2|180">Normale (180)</option>	
+						<option value="va2|190" selected>Veloce (190)</option>	
+						<option value="va2|200">Veloce (200)</option>	
+						<option value="va2|210">Veloce (210)</option>	
+						<option value="va2|220">Velocissimo (210)</option>	
+						<option value="va2|230">Velocissimo (230)</option>		
+						<option value="va2|240">Velocissimo (240)</option>		
+					</select>						
+
+					<h3>Treno C</h3>
+					
+					<div class="slide-content">
+					  <button class="display-left" onclick="plusDivs_TC(-1)">&#10094;</button>
+					  <img class="mySlides_TC" src="img/trains/4564.png">					  
+					  <img class="mySlides_TC" src="img/trains/4558.png">					  					  
+					  <img class="mySlides_TC" src="img/trains/7939.png">					  
+					  <img class="mySlides_TC" src="img/trains/10219.png">					  
+					  <img class="mySlides_TC" src="img/trains/60052.png">	
+					  <img class="mySlides_TC" src="img/trains/4512.png">					  
+					  <img class="mySlides_TC" src="img/trains/10233.png">
+					  <img class="mySlides_TC" src="img/trains/60051.png">
+					  <img class="mySlides_TC" src="img/trains/7938.png">						  
+
+					  
+					  <button class="display-right" onclick="plusDivs_TC(1)">&#10095;</button>
+					</div>
+					
+					<script>
+					var slideIndex_TC = 1;
+					showDivs_TC(slideIndex_TC);
+
+					function plusDivs_TC(n) {
+					  showDivs_TC(slideIndex_TC += n);
+					}
+
+					function showDivs_TC(n) {
+					  var i;
+					  var x = document.getElementsByClassName("mySlides_TC");
+					  if (n > x.length) {slideIndex_TC = 1}    
+					  if (n < 1) {slideIndex_TC = x.length}
+					  for (i = 0; i < x.length; i++) {
+						 x[i].style.display = "none";  
+					  }
+					  x[slideIndex_TC-1].style.display = "block";  
+					}
+					</script>						
+					
+					
+					<button class="greenbtn" id="setstatus_TC_1" value="tc|1">Parti</button>
+					<button class="redbtn" id="setstatus_TC_0" value="tc|0">Entra</button>	
+					
+					<label class="clear">Velocità </label>
+																	
+					<select id="setspeed_TC">
+						<option value="va3|100">Lentissimo (100)</option>	
+						<option value="va3|110">Lentissimo (110)</option>	
+						<option value="va3|120" selected>Lentissimo (120)</option>	
+						<option value="va3|130">Lento (130)</option>	
+						<option value="va3|140">Lento (140)</option>	
+						<option value="va3|150">Lento (150)</option>					
+						<option value="va3|160">Normale (160)</option>					
+						<option value="va3|170">Normale (170)</option>	
+						<option value="va3|180">Normale (180)</option>	
+						<option value="va3|190">Veloce (190)</option>	
+						<option value="va3|200">Veloce (200)</option>	
+						<option value="va3|210">Veloce (210)</option>	
+						<option value="va3|220">Velocissimo (210)</option>	
+						<option value="va3|230">Velocissimo (230)</option>		
+						<option value="va3|240">Velocissimo (240)</option>		
+					</select>							
+
+					<button class="scrolltop fullwidthbtn" id="scrolltopbtn1" >^</button>					
+				
+							
+					<h3 style="margin-bottom: 4px;">Sistema:</h3>
+						<button class="fullwidthbtn nopanicbtn" id="setstatus_PA" value="pa|x">Panic Button!!!</button>						
+						<button class="fullwidthbtn systemrstbtn" id="setstatus_SR" value="sr|x">System Reset</button>
+						<button class="fullwidthbtn" id="setstatus_SS" value="ss|x">System Status</button>						
+						<button class="fullwidthbtn" id="setstatus_LC" value="lc|x">Lista Comandi</button>
+						
+					<button class="scrolltop fullwidthbtn" id="scrolltopbtn2" >^</button>			
+				
+					<h3>Luci:</h3>
+										
+						<button class="greenbtn" id="setstatus_L1_1" value="l1|1">Accese</button>
+						<button class="redbtn" id="setstatus_L1_0" value="l1|0">Spente</button>					
+											
+											
+						
+					<h3>Scambio 1:</h3>
+					
+					
+						<button class="redbtn" id="setstatus_S1_1" value="s1|1">Scambia</button>
+						<button class="greenbtn" id="setstatus_S1_0" value="s1|0">Diritto</button>
+						
+					<h3>Scambio 2:</h3>
+					
+					
+						<button class="redbtn" id="setstatus_S2_1" value="s2|1">Scambia</button>
+						<button class="greenbtn" id="setstatus_S2_0" value="s2|0">Diritto</button>		
+
+					<button class="scrolltop fullwidthbtn" id="scrolltopbtn3" >^</button>			
+												
+										
+                </div>				
+				<h3>Bluetooth</h3>
+                <button class="redbtn" id="disconnectButton">Disconnetti</button>
+            </div>
+            <div id="statusDiv"></div>
+        </div>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript">
+            app.initialize();
+        </script>
+    </body>
+</html>
