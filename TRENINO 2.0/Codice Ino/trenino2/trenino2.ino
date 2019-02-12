@@ -3,24 +3,27 @@
 // IMPORTANTE: mai cambiare senso di marcia senza fermare il treno prima almeno per 250 ms
 // 2018 Code by Stefx 
 
-// TODO-> settare velocità per treni e non per tracciato (da testare)
-
+// TODO-> collegamento del multimediale
 // Manca solo BT tutto il resto e OK
-/* ************CONFIG***************** */
-#include <SoftwareSerial.h>
 
-String ver = "1.4.6";
+
+
+/* ************CONFIG***************** */
+//#include <SoftwareSerial.h>
+#include <Wire.h>
+
+String ver = "1.4.9";
 
 // debug?
 bool verbose = true;
 bool BTverbose = true;
 String lastmessage;
 int appoggio;
-bool scaduto = false;
+//bool scaduto = false;
 
-int speedA1 = 170; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
-int speedA2 = 150; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
-int speedB = 150; //150 velocità treno tracciato 2 (mai sotto 80 sennò non parte)
+int speedA1 = 230; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
+int speedA2 = 190; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
+int speedB = 120; //120 velocità treno tracciato 2 (mai sotto 80 sennò non parte)
 
 /* ************PIN***************** */
 
@@ -94,9 +97,9 @@ byte state = TRACK_SECTION_CLEAR;
 
 //variabili per junction
 unsigned long previousMillis = 0;
-unsigned long previousMillis_uscita = 0;
-int interval = 4000; //attesa attraversamento treno
-int uscitastazione= 5000;
+//unsigned long previousMillis_uscita = 0;
+int interval = 5000; //attesa attraversamento treno
+//int uscitastazione= 7000;
 
 //  variabile per lettura fermi stazione
 //int stazionevalue; 
@@ -124,6 +127,7 @@ typedef struct {
 //  0   = treno fermo
 //  1   = treno partito
 // -1   = treno retromarcia 
+//  2	= treno in ingresso
 
 // lastcommand dei treni
 // 0 fermati alla stazione
@@ -135,7 +139,7 @@ typedef struct {
 Track myTrack[MY_TRACK_LEN] = {
   { 1, "T1",  T1_IN1,T1_IN2,T1_ENA,0},  
   { 2, "T2",  T2_IN1,T2_IN2,T2_ENA,0}
-};
+ };
 
 
 /* ************SCAMBI***************** */
@@ -203,8 +207,10 @@ int status;
 
 void setup() {
 
-  Serial.begin(9600);
-  //bluetooth.begin(9600); 
+	Wire.begin();
+	Serial.begin(115200);
+	//bluetooth.begin(9600); 
+  
 	
 	// motori (2)
 
@@ -262,12 +268,18 @@ void setup() {
 	sendOutput("\nInizio log:"); 
   
  	systemReset();
+
+  
+   
 	
   
 }
 
 void loop()
 {
+  
+
+  
 	// leggo ed eseguo su BT
   
 	
@@ -300,7 +312,8 @@ void loop()
     controllaSensore(2, digitalRead(ST1_binario2),F2_isavaiable);
     controllaSensore(3, digitalRead(ST2_binario1),F3_isavaiable); 
 
-    //controllo se scambiare scambio uscita    
+    //controllo se scambiare scambio uscita controllando il timeout 
+    /*  
     if (millis() - previousMillis_uscita > uscitastazione){
         if(scaduto==false){
           //Serial.print(interval_scambio);
@@ -312,10 +325,12 @@ void loop()
         }  
         
     }
+    */
 
     switch (state)
     {
         
+
 
         case TRACK_SECTION_CLEAR:  //both light sensors off, power to both trains
         {
@@ -325,21 +340,44 @@ void loop()
           settaSemaforo(LT1_incrocioA,LT1_incrocioB,"verde");
           settaSemaforo(LT2_incrocioA,LT2_incrocioB,"verde");
         
-          if (myTrains[0].stato==1)partiTreno(myTrains[0].tracciato,myTrains[0].speedT);
-          if (myTrains[1].stato==1)partiTreno(myTrains[0].tracciato,myTrains[1].speedT);
-          if (myTrains[2].stato==1)partiTreno(myTrains[0].tracciato,myTrains[2].speedT);
+          if (myTrains[0].stato>0)partiTreno(myTrains[0].tracciato,myTrains[0].speedT);
+          if (myTrains[1].stato>0)partiTreno(myTrains[1].tracciato,myTrains[1].speedT);
+          if (myTrains[2].stato>0)partiTreno(myTrains[2].tracciato,myTrains[2].speedT);
    
     
           if (digitalRead(ST1_incrocio) == HIGH) {
             previousMillis = millis();    //save the time
             state = T2_TRAIN_DETECTED;
-            settaSemaforo(LT1_incrocioA,LT1_incrocioB,"rosso");       
+            settaSemaforo(LT1_incrocioA,LT1_incrocioB,"rosso"); 
+
+
+ 
+                  
           }
     
           if (digitalRead(ST2_incrocio) == HIGH) {
             previousMillis = millis();    //save the time
             state = T1_TRAIN_DETECTED;
             settaSemaforo(LT2_incrocioA,LT2_incrocioB,"rosso");
+
+
+                         //NEWS: ---> Controlla se scambiare binario per ingresso treni tracciato grande
+              if (myTrains[0].scambio>0 && myTrains[0].stato==2){
+                scambia(myTrains[0].scambio,"scambia");       
+                //myTrains[0].stato=1;                  
+              }
+              
+              if (myTrains[1].scambio>0 && myTrains[1].stato==2){
+                scambia(myTrains[1].scambio,"scambia");
+                 //myTrains[1].stato=1;                 
+              }
+
+
+            //NEWS: ---> Controlla se scambiare binario post uscita treni tracciato grande
+            // nel caso commentare loor riga 307
+              if (myTrains[0].scambio>0 && myTrains[0].stato==1) scambia(myTrains[0].scambio,"diritto");                              
+              if (myTrains[1].scambio>0 && myTrains[1].stato==1) scambia(myTrains[1].scambio,"diritto");  
+          
           }
           
         }
@@ -348,16 +386,20 @@ void loop()
         case T1_TRAIN_DETECTED:  //Red train detected, power to both trains
         {        
 
+
+
+ 
+
           
           //Serial.println(state);
           if (digitalRead(ST1_incrocio) == HIGH) {
-            state = T2_TRAIN_OFF;
-            settaSemaforo(LT2_incrocioA,LT2_incrocioB,"rosso");
-            settaSemaforo(LT1_incrocioA,LT1_incrocioB,"verde");
+				state = T2_TRAIN_OFF;
+				settaSemaforo(LT2_incrocioA,LT2_incrocioB,"rosso");
+				settaSemaforo(LT1_incrocioA,LT1_incrocioB,"verde");
           }
     
           else if (millis() - previousMillis > interval) {
-            state = TRACK_SECTION_CLEAR;
+				state = TRACK_SECTION_CLEAR;
           }
         }
         break;
@@ -367,9 +409,9 @@ void loop()
           
           //Serial.println(state);
           if (digitalRead(ST2_incrocio) == HIGH) {
-            state = T1_TRAIN_OFF;
-            settaSemaforo(LT1_incrocioA,LT1_incrocioB,"rosso");
-            settaSemaforo(LT2_incrocioA,LT2_incrocioB,"verde");
+				state = T1_TRAIN_OFF;
+				settaSemaforo(LT1_incrocioA,LT1_incrocioB,"rosso");
+				settaSemaforo(LT2_incrocioA,LT2_incrocioB,"verde");
           }
     
           else if (millis() - previousMillis > interval) {
@@ -430,7 +472,7 @@ void printLegenda(){
   sendOutput("       0 ->ferma treno");  
   sendOutput("       1 ->parti treno");
     
-  sendOutput("t2|s = setta stato treno tracciato 2: {-1,0,1}");  
+  sendOutput("t2|s = setta stato treno tracciato 2: {-1,0,1,2}");  
   sendOutput("       -1 ->inverti");
   sendOutput("       0 ->ferma treno");  
   sendOutput("       1 ->parti treno");
@@ -549,14 +591,16 @@ void executeCommand(String command, String value)
 
 		switch (status) {			
 			case 0:
+			
+				myTrains[0].stato=2;
 				entraTreno(1);
-          // setta lastcommand (fermati alla stazione)
-          myTrains[0].lastcommand=0;
+				// setta lastcommand (fermati alla stazione)
+				myTrains[0].lastcommand=0;
 				break;
 			case 1:
 				esciTreno(1);
-          // setta lastcommand (esci dalla stazione)
-          myTrains[0].lastcommand=1;
+				// setta lastcommand (esci dalla stazione)
+				myTrains[0].lastcommand=1;
 				break;
 		}
 		             
@@ -568,13 +612,14 @@ void executeCommand(String command, String value)
 
 		switch (status) {			
 			case 0:
+				myTrains[1].stato=2;
 				entraTreno(2);
-        // setta lastcommand (fermati alla stazione)
-          myTrains[1].lastcommand=0;
+				// setta lastcommand (fermati alla stazione)
+				myTrains[1].lastcommand=0;
 				break;
 			case 1:
 				esciTreno(2);
-          myTrains[1].lastcommand=1;
+				myTrains[1].lastcommand=1;
 				break;
 		}
 		             
@@ -586,13 +631,14 @@ void executeCommand(String command, String value)
 
 		switch (status) {			
 			case 0:
+				myTrains[2].stato=2;
 				entraTreno(3);
-        // setta lastcommand (fermati alla stazione)
-          myTrains[2].lastcommand=0;
+				// setta lastcommand (fermati alla stazione)
+				myTrains[2].lastcommand=0;
 				break;
 			case 1:
 				esciTreno(3);
-          myTrains[2].lastcommand=1;
+				myTrains[2].lastcommand=1;
 				break;
 		}		      
        
@@ -617,7 +663,7 @@ void executeCommand(String command, String value)
     if (command == "va1"){    
       
   		speedA1 = value.toInt();
-      myTrains[0].speedT = value.toInt();
+		myTrains[0].speedT = value.toInt();
       
   		analogWrite(T1_ENA, speedA1);        
   		sendOutput("Setto Treno 1 tracciato 1 -> speed = " + value);        
@@ -636,7 +682,7 @@ void executeCommand(String command, String value)
     if (command == "vb"){    
   
   		speedB = value.toInt();
-      myTrains[2].speedT = speedB;
+		myTrains[2].speedT = speedB;
   		analogWrite(T2_ENA, speedB);  
   		sendOutput("Setto Treno tracciato 2 -> speed = " + value);        
        
@@ -674,6 +720,9 @@ void executeCommand(String command, String value)
 	
 	if (command == "ss"){    
 		printSystemStatus();
+		//annuncio test binario 1 treno 1
+		//inviaSM("11");
+		sendText("11");
 	}	
 	
 	if (command == "sr"){    
@@ -714,21 +763,19 @@ void printSystemStatus(){
 	command="";
 	
 	for (int i=0; i < MY_TRAIN_LEN; i++){
-    command += myTrains[i].codice	+ ":" + 	String(myTrains[i].stato) + ",";    
+		command += myTrains[i].codice	+ ":" + 	String(myTrains[i].stato) + ",";    
 	}	
-
-
 	
 	for (int i=0; i < MY_TRACK_LEN; i++){
-    command += myTrack[i].codice  + ":" +  String(myTrack[i].stato) + ",";		    
+		command += myTrack[i].codice  + ":" +  String(myTrack[i].stato) + ",";		    
 	}	
   
 	
 	for (int i=0; i < MY_SWITCH_LEN; i++){
-    command += mySwitch[i].codice  + ":" + String(mySwitch[i].stato) + ",";		    
+		command += mySwitch[i].codice  + ":" + String(mySwitch[i].stato) + ",";		    
 	}		
   
-  command =  command.substring(0,command.length()-1);    
+	command =  command.substring(0,command.length()-1);    
 	sendOutput('{' + command + '}');
   
 	
@@ -738,6 +785,7 @@ void printSystemStatus(){
 void partiTreno(int idtrack, int speedT){
 
   // setta velocità del treno
+  
   analogWrite(myTrack[idtrack-1].T_ENA, speedT);    
   
 	// the train will move forward
@@ -745,8 +793,6 @@ void partiTreno(int idtrack, int speedT){
 	digitalWrite(myTrack[idtrack-1].T_IN2,HIGH); 
 
 	myTrack[idtrack-1].stato=1;
-
- //Serial.println(myTrack[idtrack-1].stato);
 
 }
 
@@ -757,10 +803,7 @@ void fermaTreno(int idtrack){
 	digitalWrite(myTrack[idtrack-1].T_IN1,LOW); 
 	digitalWrite(myTrack[idtrack-1].T_IN2,LOW); 
 
-	myTrack[idtrack-1].stato=0;
-
- //Serial.println(myTrack[idtrack-1].stato);
-
+	myTrack[idtrack-1].stato=0;	
   
 }
 
@@ -770,7 +813,6 @@ void invertiTreno(int idtrack){
 	// the train will move in reverse
 	digitalWrite(myTrack[idtrack-1].T_IN1,HIGH); 
 	digitalWrite(myTrack[idtrack-1].T_IN2,LOW); 
-
 	myTrack[idtrack-1].stato=-1;
   
 }
@@ -786,7 +828,7 @@ void scambia(int idswitch, String direction){
     		digitalWrite(mySwitch[idswitch-1].T_IN2, LOW);
     		delay(interval_scambio);
     		digitalWrite(mySwitch[idswitch-1].T_IN1, LOW);
-        digitalWrite(mySwitch[idswitch-1].T_IN2, LOW);
+			digitalWrite(mySwitch[idswitch-1].T_IN2, LOW);
     		
     		mySwitch[idswitch-1].stato=1;
     		
@@ -881,21 +923,20 @@ void controllaSensore(int treno, int stazionevalue, boolean &F_isavaiable){
 }
 
 // uso esterno (public)
-void esciTreno(int treno){	
+void esciTreno(int treno){	  
 
-  appoggio=myTrains[treno-1].tracciato;
-  //Serial.print(appoggio);
+	appoggio=myTrains[treno-1].tracciato;	
 
 	// todo: controlla se altro treno su stesso tracciato è in giro, nel caso annulla comando
 	if (myTrack[appoggio-1].stato==1){
 		if (myTrains[treno-1].stato==1){
-      myTrains[treno-1].lastcommand=0;
-      myTrains[treno-1].stato=0;
+			myTrains[treno-1].lastcommand=0;
+			myTrains[treno-1].stato=0;
 			sendOutput("Il treno " + myTrains[treno-1].codice + " risulta partito, comando annullato.");     	
 		}else{
 			sendOutput("Sul tracciato risulta un treno in movimento, comando annullato."); 
-     myTrains[treno-1].lastcommand=0;   
-     myTrains[treno-1].stato=0; 	
+			myTrains[treno-1].lastcommand=0;   
+			myTrains[treno-1].stato=0; 	
 		}			
 	}else{
 	
@@ -909,19 +950,22 @@ void esciTreno(int treno){
 					
 		// muove treno
 		partiTreno(myTrains[treno-1].tracciato,myTrains[treno-1].speedT);	
-    //if (treno==2) partiTreno(myTrains[treno-1].tracciato,speedA2);  
-    //if (treno==3) partiTreno(myTrains[treno-1].tracciato,speedB1);  
+		//if (treno==2) partiTreno(myTrains[treno-1].tracciato,speedA2);  
+		//if (treno==3) partiTreno(myTrains[treno-1].tracciato,speedB1);  
 		
 		// aspetta passaggio locomotore su binario principale
 		//delay(uscitastazione);    
-    previousMillis_uscita = millis();    //save the time    
-    scaduto=false;
+		
+		/* usa timer 
+		previousMillis_uscita = millis();    //save the time    
+		scaduto=false;
+		*/
 
     
-		//if (myTrains[treno-1].scambio>0) scambia(myTrains[treno-1].scambio,"diritto");	    
+		//if (myTrains[treno-1].scambio>0) scambia(myTrains[treno-1].scambio,"diritto");	    			
 		
 		//setta stato treno
-		myTrains[treno-1].stato=1;
+		myTrains[treno-1].stato=1;    
 			
 		sendOutput("Treno " + myTrains[treno-1].codice + " uscito!");   
 	}		
@@ -942,13 +986,32 @@ void entraTreno(int treno){
 		// semaforo
 		settaSemaforo(myTrains[treno-1].semaforoA,myTrains[treno-1].semaforoB,"rosso");	
 		
-		// scambia lo scambio per uscire (se scambio associato > 0 altrimenti non ha scambio)
-		if (myTrains[treno-1].scambio>0) scambia(myTrains[treno-1].scambio,"scambia");		
-		
+		// scambia lo scambio per entrare (se scambio associato > 0 altrimenti non ha scambio)
+		// comando trasferito nel sensore incrocio
 
+		//if (myTrains[treno-1].scambio>0) scambia(myTrains[treno-1].scambio,"scambia");		
 		
 		// il resto lo farà il sensore incaricato al passaggio del treno al binario
 		// vedi funzione controllaSensore
 	}	
 	
+}
+
+void inviaSM(byte data){
+
+ // leggo da wire
+  Wire.beginTransmission(8);  
+  Serial.println(data);
+  Wire.write(data);
+  Wire.endTransmission();
+
+}
+
+
+void sendText(String command) {
+  Wire.beginTransmission(8); // transmit to device #9
+  for(int i=0; i<(command.length()); i++){
+    Wire.write(command[i]);
+  }              
+  Wire.endTransmission();    // stop transmitting
 }

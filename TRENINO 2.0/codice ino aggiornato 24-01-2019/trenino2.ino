@@ -3,22 +3,23 @@
 // IMPORTANTE: mai cambiare senso di marcia senza fermare il treno prima almeno per 250 ms
 // 2018 Code by Stefx 
 
-// AGGIUNTO ->  scambio ingresso tracciato grande al passaggio del sensore su incrocio a X
+// TODO-> collegamento del multimediale
 // Manca solo BT tutto il resto e OK
 
 
 
 /* ************CONFIG***************** */
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
+#include <Wire.h>
 
-String ver = "1.4.8";
+String ver = "1.4.9";
 
 // debug?
 bool verbose = true;
 bool BTverbose = true;
 String lastmessage;
 int appoggio;
-bool scaduto = false;
+//bool scaduto = false;
 
 int speedA1 = 230; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
 int speedA2 = 190; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
@@ -96,9 +97,9 @@ byte state = TRACK_SECTION_CLEAR;
 
 //variabili per junction
 unsigned long previousMillis = 0;
-unsigned long previousMillis_uscita = 0;
+//unsigned long previousMillis_uscita = 0;
 int interval = 5000; //attesa attraversamento treno
-int uscitastazione= 7000;
+//int uscitastazione= 7000;
 
 //  variabile per lettura fermi stazione
 //int stazionevalue; 
@@ -138,7 +139,7 @@ typedef struct {
 Track myTrack[MY_TRACK_LEN] = {
   { 1, "T1",  T1_IN1,T1_IN2,T1_ENA,0},  
   { 2, "T2",  T2_IN1,T2_IN2,T2_ENA,0}
-};
+ };
 
 
 /* ************SCAMBI***************** */
@@ -176,17 +177,17 @@ typedef struct {
 	byte tracciato; 
 	byte scambio;
 	byte semaforoA;	
-    byte semaforoB;  
+  byte semaforoB;  
 	byte stato;
 	byte lastcommand; 
-    int speedT; 
+  int speedT; 
 } Train;
 
 // numero trenif
 #define MY_TRAIN_LEN 3
 
 // Mappatura treni
-//N - codice  - tracciato	-	scambio	-	pin semaforo1 - pin semaforo2 -	stato(0 = fermo, 1 = avanti, -1 = indietro, 2= in ingresso) - int lastcommand; 
+//N - codice  - tracciato	-	scambio	-	pin semaforo1 - pin semaforo2 -	stato(0 = fermo, 1 = avanti, -1 = indietro) - int lastcommand; 
 
 Train myTrains[MY_TRAIN_LEN] = {
 	{ 1, "TA", 1, 1, LT1_binario1A, LT1_binario1B, 0,0, speedA1}, 
@@ -206,8 +207,10 @@ int status;
 
 void setup() {
 
-  Serial.begin(9600);
+
+  Serial.begin(115200);
   //bluetooth.begin(9600); 
+  Wire.begin();
 	
 	// motori (2)
 
@@ -265,13 +268,22 @@ void setup() {
 	sendOutput("\nInizio log:"); 
   
  	systemReset();
+
+  
+   
 	
   
 }
 
 void loop()
 {
+  
 
+  
+	// leggo ed eseguo su BT
+  
+	
+ 
 
 	// leggo ed eseguo su serial
 	if (Serial.available())
@@ -280,9 +292,7 @@ void loop()
 		value = Serial.readString();    
 		executeCommand(command,value);	
 	}
-	
-	// leggo ed eseguo su BT
-	/*
+/*
   if (bluetooth.available())
   {        
     command = bluetooth.readStringUntil('|');
@@ -302,9 +312,12 @@ void loop()
     controllaSensore(2, digitalRead(ST1_binario2),F2_isavaiable);
     controllaSensore(3, digitalRead(ST2_binario1),F3_isavaiable); 
 
-    //controllo se scambiare scambio uscita  controllando il timeout   
+    //controllo se scambiare scambio uscita controllando il timeout 
+    /*  
     if (millis() - previousMillis_uscita > uscitastazione){
         if(scaduto==false){
+          //Serial.print(interval_scambio);
+          //Serial.println("scaduto");
           scaduto=true;
           for (int i=0; i < MY_TRAIN_LEN; i++){
             if (myTrains[i].scambio>0) scambia(myTrains[i].scambio,"diritto");  
@@ -312,10 +325,12 @@ void loop()
         }  
         
     }
+    */
 
     switch (state)
     {
         
+
 
         case TRACK_SECTION_CLEAR:  //both light sensors off, power to both trains
         {
@@ -325,23 +340,44 @@ void loop()
           settaSemaforo(LT1_incrocioA,LT1_incrocioB,"verde");
           settaSemaforo(LT2_incrocioA,LT2_incrocioB,"verde");
         
-		
-		  // Faccio ripartire treno?	
-          if (myTrains[0].stato>0) partiTreno(myTrains[0].tracciato,myTrains[0].speedT);
-          if (myTrains[1].stato>0) partiTreno(myTrains[1].tracciato,myTrains[1].speedT);
-          if (myTrains[2].stato>0) partiTreno(myTrains[2].tracciato,myTrains[2].speedT);
-		  
-		      
+          if (myTrains[0].stato>0)partiTreno(myTrains[0].tracciato,myTrains[0].speedT);
+          if (myTrains[1].stato>0)partiTreno(myTrains[1].tracciato,myTrains[1].speedT);
+          if (myTrains[2].stato>0)partiTreno(myTrains[2].tracciato,myTrains[2].speedT);
+   
+    
           if (digitalRead(ST1_incrocio) == HIGH) {
             previousMillis = millis();    //save the time
             state = T2_TRAIN_DETECTED;
-            settaSemaforo(LT1_incrocioA,LT1_incrocioB,"rosso");       
+            settaSemaforo(LT1_incrocioA,LT1_incrocioB,"rosso"); 
+
+
+ 
+                  
           }
     
           if (digitalRead(ST2_incrocio) == HIGH) {
             previousMillis = millis();    //save the time
             state = T1_TRAIN_DETECTED;
             settaSemaforo(LT2_incrocioA,LT2_incrocioB,"rosso");
+
+
+                         //NEWS: ---> Controlla se scambiare binario per ingresso treni tracciato grande
+              if (myTrains[0].scambio>0 && myTrains[0].stato==2){
+                scambia(myTrains[0].scambio,"scambia");       
+                //myTrains[0].stato=1;                  
+              }
+              
+              if (myTrains[1].scambio>0 && myTrains[1].stato==2){
+                scambia(myTrains[1].scambio,"scambia");
+                 //myTrains[1].stato=1;                 
+              }
+
+
+            //NEWS: ---> Controlla se scambiare binario post uscita treni tracciato grande
+            // nel caso commentare loor riga 307
+              if (myTrains[0].scambio>0 && myTrains[0].stato==1) scambia(myTrains[0].scambio,"diritto");                              
+              if (myTrains[1].scambio>0 && myTrains[1].stato==1) scambia(myTrains[1].scambio,"diritto");  
+          
           }
           
         }
@@ -349,19 +385,13 @@ void loop()
     
         case T1_TRAIN_DETECTED:  //Red train detected, power to both trains
         {        
-		
-		
-		//NEWS: ---> Controlla se scambiare binario per ingresso treni tracciato grande
-		  if (myTrains[0].scambio>0 && myTrains[0].stato==2) scambia(myTrains[0].scambio,"scambia");				  
-		  if (myTrains[1].scambio>0 && myTrains[1].stato==2) scambia(myTrains[1].scambio,"scambia");
 
-		  //NEWS: ---> Controlla se scambiare binario post uscita treni tracciato grande
-		  // nel caso commentare la riga 307
-		  //if (myTrains[0].scambio>0 && myTrains[0].stato==1) scambia(myTrains[0].scambio,"diritto");	
-		  //if (myTrains[1].scambio>0 && myTrains[1].stato==1) scambia(myTrains[1].scambio,"diritto");			  
-   
 
-		  //Serial.println(state);
+
+ 
+
+          
+          //Serial.println(state);
           if (digitalRead(ST1_incrocio) == HIGH) {
 				state = T2_TRAIN_OFF;
 				settaSemaforo(LT2_incrocioA,LT2_incrocioB,"rosso");
@@ -690,6 +720,8 @@ void executeCommand(String command, String value)
 	
 	if (command == "ss"){    
 		printSystemStatus();
+    //annuncio test binario 1 treno 1
+    inviaSM("11");
 	}	
 	
 	if (command == "sr"){    
@@ -890,7 +922,7 @@ void controllaSensore(int treno, int stazionevalue, boolean &F_isavaiable){
 }
 
 // uso esterno (public)
-void esciTreno(int treno){	
+void esciTreno(int treno){	  
 
 	appoggio=myTrains[treno-1].tracciato;	
 
@@ -917,14 +949,22 @@ void esciTreno(int treno){
 					
 		// muove treno
 		partiTreno(myTrains[treno-1].tracciato,myTrains[treno-1].speedT);	
-
+		//if (treno==2) partiTreno(myTrains[treno-1].tracciato,speedA2);  
+		//if (treno==3) partiTreno(myTrains[treno-1].tracciato,speedB1);  
+		
 		// aspetta passaggio locomotore su binario principale
+		//delay(uscitastazione);    
+		
+		/* usa timer 
 		previousMillis_uscita = millis();    //save the time    
 		scaduto=false;
-    		
-	
+		*/
+
+    
+		//if (myTrains[treno-1].scambio>0) scambia(myTrains[treno-1].scambio,"diritto");	    			
+		
 		//setta stato treno
-		myTrains[treno-1].stato=1;
+		myTrains[treno-1].stato=1;    
 			
 		sendOutput("Treno " + myTrains[treno-1].codice + " uscito!");   
 	}		
@@ -955,3 +995,14 @@ void entraTreno(int treno){
 	}	
 	
 }
+
+void inviaSM(byte data){
+
+ // leggo da wire
+  Wire.beginTransmission(8);  
+  Serial.println(data);
+  Wire.write(data);
+  Wire.endTransmission();
+
+}
+
