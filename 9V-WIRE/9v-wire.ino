@@ -19,13 +19,10 @@ String ver = "1.1.1";
 // debug?
 bool verbose = true;
 bool BTverbose = true;
-String lastmessage;
-int appoggio;
-bool scaduto = false;
 
-int speedA1 = 230; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
+// initial settings
+int speedA1 = 190; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
 int speedA2 = 190; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
-
 
 /* ************PIN***************** */
 
@@ -169,7 +166,7 @@ void executeCommand(String command, String value)
 				break;
 				
 			case 2:
-				invertiTreno(1);				
+				invertiTreno(1,speedA1);				
 				break;				
 				
 		}
@@ -190,7 +187,7 @@ void executeCommand(String command, String value)
 				break;
 				
 			case 2:
-				invertiTreno(2);				
+				invertiTreno(2,speedA2);				
 				break;							
 		}		    
 		             
@@ -223,26 +220,28 @@ void executeCommand(String command, String value)
 }
 
 void sendOutput(String message){
-
-	if (lastmessage != message){
-
-		//commentare riga sotto per usare porte 0,1 come BT
-		/*
-		if (BTverbose){
-			bluetooth.println(message);    
-		}
-		*/
-
-		if (verbose){
-		  Serial.println(message);
-		}
-		
+	
+	//commentare riga sotto per usare porte 0,1 come BT
+	/*
+	if (BTverbose){
+		bluetooth.println(message);    
 	}
+	*/
+
+	if (verbose){
+	  Serial.println(message);
+	}	
 	
 }
 
 // uso interno (private)
 void partiTreno(int idtrack, int speedT){
+
+  // arresto prima il treno se cambio direzione diretto
+	if (myTrack[idtrack-1].stato==2){
+		fermaTreno(idtrack);
+		delay(1000);
+	}
 
 	// setta velocità del treno  
 	analogWrite(myTrack[idtrack-1].T_ENA, speedT);    
@@ -269,13 +268,22 @@ void fermaTreno(int idtrack){
 }
 
 // uso interno (private)
-void invertiTreno(int idtrack){
+void invertiTreno(int idtrack, int speedT){
+
+  // arresto prima il treno se cambio direzione diretto
+	if (myTrack[idtrack-1].stato==1){
+		fermaTreno(idtrack);
+		delay(1000);
+	}
+	
+	// setta velocità del treno  
+	analogWrite(myTrack[idtrack-1].T_ENA, speedT);    
 
 	// il treno andrà al contrario
 	digitalWrite(myTrack[idtrack-1].T_IN1,HIGH); 
 	digitalWrite(myTrack[idtrack-1].T_IN2,LOW); 
 	// setto stato
-	myTrack[idtrack-1].stato=-1;
+	myTrack[idtrack-1].stato=2;
   
 }
 
