@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1,  target-densitydpi=device-dpi" />		
+        <link rel="stylesheet" type="text/css" href="css/index.css" />		
+		<link rel="stylesheet" type="text/css" href="css/regular.css" />
+		<link rel="stylesheet" type="text/css" href="css/all.css" />			
+        <title>M9Lab - 9V Wire App v. 1.0.1</title>		
+    </head>
+    <body>
+        <div class="app">
+			<div class="header">
+				<h2>9V Wire App </h2><img class="logo" src="img/logo.png"/>
+				<span class="versione">v. 1.0.1</span>				
+			</div>	
+            <div id="mainPage">
+                <ul id="deviceList">
+                </ul>
+                <button id="refreshButton"><i class="fas fa-sync-alt"></i> Refresh List</button>							
+            </div>
+            <div id="detailPage">                
+                <div class="trainlist">
+				
+					<h3 class="noborder fullwidthbtn">Track A</h3>
+												
+					<div class="fullwidthbtn">				
+						<label class="clear">Direction </label>								
+						<button class="yellowbtn" id="setstatus_TA_2" value="ta|2"><i class="fas fa-backward"></i> reverse</button>
+						<button class="redbtn" id="setstatus_TA_0" value="ta|0"><i class="fas fa-stop"></i> stop</button>		
+						<button class="greenbtn" id="setstatus_TA_1" value="ta|1"><i class="fas fa-forward"></i> forward</button>															
+					</div>
+					
+					<div class="fullwidthbtn">												
+						<label class="clear">Speed <span id="valspeed_TA">190</span></label>					
+						<span class="rangeminmax">100</span><input type="range" orient="vertical" id="setspeed_TA" min="100" max="240" value="190" step="10" /><span class="rangeminmax">240</span>
+					</div>	
+					
+					<h3 class="fullwidthbtn">Track B</h3>
+							
+					<div class="fullwidthbtn">			
+						<label class="clear">Direction </label>													
+						<button class="yellowbtn" id="setstatus_TB_2" value="tb|2"><i class="fas fa-backward"></i> reverse</button>		
+						<button class="redbtn" id="setstatus_TB_0" value="tb|0"><i class="fas fa-stop"></i> stop</button>		
+						<button class="greenbtn" id="setstatus_TB_1" value="tb|1"><i class="fas fa-forward"></i> forward</button>												
+					</div>	
+					
+					<div class="fullwidthbtn">												
+						<label class="clear">Speed <span id="valspeed_TB">190</span></label>
+						<span class="rangeminmax">100</span><input type="range" orient="vertical" id="setspeed_TB" min="100" max="240" value="190" step="10" /><span class="rangeminmax">240</span>
+					</div>	
+																	
+					<h3 style="margin-bottom: 4px;">System:</h3>
+					<button class="fullwidthbtn nopanicbtn" id="setstatus_PA" value="pa|x"><i class="fas fa-exclamation-triangle"></i> Panic Button!!!</button>																
+					<button class="scrolltop fullwidthbtn" id="scrolltopbtn1" ><i class="fas fa-chevron-up"></i></button>			
+														
+                </div>		
+				<div class="fullwidthbtn">	
+					<h3>Log</h3>
+					<div id="resultDiv"></div>	
+				</div>				
+				
+				<h3>Bluetooth</h3>
+                <button class="redbtn" id="disconnectButton">Disconnect</button>
+            </div>
+            <div id="statusDiv"></div>
+        </div>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript">
+            app.initialize();
+        </script>
+    </body>
+</html>

@@ -1,0 +1,99 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "cordova-plugin-bluetooth-serial",
+        "scope": null,
+        "escapedName": "cordova-plugin-bluetooth-serial",
+        "name": "cordova-plugin-bluetooth-serial",
+        "rawSpec": "",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "C:\\Users\\stefano.ferrara\\AndroidStudioProjects\\xmastree"
+    ]
+  ],
+  "_from": "cordova-plugin-bluetooth-serial@latest",
+  "_id": "cordova-plugin-bluetooth-serial@0.4.7",
+  "_inCache": true,
+  "_location": "/cordova-plugin-bluetooth-serial",
+  "_nodeVersion": "6.9.5",
+  "_npmOperationalInternal": {
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/cordova-plugin-bluetooth-serial-0.4.7.tgz_1489732624709_0.08048886526376009"
+  },
+  "_npmUser": {
+    "name": "don",
+    "email": "don.coleman@gmail.com"
+  },
+  "_npmVersion": "3.10.10",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "cordova-plugin-bluetooth-serial",
+    "scope": null,
+    "escapedName": "cordova-plugin-bluetooth-serial",
+    "name": "cordova-plugin-bluetooth-serial",
+    "rawSpec": "",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/cordova-plugin-bluetooth-serial/-/cordova-plugin-bluetooth-serial-0.4.7.tgz",
+  "_shasum": "1e4606ec6d42b7c23f60a74a87c7c4a4ec3828c0",
+  "_shrinkwrap": null,
+  "_spec": "cordova-plugin-bluetooth-serial",
+  "_where": "C:\\Users\\stefano.ferrara\\AndroidStudioProjects\\xmastree",
+  "author": {
+    "name": "Don Coleman",
+    "email": "don.coleman@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/don/BluetoothSerial/issues"
+  },
+  "cordova": {
+    "id": "cordova-plugin-bluetooth-serial",
+    "platforms": [
+      "android",
+      "ios",
+      "wp8"
+    ]
+  },
+  "dependencies": {},
+  "description": "Bluetooth Serial Communication Plugin",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "1e4606ec6d42b7c23f60a74a87c7c4a4ec3828c0",
+    "tarball": "https://registry.npmjs.org/cordova-plugin-bluetooth-serial/-/cordova-plugin-bluetooth-serial-0.4.7.tgz"
+  },
+  "gitHead": "6fabc14811a170d1582953f82909c9926170b19b",
+  "homepage": "https://github.com/don/BluetoothSerial#readme",
+  "keywords": [
+    "cordova",
+    "bluetooth",
+    "serial",
+    "ble",
+    "arduino",
+    "ecosystem:cordova"
+  ],
+  "license": "Apache-2.0",
+  "main": "./www/bluetoothSerial.js",
+  "maintainers": [
+    {
+      "name": "don",
+      "email": "don.coleman@gmail.com"
+    }
+  ],
+  "name": "cordova-plugin-bluetooth-serial",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/don/BluetoothSerial.git"
+  },
+  "scripts": {},
+  "version": "0.4.7"
+}
