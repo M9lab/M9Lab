@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1,  target-densitydpi=device-dpi" />		
+        <link rel="stylesheet" type="text/css" href="css/index.css" />		
+		<link rel="stylesheet" type="text/css" href="css/regular.css" />
+		<link rel="stylesheet" type="text/css" href="css/all.css" />			
+        <title>M9Lab - 9V Wire App v. 1.3.2</title>		
+    </head>
+    <body>
+        <div class="app">
+			<div class="header">
+				<h2>9V Wire</h2><img class="logo" src="img/logo.png"/>
+				<span class="versione">v. 1.3.2</span>				
+			</div>	
+            <div id="mainPage">
+                <ul id="deviceList">
+                </ul>
+                <button id="refreshButton"><i class="fas fa-sync-alt"></i> Refresh List</button>							
+            </div>
+            <div id="detailPage">                
+                <div class="trainlist">
+				
+					<h3 class="noborder fullwidthbtn">Track A</h3>
+												
+					<div class="fullwidthbtn">				
+						<!--<label class="clear">Direction </label>-->						
+						<button class="yellowbtn" id="setstatus_TA_2" value="ta|2"><i class="fas fa-backward"></i> reverse</button>
+						<button class="redbtn" id="setstatus_TA_0" value="ta|0"><i class="fas fa-stop"></i> stop</button>		
+						<button class="greenbtn" id="setstatus_TA_1" value="ta|1"><i class="fas fa-forward"></i> forward</button>															
+					</div>
+					
+					<div class="fullwidthbtn">												
+						<label class="clear">Speed <span id="valspeed_TA">190</span></label>					
+						<span class="rangeminmax">100</span><input type="range" orient="vertical" id="setspeed_TA" min="100" max="240" value="190" step="10" /><span class="rangeminmax">240</span>
+					</div>	
+					
+					<h3 class="fullwidthbtn">Track B</h3>
+							
+					<div class="fullwidthbtn">			
+						<!--<label class="clear">Direction </label>-->
+						<button class="yellowbtn" id="setstatus_TB_2" value="tb|2"><i class="fas fa-backward"></i> reverse</button>		
+						<button class="redbtn" id="setstatus_TB_0" value="tb|0"><i class="fas fa-stop"></i> stop</button>		
+						<button class="greenbtn" id="setstatus_TB_1" value="tb|1"><i class="fas fa-forward"></i> forward</button>												
+					</div>	
+					
+					<div class="fullwidthbtn">												
+						<label class="clear">Speed <span id="valspeed_TB">190</span></label>
+						<span class="rangeminmax">100</span><input type="range" orient="vertical" id="setspeed_TB" min="100" max="240" value="190" step="10" /><span class="rangeminmax">240</span>
+					</div>	
+					
+					<div class="fullwidthbtn">					
+						<h3>System:</h3>
+						<button class="fullwidthbtn nopanicbtn" id="setstatus_PA" value="pa|x"><i class="fas fa-exclamation-triangle"></i> Panic Button</button>		
+						<button class="fullwidthbtn " id="disconnectButton"><i class="fab fa-bluetooth-b"></i> Disconnect Bluetooth</button>						
+					</div>	
+					
+					<div class="fullwidthbtn">	
+						<button class="scrolltop fullwidthbtn" id="scrolltopbtn1" ><i class="fas fa-chevron-up"></i></button>		
+					</div>
+					
+					<div class="fullwidthbtn" id="logcontainer">	
+						<h3>Log</h3>
+						<div id="resultDiv"></div>	
+					</div>						
+					
+					<div class="fullwidthbtn footer" >	
+						<h3>Created and Developed by<br/></h3>
+						<div class="col2">
+							<img class="logo" src="img/logo.png"/><div class="slogan">Lego® Trains and Arduino™ Sketches</div>
+						</div>	
+						<div class="col2 contactcontainer">
+							<div class="contact">info@m9lab.com</div>							
+							<div class="contact">www.fb.com/m9lab</div>
+							<div class="contact">www.m9lab.com</div>									
+						</div>		
+						
+						<div class="fullwidthbtn contactcontainer logocontainer">
+							<div class="contact col4"><a href="mailto:info@m9lab.com" target="blank"><i class="fas fa-envelope"></i></a></div>
+							<div class="contact col4"><a href="https://m.me/m9lab" target="blank"><i class="fab fa-facebook-messenger"></i></a></div>		
+							<div class="contact col4"><a href="https://www.fb.com/m9lab" target="blank"><i class="fab fa-facebook"></i></a></div>
+							<div class="contact col4"><a href="http://www.m9lab.com" target="blank"><i class="fas fa-globe-europe"></i></a></div>									
+						</div>						
+						
+					</div>
+					
+					<div class="fullwidthbtn footerdiscaimer" >	
+						If you have any questions, suggestions or if you want to report a bug: write us using the contact above or click on icon below.<br/>We will answer you as soon as possible!
+					</div>
+					
+					<div class="fullwidthbtn footerdiscaimer" >	
+						<span class="versione">9V Wire v. 1.3.2</span>
+					</div>	
+															
+				</div>					
+            </div>
+            <div id="statusDiv"></div>
+        </div>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript">
+            app.initialize();
+        </script>
+    </body>
+</html>
