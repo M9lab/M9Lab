@@ -3,9 +3,9 @@
 // IMPORTANTE: mai cambiare senso di marcia senza fermare il treno prima almeno per 250 ms
 // 2019 Code by Stefx
 
-// AGGIUNTO ->  scambio ingresso tracciato grande al passaggio del sensore su incrocio a X
-// TODO -> Integrare parte Stazione Multimendiale (senza ancora interagire)
-
+// AGGIUNTO ->  Parte Stazione Multimendiale
+// TODO -> verificare parte Stazione Multimediale su TA|x e TB|x
+// nel caso commentare riga 358 lasciaso solo riga 363
 
 /* ************CONFIG***************** */
 
@@ -15,23 +15,20 @@
 #include "RTClib.h"
 #include <Wire.h>
 
-String ver = "3.0.1";
+String ver = "3.0.2";
 
 // settings SM
 RTC_DS1307 rtc;
 
-//conflitto da risolvere ??
-SoftwareSerial mySoftwareSerial(2, 11); // RX, TX
-
 DFRobotDFPlayerMini myDFPlayer;
 
 // vars annuncio SM
-String sm_action;
-String sm_track;
-String sm_train;
+int sm_action;
+int sm_track;
+int sm_train;
 bool sm_finished = true;
 bool sm_ready = false;
-int sm_playList[15] = {};
+int sm_playList[15] = {1,2,3};
 int sm_totalFile = 1;
 int sm_idx = 0;
 // end vars SM
@@ -41,62 +38,74 @@ bool verbose = true;
 //int appoggio;
 bool scaduto = false;
 
-int speedA1 = 230; //230 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
-int speedA2 = 190; //190 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
-int speedB = 120; //120 velocità treno tracciato 2 (mai sotto 80 sennò non parte)
+int speedA1 = 230; //210 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
+int speedA2 = 150; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
+int speedB = 130; //130 velocità treno tracciato 2 (mai sotto 80 sennò non parte)
 
 /* ************PIN***************** */
 
+// bluetooth 
+
+//int rxPin = 11;
+//int txPin = 2;
+
+//SoftwareSerial bluetooth(rxPin, txPin);
+
+//conflitto da risolvere ?? Lettore Mp3
+int rxPin = 11;
+int txPin = 12;
+SoftwareSerial mySoftwareSerial(rxPin, txPin);
+
 // tracciato 1 (lungo)
-const byte T1_IN1 = 28; // train 1 motor pin 1
-const byte T1_IN2 = 26; // train 1 motor pin 2
-const byte T1_ENA = 7; // train 1 motor PMW
+const byte T1_IN1=23; // train 1 motor pin 1 
+const byte T1_IN2=25; // train 1 motor pin 2
+const byte T1_ENA=9; // train 1 motor PMW
 
 // tracciato 2 (corto)
-const byte T2_IN1 = 24; // train 1 motor pin 1
-const byte T2_IN2 = 22; // train 1 motor pin 2
-const byte T2_ENA = 6; // train 1 motor PMW
+const byte T2_IN1=27; // train 1 motor pin 1 
+const byte T2_IN2=29; // train 1 motor pin 2
+const byte T2_ENA=10; // train 1 motor PMW
 
 // Scambio A
-const byte S1_IN1 = 25; // train 1 motor pin 1
-const byte S1_IN2 = 23; // train 1 motor pin 2
-const byte S1_ENA = 9; // train 1 motor PMW
+const byte S1_IN1=28; // train 1 motor pin 1 
+const byte S1_IN2=26; // train 1 motor pin 2
+const byte S1_ENA=7; // train 1 motor PMW
 
 // Scambio B
-const byte S2_IN1 = 27; // train 1 motor pin 1
-const byte S2_IN2 = 29; // train 1 motor pin 2
-const byte S2_ENA = 10; // train 1 motor PMW
+const byte S2_IN1=24; // train 1 motor pin 1 
+const byte S2_IN2=22; // train 1 motor pin 2
+const byte S2_ENA=6; // train 1 motor PMW
 
 // Sensori (5)
 const byte ST1_incrocio = 35;
-const byte ST2_incrocio = 37;
-const byte ST1_binario1 = 33;
-const byte ST1_binario2 = 31;
-const byte ST2_binario1 = 39;
+const byte ST2_incrocio = 39;
+const byte ST1_binario1 = 31;
+const byte ST1_binario2 = 33;
+const byte ST2_binario1 = 37;
 
 // Semafori (10) (LOW=verde/HIGH=rosso) 30 - 44
 // Incrocio T1
-const byte LT1_incrocioA = 36;
-const byte LT1_incrocioB = 34;
+const byte LT1_incrocioA = 30;
+const byte LT1_incrocioB = 32;
 
 // Incrocio T2
 const byte LT2_incrocioA = 41;
 const byte LT2_incrocioB = 43;
 
 // Treno A
-const byte LT1_binario1A = 42;
-const byte LT1_binario1B = 44;
+const byte LT1_binario1A = 46;
+const byte LT1_binario1B = 48;
 
 // Treno B
-const byte LT1_binario2A = 46;
-const byte LT1_binario2B = 48;
+const byte LT1_binario2A = 42;
+const byte LT1_binario2B = 44;
 
 // Treno C
-const byte LT2_binario1A = 30;
-const byte LT2_binario1B = 32;
+const byte LT2_binario1A = 36; 
+const byte LT2_binario1B = 34; 
 
 // luci
-int ST_lucipin = 45;
+int ST_lucipin=45;
 
 //possibili stati del tracciato (non toccare)
 const byte TRACK_SECTION_CLEAR = 0;  //both light sensors off, power to both trains
@@ -304,9 +313,8 @@ void setup() {
 
 }
 
-void loop()
-{
-
+void audiocontrol(){
+  
   // debug su serial degli eventi del lettore mp3 (opzionale, da commentare)
   if (myDFPlayer.available()) {
     printDetail(myDFPlayer.readType(), myDFPlayer.read());
@@ -324,25 +332,56 @@ void loop()
 
     Serial.println("fine annuncio");
     // TODO in base a azione faccio uscire treno o lo faccio entrare
-    Serial.println(sm_action);
-  }
+    //Serial.println(sm_action); //112 (a) 123 (b)
+    //Serial.println(sm_train);
+    //Serial.println(sm_track);
 
+    // setta stato treno entra
+    if(sm_action==0){
+      
+      entraTreno(sm_train);     
+      myTrains[sm_train-1].stato = 2; 
+    }  
+        
+    // setta stato treno esci
+    if(sm_action==1){      
+      myTrains[sm_train-1].stato = 1;
+      esciTreno(sm_train);      
+    } 
+
+     myTrains[sm_train-1].lastcommand = sm_action;
+    
+  }
+}
+
+void loop()
+{
 
   // leggo ed eseguo su serial
   if (Serial.available())
   {
 
-    // leggo ed eseguo da serial il comando in formato treno|binario|azione //ex: 111
-    String text = Serial.readString();
-    executeAudioPlayList(text.toInt());
-
+    // leggo ed eseguo da serial il comando in formato treno|binario|azione //ex: 111       
     command = Serial.readStringUntil('|');
     value = Serial.readString();
-    executeCommand(command, value);
+
+    //se un comando ingresso uscita treno allora mando audio
+    // COMANDO NON VALIDO PER TRENO C || command=="tc" 
+    // executeAudioPlayList(int sm_train, int sm_track , int sm_action) {    
+    if(command=="ta"){      
+      executeAudioPlayList(1,2,value.toInt());            
+    }else if (command=="tb"){
+      executeAudioPlayList(2,3,value.toInt());  
+    }else{
+      executeCommand(command, value);  
+    }    
+    
   }
 
   // routine di controllo per i sensori
   while (Serial.available() == 0) {
+
+    audiocontrol();
 
     // sensori fermi stazione
     controllaSensore(1, digitalRead(ST1_binario1), F1_isavaiable);
@@ -535,18 +574,17 @@ void printDetail(uint8_t type, int value) {
   }
 }
 
-void executeAudioPlayList(int command) {
+void executeAudioPlayList(int sm_train_input, int sm_track_input , int sm_action_input) {
 
-  //Serial.print(command);
-  String exx = String(command); // print the integer
-
-  sm_train = exx.charAt(0); // 1,2,3
-  sm_track = exx.charAt(1);    // 1,2,3....
-  sm_action = exx.charAt(2);    // 1-parte 2-arriva
+  sm_train = sm_train_input;
+  sm_track = sm_track_input;
+  sm_action = sm_action_input;
 
   DateTime now = rtc.now();
   int currentMinute = now.minute();
   int currentHour = now.hour();
+
+  if(currentMinute==0) currentMinute=110;
 
   if (! rtc.isrunning()) {
     currentMinute = 22;
@@ -555,7 +593,9 @@ void executeAudioPlayList(int command) {
 
   // reset
   sm_totalFile = 0;
-  for ( int i = 0; i < sizeof(sm_playList);  ++i ) sm_playList[i] = (char)0;
+  
+  //for ( int i = 0; i < sizeof(sm_playList);  i++ )sm_playList[i] = (char)0;
+  
 
   // bip
   addToPlayList(111);
@@ -564,13 +604,13 @@ void executeAudioPlayList(int command) {
   addToPlayList(121);
 
   // treno
-  switch (sm_train.toInt()) {
+  switch (sm_train) {
     //65001
     case 1:
       addToPlayList(201);
       addToPlayList(65);
-      addToPlayList(100);
-      addToPlayList(100);
+      addToPlayList(110);
+      //addToPlayList(100);
       addToPlayList(1);
       break;
 
@@ -606,17 +646,17 @@ void executeAudioPlayList(int command) {
   addToPlayList(minute);
 
   //e in arrivo al binario
-  if (sm_action == "1") {
+  if (sm_action == 0) {
     addToPlayList(141);
   }
 
   //e in partenza dal binario
-  if (sm_action == "2") {
+  if (sm_action == 1) {
     addToPlayList(146);
   }
 
   // n binario
-  addToPlayList(sm_track.toInt());
+  addToPlayList(sm_track);
 
   //avviso finale
   addToPlayList(165);
@@ -644,7 +684,8 @@ void addToPlayList(int mp3) {
 void sendVietatoIndicareMsg() {
 
   sm_totalFile = 0;
-  for ( int i = 0; i < sizeof(sm_playList);  ++i ) sm_playList[i] = (char)0;
+  //for ( int i = 0; i < sizeof(sm_playList);  i++ )sm_playList[i] = (char)0;  
+  
   addToPlayList(191);
   sm_ready = true;
 
@@ -702,6 +743,7 @@ void printLegenda() {
   sendOutput("sr| = reset del sistema");
   sendOutput("pa| = panic button");
   sendOutput("lc| = stampa a video lista comandi");
+  sendOutput("vi| = vietato indicare i personaggi");
 
   sendOutput("_________________________________________________");
 }
@@ -779,6 +821,8 @@ void executeCommand(String command, String value)
   value = value.substring(0, value.length());
   sendOutput("Input: command->" + command + ", valore->" + value + "");
 
+  if (command == "vi") sendVietatoIndicareMsg();
+
   if (command == "ta") {
 
     status = value.toInt();
@@ -792,7 +836,7 @@ void executeCommand(String command, String value)
         myTrains[0].lastcommand = 0;
         break;
       case 1:
-        esciTreno(1);
+        //esciTreno(1);
         // setta lastcommand (esci dalla stazione)
         myTrains[0].lastcommand = 1;
         break;
