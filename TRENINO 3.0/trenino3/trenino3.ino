@@ -313,47 +313,6 @@ void setup() {
 
 }
 
-void audiocontrol(){
-  
-  // debug su serial degli eventi del lettore mp3 (opzionale, da commentare)
-  if (myDFPlayer.available()) {
-    printDetail(myDFPlayer.readType(), myDFPlayer.read());
-  }
-
-  if (sm_finished && sm_ready) {
-    myDFPlayer.playMp3Folder(sm_playList[sm_idx++]);  //Play next mp3
-    sm_finished = false;
-  }
-
-  // fine annuncio (ultimo mp3)
-  if (sm_idx == sm_totalFile) {
-    sm_idx = 0;
-    sm_ready = false;
-
-    Serial.println("fine annuncio");
-    // TODO in base a azione faccio uscire treno o lo faccio entrare
-    //Serial.println(sm_action); //112 (a) 123 (b)
-    //Serial.println(sm_train);
-    //Serial.println(sm_track);
-
-    // setta stato treno entra
-    if(sm_action==0){
-      
-      entraTreno(sm_train);     
-      myTrains[sm_train-1].stato = 2; 
-    }  
-        
-    // setta stato treno esci
-    if(sm_action==1){      
-      myTrains[sm_train-1].stato = 1;
-      esciTreno(sm_train);      
-    } 
-
-     myTrains[sm_train-1].lastcommand = sm_action;
-    
-  }
-}
-
 void loop()
 {
 
@@ -509,6 +468,48 @@ void loop()
 
   }
 
+}
+
+
+void audiocontrol(){
+  
+  // debug su serial degli eventi del lettore mp3 (opzionale, da commentare)
+  if (myDFPlayer.available()) {
+    printDetail(myDFPlayer.readType(), myDFPlayer.read());
+  }
+
+  if (sm_finished && sm_ready) {
+    myDFPlayer.playMp3Folder(sm_playList[sm_idx++]);  //Play next mp3
+    sm_finished = false;
+  }
+
+  // fine annuncio (ultimo mp3)
+  if (sm_idx == sm_totalFile) {
+    sm_idx = 0;
+    sm_ready = false;
+
+    Serial.println("fine annuncio");
+    // TODO in base a azione faccio uscire treno o lo faccio entrare
+    //Serial.println(sm_action); //112 (a) 123 (b)
+    //Serial.println(sm_train);
+    //Serial.println(sm_track);
+
+    // setta stato treno entra
+    if(sm_action==0){
+      
+      entraTreno(sm_train);     
+      myTrains[sm_train-1].stato = 2; 
+    }  
+        
+    // setta stato treno esci
+    if(sm_action==1){      
+      myTrains[sm_train-1].stato = 1;
+      esciTreno(sm_train);      
+    } 
+
+     myTrains[sm_train-1].lastcommand = sm_action;
+    
+  }
 }
 
 // funzione per SM
