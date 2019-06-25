@@ -14,27 +14,27 @@ Funziona tutto
 /* ************CONFIG***************** */
 #include <SoftwareSerial.h>
 
-String ver = "1.1.2";
+String ver = "1.1.3";
 
 // debug?
 bool verbose = true;
 bool BTverbose = true;
 
 // initial settings
-int speedA1 = 255; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
-int speedA2 = 255; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
+int speedA1 = 170; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
+int speedA2 = 170; //170 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
 
 /* ************PIN***************** */
 
 // bluetooth 
-int rxPin = 2;
-int txPin = 4;
+int rxPin = 4;
+int txPin = 5;
 
 // commentare riga sotto per usare porte 0,1 come BT
 SoftwareSerial bluetooth(rxPin, txPin);
 
 // tracciato 1 (lungo)
-const byte T1_IN1=5; // train 1 motor pin 1 
+const byte T1_IN1=8; // train 1 motor pin 1 
 const byte T1_IN2=6; // train 1 motor pin 2
 const byte T1_ENA=3; // train 1 motor PMW
 
@@ -52,7 +52,7 @@ typedef struct {
   byte T_IN1;
   byte T_IN2;
   byte T_ENA;  
-  byte stato;   
+  int stato;   
 } Track;
 
 // numero tracciati presenti sul circuito
@@ -80,7 +80,10 @@ int status;
 void setup() {
 
   Serial.begin(9600);
-  bluetooth.begin(115200); 
+  //bluetooth.begin(9600);  
+  bluetooth.begin(38400);
+  
+  delay(1000);
   
   // motori (2)
   pinMode(T1_IN1, OUTPUT);
@@ -93,11 +96,9 @@ void setup() {
   // velocita default
   analogWrite(T1_ENA, speedA1);  
   analogWrite(T2_ENA, speedA2);  
-   
-  printHello(); 
-  sendOutput("\nInizio log:");   
+       
+  fermaTreno(0);
   fermaTreno(1);
-  fermaTreno(2);
   
   
 }
@@ -121,136 +122,118 @@ void loop()
     value = bluetooth.readString();    
     executeCommand(command,value);    
     }
-  
-    
-  
+        
 }
 
 
-void printHello(){  
-
-  sendOutput("*** M9Lab - 9V-Wire v." + ver + " ***");
-  sendOutput("http://m9lab.com - info@m9lab.com");
-  sendOutput("_________________________________________________");   
-  
-}
-
-void panicButton(){
-  
-  // arresto tutto 
-  sendOutput("No Panic!!!");   
-  
-  // tracciati spenti
-  fermaTreno(1);
-  fermaTreno(2);     
-    
+void panicButton(){  
+  // arresto tutto   
+  fermaTreno(0);
+  fermaTreno(1);         
 }
 
 void executeCommand(String command, String value)
 {
+    
+  
+    /*velocità*/
+  
+    if (command == "va"){          
+      speedA1 = value.toInt();          
+      analogWrite(T1_ENA, speedA1);   
+      sendResponseOutput();                              
+    } 
 
-    value = value.substring(0,value.length());        
-    sendOutput("Input: command->" + command + ", valore->" + value + "");    
+    if (command == "vb"){      
+      speedA2 = value.toInt();    
+      analogWrite(T2_ENA, speedA2); 
+      sendResponseOutput();                     
+    } 
+	    
+    if (command == "pa"){                  
+      panicButton();    
+      sendResponseOutput();          
+    }   
+
+    if (command == "ss"){                  
+      sendResponseOutput();    
+    }  
+
+ /*tracciati*/
   
     if (command == "ta"){    
   
-    status = value.toInt();
-
-    switch (status) {     
-      case 0:     
-        fermaTreno(1);
-        break;
-        
-      case 1:
-        partiTreno(1,speedA1);        
-        break;
-        
-      case 2:
-        invertiTreno(1,speedA1);        
-        break;        
-        
-    }
+      status = value.toInt();
+  
+        switch (status) {     
+          case 0:     
+            fermaTreno(0);        
+            break;
+            
+          case 1:
+            partiTreno(0,speedA1);          
+            break;
+            
+          case 2:
+            invertiTreno(0,speedA1);            
+            break;              
+        }   
+  
+        sendResponseOutput();
                  
     }   
   
     if (command == "tb"){    
+    
+      status = value.toInt();
   
-    status = value.toInt();
+      switch (status) {     
+        case 0:     
+          fermaTreno(1);        
+          break;
+          
+        case 1:
+          partiTreno(1,speedA2);          
+          break;
+          
+        case 2:
+          invertiTreno(1,speedA2);          
+          break;              
+      }     
 
-    switch (status) {     
-      case 0:     
-        fermaTreno(2);
-        break;
-        
-      case 1:
-        partiTreno(2,speedA2);        
-        break;
-        
-      case 2:
-        invertiTreno(2,speedA2);        
-        break;              
-    }       
+      sendResponseOutput();
                  
-    } 
-
-    
-  
-    if (command == "va"){    
-      
-      speedA1 = value.toInt();          
-      analogWrite(T1_ENA, speedA1);        
-      sendOutput("Setto Treno 1 tracciato 1 -> speed = " + value);        
+    }     
        
-    } 
-
-  
-    if (command == "vb"){    
-  
-      speedA2 = value.toInt();    
-      analogWrite(T2_ENA, speedA2);  
-      sendOutput("Setto Treno tracciato 2 -> speed = " + value);        
-       
-    } 
-    
-
-  if (command == "pa"){                  
-    panicButton();
-  }   
-
 }
 
-void sendOutput(String message){
-  
-  //commentare riga sotto per usare porte 0,1 come BT
-  
-  if (BTverbose){
-    bluetooth.println(message);    
-  }  
+void sendResponseOutput(){   
 
-  if (verbose){
-    Serial.println(message);
-  } 
-  
+  String commandx = "{\"T1\":" +  String(myTrack[0].stato) + ",\"T2\":" +  String(myTrack[1].stato) + ",\"S1\":" +  String(speedA1) + ",\"S2\":" +  String(speedA2) + "}";     
+  if (BTverbose) bluetooth.println(commandx);               
+  if (verbose) Serial.println(commandx);  
+    
 }
 
 // uso interno (private)
 void partiTreno(int idtrack, int speedT){
 
   // arresto prima il treno se cambio direzione diretto
-  if (myTrack[idtrack-1].stato==2){
+  
+  if (myTrack[idtrack].stato==2){
     fermaTreno(idtrack);
-    delay(1000);
-  }
+    delay(200);
+  }  
 
   // setta velocità del treno  
-  analogWrite(myTrack[idtrack-1].T_ENA, speedT);    
+  analogWrite(myTrack[idtrack].T_ENA, speedT);    
   
   // Muovo avanti treno
-  digitalWrite(myTrack[idtrack-1].T_IN1,LOW); 
-  digitalWrite(myTrack[idtrack-1].T_IN2,HIGH); 
+  digitalWrite(myTrack[idtrack].T_IN1,LOW); 
+  digitalWrite(myTrack[idtrack].T_IN2,HIGH); 
   
-  // setto stato
-  myTrack[idtrack-1].stato=1;
+  // setto stato  
+  myTrack[idtrack].stato=1;  
 
 }
 
@@ -258,30 +241,32 @@ void partiTreno(int idtrack, int speedT){
 void fermaTreno(int idtrack){
 
   // fermo il treno
-  digitalWrite(myTrack[idtrack-1].T_IN1,LOW); 
-  digitalWrite(myTrack[idtrack-1].T_IN2,LOW); 
+  digitalWrite(myTrack[idtrack].T_IN1,LOW); 
+  digitalWrite(myTrack[idtrack].T_IN2,LOW); 
   
   // setto stato
-  myTrack[idtrack-1].stato=0; 
+  myTrack[idtrack].stato=0;   
   
 }
 
 // uso interno (private)
 void invertiTreno(int idtrack, int speedT){
 
-  // arresto prima il treno se cambio direzione diretto
+  // arresto prima il treno se cambio direzione diretto  
   if (myTrack[idtrack-1].stato==1){
     fermaTreno(idtrack);
-    delay(1000);
-  }
+    delay(200);
+  }  
   
   // setta velocità del treno  
-  analogWrite(myTrack[idtrack-1].T_ENA, speedT);    
+  analogWrite(myTrack[idtrack].T_ENA, speedT);    
 
   // il treno andrà al contrario
-  digitalWrite(myTrack[idtrack-1].T_IN1,HIGH); 
-  digitalWrite(myTrack[idtrack-1].T_IN2,LOW); 
+  digitalWrite(myTrack[idtrack].T_IN1,HIGH); 
+  digitalWrite(myTrack[idtrack].T_IN2,LOW); 
   // setto stato
-  myTrack[idtrack-1].stato=2;
   
+  myTrack[idtrack].stato=2;  
+    
 }
+
