@@ -1,0 +1,153 @@
+<ion-header>
+  <ion-navbar color="light">
+    <ion-title no-padding>
+      <img src="assets/imgs/Nivo_header2.png" alt="NiVo"/>
+        <span class="version">V. 1.3.3</span>
+    </ion-title>
+  </ion-navbar>
+</ion-header>
+
+<ion-content padding color="light">
+  <div *ngIf="! connected">  
+    <button ion-button full class="submit-button" (click)="listPairedDevices()" color="secondary">
+      <ion-icon name="refresh"></ion-icon>&nbsp;Refresh Bluetooth Devices
+    </button>
+    <ion-row>
+      <ion-col>
+        <ion-list radio-group [(ngModel)]="pairedDeviceID" *ngIf="listToggle">
+          <ion-item *ngFor="let i of pairedList;let j=index">
+            <ion-label>{{i.name}}</ion-label>
+            <ion-radio value="{{j}}" ></ion-radio>
+          </ion-item>
+        </ion-list>
+      </ion-col>
+    </ion-row>
+    <button ion-button full class="submit-button" *ngIf="listToggle" (click)="selectDevice()">
+      <ion-icon name="bluetooth"></ion-icon>&nbsp;Connect Bluetooth Devices
+    </button>
+  </div>  
+  
+  <div *ngIf="connected">  
+      <ion-row class="tracka">
+          <ion-col size="12" no-padding>
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin">
+              <ion-label no-padding><h1 no-padding>Track <span>A</span></h1><img src="assets/imgs/treno_a.png" alt="Track A"/></ion-label>              
+            </ion-list-header>
+          </ion-list> 
+        </ion-col>
+      </ion-row> 
+      <ion-row>
+        <ion-col size="3">
+          <button [disabled]="T1 == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|2')">
+            <ion-icon name="arrow-back"></ion-icon>&nbsp;Back
+          </button>
+        </ion-col>
+        <ion-col size="3">
+          <button [disabled]="T1 == 0" ion-button full class="submit-button" color="secondary" (click)="sendData('ta|0')">
+            <ion-icon name="hand"></ion-icon>&nbsp;Stop
+          </button>
+        </ion-col>
+        <ion-col size="3">
+          <button [disabled]="T1 == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|1')">
+              Forward&nbsp;<ion-icon name="arrow-forward"></ion-icon>
+          </button>
+        </ion-col>                      
+      </ion-row>
+
+      <ion-row>
+        <ion-col> 
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin" color="light"><h2 class="no-margin">SPEED: <span><b>{{trackA_speed}}</b></span></h2></ion-list-header>          
+          </ion-list>
+          <ion-range debounce="500"  [(ngModel)]="trackA_speed"  min="100" max="240" step="10" (ionChange)="setSpeed('a',trackA_speed)"  color="primary">
+            <ion-label range-left>100</ion-label>
+            <ion-label range-right>240</ion-label>
+          </ion-range>
+        </ion-col> 
+      </ion-row>
+
+      <ion-row class="trackb">
+          <ion-col size="12" no-padding>
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin">
+              <ion-label no-padding><h1 no-padding>Track <span>B</span></h1><img src="assets/imgs/treno_b.png" alt="Track B"/></ion-label>              
+            </ion-list-header>
+          </ion-list> 
+        </ion-col>
+      </ion-row> 
+      <ion-row>
+        <ion-col size="3">
+          <button [disabled]="T2 == 2" ion-button full class="submit-button" color="primary" (click)="sendData('tb|2')">
+            <ion-icon name="arrow-back"></ion-icon>&nbsp;Back
+          </button>
+        </ion-col>
+        <ion-col size="3">
+          <button [disabled]="T2 == 0" ion-button full class="submit-button" color="secondary" (click)="sendData('tb|0')">
+            <ion-icon name="hand"></ion-icon>&nbsp;Stop
+          </button>
+        </ion-col>
+        <ion-col size="3">
+          <button [disabled]="T2 == 1" ion-button full class="submit-button" color="primary" (click)="sendData('tb|1')">
+              Forward&nbsp;<ion-icon name="arrow-forward"></ion-icon>
+          </button>
+        </ion-col>                      
+      </ion-row>
+
+      <ion-row>
+        <ion-col> 
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin" color="light"><h2 class="no-margin">SPEED: <span><b>{{trackB_speed}}</b></span></h2></ion-list-header>          
+          </ion-list>
+          <ion-range  debounce="500" [(ngModel)]="trackB_speed" min="100" max="240" step="10" (ionChange)="setSpeed('b',trackB_speed)">
+            <ion-label range-left>100</ion-label>
+            <ion-label range-right>240</ion-label>
+          </ion-range>
+        </ion-col> 
+      </ion-row>  
+      
+      <ion-row>
+          <ion-col> 
+              <button ion-button full class="submit-button" color="danger" (click)="sendData('pa|0')">
+                  <ion-icon name="alert"></ion-icon>&nbsp;Panic Button
+                </button>
+                <br/>
+              <button ion-button full class="submit-button"  (click)="deviceDisconnect()">
+                  <ion-icon name="bluetooth"></ion-icon>&nbsp; Disconnect Bluetooth
+              </button>
+          </ion-col>
+      </ion-row>       
+
+  </div> 
+
+  <br/><br/><br/><br/>
+
+  <ion-row>
+    <ion-col size="12" text-center no-padding class="testo"> 
+        If you have any questions, suggestions or if you want to report a bug: write us clicking on icon below.<br/>We will answer you as soon as possible!
+    </ion-col>
+  </ion-row> 
+    
+  <ion-row class="footerlogo">
+      <ion-col size="3" text-center no-padding class="no-margin"><a href="mailto:info@m9lab.com" target="blank"><ion-icon name="mail"><span>mail</span></ion-icon></a></ion-col>
+      <ion-col size="3" text-center no-padding class="no-margin"><a href="https://m.me/m9lab" target="blank"><ion-icon name="chatbubbles"><span>messenger</span></ion-icon></a></ion-col>
+      <ion-col size="3" text-center no-padding class="no-margin"><a href="https://www.fb.com/m9lab" target="blank"><ion-icon name="logo-facebook"><span>facebook</span></ion-icon></a></ion-col>
+      <ion-col size="3" text-center no-padding class="no-margin"><a href="http://www.m9lab.com/nivo" target="blank"><ion-icon name="home"><span>website</span></ion-icon></a></ion-col>						            
+  </ion-row>   
+  
+
+
+</ion-content>
+
+<ion-footer>
+    <ion-toolbar color="light">
+    <ion-row>
+        <ion-col text-center> 
+            Created and Developed by <img src="assets/imgs/logoM9lab.png" alt="Mezzanine Lab"/>
+            <br/>
+            <div class="slogan">Lego® Trains and Arduino™ Sketches</div>
+        </ion-col>
+    </ion-row>   
+    </ion-toolbar>
+  </ion-footer>
+
