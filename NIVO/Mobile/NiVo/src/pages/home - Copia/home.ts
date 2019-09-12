@@ -7,14 +7,6 @@ import { AlertController, ToastController } from 'ionic-angular';
   selector: 'page-home',
   templateUrl: 'home.html'
 })
-
-interface pairedlist {
-  "class": number,
-  "id": string,
-  "address": string,
-  "name": string
-}
-
 export class HomePage {
 
   pairedList: pairedlist;
@@ -62,7 +54,6 @@ export class HomePage {
       this.showError('Select Paired Device to connect');
       return;
     }
-
     let address = connectedDevice.address;
     let name = connectedDevice.name;
           
@@ -160,3 +151,9 @@ export class HomePage {
 
 }
 
+interface pairedlist {
+  "class": number,
+  "id": string,
+  "address": string,
+  "name": string
+}
