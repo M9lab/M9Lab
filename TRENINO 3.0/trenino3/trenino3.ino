@@ -7,6 +7,7 @@
 // 1) Settaggio orario da input 
 // 2) partenza immediata treno (senza audio) ("mta|x","mtb|x")
 // 3) Treno C -> velocità 170
+// 4) Output dopo comandi importanti
 
 /* ************CONFIG***************** */
 
@@ -515,6 +516,8 @@ void audiocontrol(){
     } 
 
      myTrains[sm_train-1].lastcommand = sm_action;
+	 
+	 sendResponseOutput();
     
   }
 }
@@ -844,6 +847,8 @@ void executeCommand(String command, String value)
         myTrains[0].lastcommand = 1;
         break;
     }
+	
+	sendResponseOutput();
 
   }
 
@@ -863,6 +868,8 @@ void executeCommand(String command, String value)
         myTrains[1].lastcommand = 1;
         break;
     }
+	
+	sendResponseOutput();
 
   }
 
@@ -882,6 +889,8 @@ void executeCommand(String command, String value)
         myTrains[2].lastcommand = 1;
         break;
     }
+	
+	sendResponseOutput();
 
   }
 
@@ -916,6 +925,8 @@ void executeCommand(String command, String value)
 
     analogWrite(T1_ENA, speedA1);
     sendOutput("Setto Treno 1 tracciato 1 -> speed = " + value);
+	
+	sendResponseOutput();
 
   }
 
@@ -925,6 +936,8 @@ void executeCommand(String command, String value)
     myTrains[1].speedT = speedA2;
     analogWrite(T1_ENA, speedA2);
     sendOutput("Setto Treno 2 tracciato 1 -> speed = " + value);
+	
+	sendResponseOutput();
 
   }
 
@@ -934,6 +947,8 @@ void executeCommand(String command, String value)
     myTrains[2].speedT = speedB;
     analogWrite(T2_ENA, speedB);
     sendOutput("Setto Treno tracciato 2 -> speed = " + value);
+	
+	sendResponseOutput();
 
   }
 
@@ -999,7 +1014,7 @@ void printSystemStatus() {
   command = "";
 
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    command += myTrains[i].codice	+ ":" + 	String(myTrains[i].stato) + ",";
+    command += myTrains[i].codice	+ ":" + String(myTrains[i].stato) + ",";
   }
 
   for (int i = 0; i < MY_TRACK_LEN; i++) {
@@ -1015,6 +1030,13 @@ void printSystemStatus() {
   sendOutput('{' + command + '}');
 
 
+}
+
+void sendResponseOutput(){   
+
+  String commandx = "{\"TA\":" +  String(myTrains[0].stato) + ",\"TB\":" +  String(myTrains[1].stato) + ",\"TC\":" +  String(myTrains[2].stato) + ",\"SA\":" +  String(speedA1) + ",\"SB\":" +  String(speedA2)  + ",\"SC\":" +  String(speedB) + "}";               
+  if (verbose) Serial.println(commandx);  
+    
 }
 
 // uso interno (private)

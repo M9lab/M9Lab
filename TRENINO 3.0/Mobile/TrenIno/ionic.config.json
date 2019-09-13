@@ -1,0 +1,7 @@
+{
+  "name": "NiVo",
+  "integrations": {
+    "cordova": {}
+  },
+  "type": "ionic-angular"
+}

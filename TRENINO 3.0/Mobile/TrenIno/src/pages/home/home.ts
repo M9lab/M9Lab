@@ -3,6 +3,7 @@ import { NavController } from 'ionic-angular';
 import { BluetoothSerial } from '@ionic-native/bluetooth-serial';
 import { AlertController, ToastController } from 'ionic-angular';
 
+
 @Component({
   selector: 'page-home',
   templateUrl: 'home.html'
@@ -18,15 +19,18 @@ export class HomePage {
 
   allinput:any;
 
+
   // default value
   trackA_speed = 170;
   trackB_speed = 170;
-  T1=0;
-  T2=0;
+  trackC_speed = 170;
+  TA=0;
+  TB=0;
+  TC=0;
 
 
   constructor(public navCtrl: NavController, private alertCtrl: AlertController, private bluetoothSerial: BluetoothSerial, private toastCtrl: ToastController) {
-    this.checkBluetoothEnabled();
+    this.checkBluetoothEnabled();    
   }
  
 
@@ -72,7 +76,7 @@ export class HomePage {
       localStorage.setItem('nivobt_address',JSON.stringify(this.pairedDeviceID));  
               
     }, error => {
-      this.showError("Error:Connecting to Device");
+      this.showError("Error: Connecting to Device");
     });
   }
 
@@ -134,6 +138,7 @@ export class HomePage {
 
   }
 
+
   setSpeed(track:string,vel:string){
     this.sendData("v"+track+"|"+vel);
   }
@@ -145,10 +150,19 @@ export class HomePage {
   setAllValue(data){      
     
     //console.log(data);
-    this.trackA_speed  = data.S1;
-    this.trackB_speed = data.S2;
-    this.T1 = data.T1;
-    this.T2 = data.T2;        
+    this.trackA_speed  = data.SA;
+    this.trackB_speed = data.SB;
+    this.trackC_speed = data.SC;
+    this.TA = data.TA;
+    this.TB = data.TB;        
+    this.TC = data.TC;        
+  }
+
+
+  setTime(){
+    //st|ore:minuti
+    let date = new Date()    
+    this.sendData("st|" + date.getHours() + ":" + date.getMinutes());
   }
 
 }
