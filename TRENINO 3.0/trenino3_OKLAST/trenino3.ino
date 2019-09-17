@@ -3,11 +3,9 @@
 // IMPORTANTE: mai cambiare senso di marcia senza fermare il treno prima almeno per 250 ms
 // 2019 Code by Stefx
 
-// FUNZIONI AGGIUNTE/ MODIFICHE:
-// 1) Settaggio orario da input  (OK)
-// 2) partenza immediata treno (senza audio) ("mta|x","mtb|x")
-// 3) Treno C -> velocità 170 (OK)
-// 4) Output dopo comandi importanti (OK)
+// AGGIUNTO ->  Parte Stazione Multimendiale
+// TODO -> verificare parte Stazione Multimediale su TA|x e TB|x
+// nel caso commentare riga 358 lasciaso solo riga 363
 
 /* ************CONFIG***************** */
 
@@ -42,7 +40,7 @@ bool scaduto = false;
 
 int speedA1 = 230; //210 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
 int speedA2 = 150; //150 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
-int speedB = 170; //130 velocità treno tracciato 2 (mai sotto 80 sennò non parte)
+int speedB = 110; //130 velocità treno tracciato 2 (mai sotto 80 sennò non parte)
 
 /* ************PIN***************** */
 
@@ -228,7 +226,6 @@ String value;
 // variabile per gli stati del tracciato/scambio
 int status;
 
-
 void setup() {
 
   mySoftwareSerial.begin(9600);
@@ -316,6 +313,47 @@ void setup() {
 
 }
 
+void audiocontrol(){
+  
+  // debug su serial degli eventi del lettore mp3 (opzionale, da commentare)
+  if (myDFPlayer.available()) {
+    printDetail(myDFPlayer.readType(), myDFPlayer.read());
+  }
+
+  if (sm_finished && sm_ready) {
+    myDFPlayer.playMp3Folder(sm_playList[sm_idx++]);  //Play next mp3
+    sm_finished = false;
+  }
+
+  // fine annuncio (ultimo mp3)
+  if (sm_idx == sm_totalFile) {
+    sm_idx = 0;
+    sm_ready = false;
+
+    Serial.println("fine annuncio");
+    // TODO in base a azione faccio uscire treno o lo faccio entrare
+    //Serial.println(sm_action); //112 (a) 123 (b)
+    //Serial.println(sm_train);
+    //Serial.println(sm_track);
+
+    // setta stato treno entra
+    if(sm_action==0){
+      
+      entraTreno(sm_train);     
+      myTrains[sm_train-1].stato = 2; 
+    }  
+        
+    // setta stato treno esci
+    if(sm_action==1){      
+      myTrains[sm_train-1].stato = 1;
+      esciTreno(sm_train);      
+    } 
+
+     myTrains[sm_train-1].lastcommand = sm_action;
+    
+  }
+}
+
 void loop()
 {
 
@@ -329,8 +367,7 @@ void loop()
 
     //se un comando ingresso uscita treno allora mando audio
     // COMANDO NON VALIDO PER TRENO C || command=="tc" 
-    // executeAudioPlayList(int sm_train, int sm_track , int sm_action) { 
-       
+    // executeAudioPlayList(int sm_train, int sm_track , int sm_action) {    
     if(command=="ta"){      
       executeAudioPlayList(1,2,value.toInt());            
     }else if (command=="tb"){
@@ -338,10 +375,6 @@ void loop()
     }else{
       executeCommand(command, value);  
     }    
-
-    if(command=="mta") executeCommand("ta", value);      
-    if(command=="mtb") executeCommand("tb", value);
-    
     
   }
 
@@ -476,50 +509,6 @@ void loop()
 
   }
 
-}
-
-
-void audiocontrol(){
-  
-  // debug su serial degli eventi del lettore mp3 (opzionale, da commentare)
-  if (myDFPlayer.available()) {
-    printDetail(myDFPlayer.readType(), myDFPlayer.read());
-  }
-
-  if (sm_finished && sm_ready) {
-    myDFPlayer.playMp3Folder(sm_playList[sm_idx++]);  //Play next mp3
-    sm_finished = false;
-  }
-
-  // fine annuncio (ultimo mp3)
-  if (sm_idx == sm_totalFile) {
-    sm_idx = 0;
-    sm_ready = false;
-
-    Serial.println("fine annuncio");
-    // TODO in base a azione faccio uscire treno o lo faccio entrare
-    //Serial.println(sm_action); //112 (a) 123 (b)
-    //Serial.println(sm_train);
-    //Serial.println(sm_track);
-
-    // setta stato treno entra
-    if(sm_action==0){
-      
-      entraTreno(sm_train);     
-      myTrains[sm_train-1].stato = 2; 
-    }  
-        
-    // setta stato treno esci
-    if(sm_action==1){      
-      myTrains[sm_train-1].stato = 1;
-      esciTreno(sm_train);      
-    } 
-
-     myTrains[sm_train-1].lastcommand = sm_action;
-	 
-	 
-    
-  }
 }
 
 // funzione per SM
@@ -713,7 +702,16 @@ void printLegenda() {
   sendOutput("_________________________________________________");
   sendOutput("Lista comandi:");
 
-  
+  sendOutput("t1|s = setta stato treno tracciato 1: {-1,0,1}");
+  sendOutput("       -1 ->inverti");
+  sendOutput("       0 ->ferma treno");
+  sendOutput("       1 ->parti treno");
+
+  sendOutput("t2|s = setta stato treno tracciato 2: {-1,0,1,2}");
+  sendOutput("       -1 ->inverti");
+  sendOutput("       0 ->ferma treno");
+  sendOutput("       1 ->parti treno");
+
   sendOutput("s1|s = setta stato scambio 1: {'0','1'}");
   sendOutput("       0 ->diritto");
   sendOutput("       1 ->scambia");
@@ -728,13 +726,10 @@ void printLegenda() {
   sendOutput("ta|s = setta stato treno A: {'0','1'}");
   sendOutput("       0 ->entra");
   sendOutput("       1 ->esci");
-  sendOutput("mta|s = setta stato treno A senza audio");
-  
 
   sendOutput("tb|s = setta stato treno B: {'0','1'}");
   sendOutput("       0 ->entra");
   sendOutput("       1 ->esci");
-  sendOutput("mtb|s = setta stato treno B senza audio");
 
   sendOutput("tc|s = setta stato treno C: {'0','1'}");
   sendOutput("       0 ->entra");
@@ -746,7 +741,6 @@ void printLegenda() {
 
   sendOutput("ss| = stampa a video lo stato del sistema");
   sendOutput("sr| = reset del sistema");
-  sendOutput("st|ore:minuti = setta time");
   sendOutput("pa| = panic button");
   sendOutput("lc| = stampa a video lista comandi");
   sendOutput("vi| = vietato indicare i personaggi");
@@ -847,8 +841,6 @@ void executeCommand(String command, String value)
         myTrains[0].lastcommand = 1;
         break;
     }
-	
-	
 
   }
 
@@ -868,8 +860,6 @@ void executeCommand(String command, String value)
         myTrains[1].lastcommand = 1;
         break;
     }
-	
-	
 
   }
 
@@ -889,8 +879,6 @@ void executeCommand(String command, String value)
         myTrains[2].lastcommand = 1;
         break;
     }
-	
-	
 
   }
 
@@ -909,46 +897,31 @@ void executeCommand(String command, String value)
 
   }
 
-  if (command == "st"){
-
-    int seppos = value.indexOf(':');  //finds location of first ,
-    String hour = value.substring(0, seppos);   //captures first data String
-    String minute = value.substring(seppos+1);   //captures first data String
-    setRTCTime(hour.toInt(),minute.toInt());         
-
-  }
-
-  if (command == "va1") {
+  if (command == "va1" || command == "va1") {
 
     speedA1 = value.toInt();
     myTrains[0].speedT = value.toInt();
 
     analogWrite(T1_ENA, speedA1);
     sendOutput("Setto Treno 1 tracciato 1 -> speed = " + value);
-	
-	
 
   }
 
-  if (command == "va2") {
+  if (command == "va2" || command == "va2") {
 
     speedA2 = value.toInt();
     myTrains[1].speedT = speedA2;
     analogWrite(T1_ENA, speedA2);
     sendOutput("Setto Treno 2 tracciato 1 -> speed = " + value);
-	
-	
 
   }
 
-  if (command == "vb") {
+  if (command == "vb" || command == "va3") {
 
     speedB = value.toInt();
     myTrains[2].speedT = speedB;
     analogWrite(T2_ENA, speedB);
     sendOutput("Setto Treno tracciato 2 -> speed = " + value);
-	
-	
 
   }
 
@@ -1014,7 +987,7 @@ void printSystemStatus() {
   command = "";
 
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    command += myTrains[i].codice	+ ":" + String(myTrains[i].stato) + ",";
+    command += myTrains[i].codice	+ ":" + 	String(myTrains[i].stato) + ",";
   }
 
   for (int i = 0; i < MY_TRACK_LEN; i++) {
@@ -1032,13 +1005,6 @@ void printSystemStatus() {
 
 }
 
-void sendResponseOutput(){   
-
-  String commandx = "{\"TA\":" +  String(myTrains[0].stato) + ",\"TB\":" +  String(myTrains[1].stato) + ",\"TC\":" +  String(myTrains[2].stato) + ",\"SA\":" +  String(speedA1) + ",\"SB\":" +  String(speedA2)  + ",\"SC\":" +  String(speedB)  + ",\"S1\":" +  String(mySwitch[0].stato) + ",\"S2\":" +  String(mySwitch[1].stato) + "}";               
-  if (verbose) Serial.println(commandx);  
-    
-}
-
 // uso interno (private)
 void partiTreno(int idtrack, int speedT) {
 
@@ -1051,7 +1017,6 @@ void partiTreno(int idtrack, int speedT) {
   digitalWrite(myTrack[idtrack - 1].T_IN2, HIGH);
 
   myTrack[idtrack - 1].stato = 1;
-  sendResponseOutput();
 
 }
 
@@ -1063,8 +1028,6 @@ void fermaTreno(int idtrack) {
   digitalWrite(myTrack[idtrack - 1].T_IN2, LOW);
 
   myTrack[idtrack - 1].stato = 0;
-  sendResponseOutput();
-  
 
 }
 
@@ -1075,7 +1038,6 @@ void invertiTreno(int idtrack) {
   digitalWrite(myTrack[idtrack - 1].T_IN1, HIGH);
   digitalWrite(myTrack[idtrack - 1].T_IN2, LOW);
   myTrack[idtrack - 1].stato = -1;
-  sendResponseOutput();
 
 }
 
@@ -1098,8 +1060,6 @@ void scambia(int idswitch, String direction) {
     } else {
       sendOutput("Scambio " + mySwitch[idswitch - 1].codice + " era gia' settato come " + direction);
     }
-
-    sendResponseOutput();
   }
 
   if (direction == "diritto" ) {
@@ -1116,8 +1076,6 @@ void scambia(int idswitch, String direction) {
     } else {
       sendOutput("Scambio " + mySwitch[idswitch - 1].codice + " era gia' settato come " + direction);
     }
-
-    sendResponseOutput();
   }
 
 }
@@ -1252,17 +1210,4 @@ void entraTreno(int treno) {
     // vedi funzione controllaSensore
   }
 
-}
-
-void setRTCTime(int hour, int minute){
-	// This line sets the RTC with an explicit date & time, for example to set
-    // January 21, 2014 at 3am you would call:
-	// rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));	
-  
-	if ( rtc.isrunning()) {
-		//rtc.adjust(DateTime(F(__DATE__), hour, minute, 0));
-    //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    rtc.adjust(DateTime(2019, 1, 21, hour, minute, 0));
-    sendOutput("Setto Orario a " + String(hour) + ":" + String(minute)); 
-	}	
 }

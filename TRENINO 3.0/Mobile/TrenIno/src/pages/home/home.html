@@ -41,19 +41,19 @@
       </ion-row> 
       <ion-row>
         <ion-col size="3">
-            <button [disabled]="TA == 0" ion-button full class="submit-button" color="danger" (click)="sendData('ta|0')">
+            <button ion-button full class="submit-button" color="danger" (click)="sendData('ta|0')">
                 Entra&nbsp;<ion-icon name="hand"></ion-icon>
             </button>
           </ion-col> 
         <ion-col size="3">
-          <button [disabled]="TA == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|1')">
+          <button ion-button full class="submit-button" color="primary" (click)="sendData('ta|1')">
               Parti&nbsp;<ion-icon name="arrow-forward"></ion-icon>
           </button>
         </ion-col>                   
       </ion-row>
       <ion-row>
       <ion-col size="12">
-          <button [disabled]="TA == 1" ion-button full class="submit-button" color="yellow" (click)="sendData('mta|1')">
+          <button ion-button full class="submit-button" color="yellow" (click)="sendData('mta|1')">
               Parti Subito&nbsp;<ion-icon name="fastforward"></ion-icon>
           </button>
         </ion-col>                  
@@ -82,19 +82,19 @@
       </ion-row> 
       <ion-row>        
         <ion-col size="3">
-          <button [disabled]="TB == 0" ion-button full class="submit-button" color="danger" (click)="sendData('tb|0')">
+          <button ion-button full class="submit-button" color="danger" (click)="sendData('tb|0')">
               Entra&nbsp;<ion-icon name="hand"></ion-icon>
           </button>
         </ion-col>
         <ion-col size="3">
-          <button [disabled]="TB == 1" ion-button full class="submit-button" color="primary" (click)="sendData('tb|1')">
+          <button ion-button full class="submit-button" color="primary" (click)="sendData('tb|1')">
               Parti&nbsp;<ion-icon name="arrow-forward"></ion-icon>
           </button>
         </ion-col>            
       </ion-row>
       <ion-row>
       <ion-col size="12">
-          <button [disabled]="TB == 1" ion-button full class="submit-button" color="yellow" (click)="sendData('mtb|1')">
+          <button ion-button full class="submit-button" color="yellow" (click)="sendData('mtb|1')">
               Parti Subito&nbsp;<ion-icon name="fastforward"></ion-icon>
           </button>
         </ion-col>                  
@@ -123,12 +123,12 @@
       </ion-row> 
       <ion-row>
         <ion-col size="3">
-          <button [disabled]="TC == 0" ion-button full class="submit-button" color="danger" (click)="sendData('tc|0')">
+          <button ion-button full class="submit-button" color="danger" (click)="sendData('tc|0')">
               Stop&nbsp;<ion-icon name="hand"></ion-icon>
           </button>
         </ion-col>
         <ion-col size="3">
-          <button [disabled]="TC == 1" ion-button full class="submit-button" color="primary" (click)="sendData('tc|1')">
+          <button ion-button full class="submit-button" color="primary" (click)="sendData('tc|1')">
               Start&nbsp;<ion-icon name="arrow-forward"></ion-icon>
           </button>
         </ion-col>                      
@@ -147,6 +147,60 @@
           </ion-range>
         </ion-col> 
       </ion-row>   
+
+      <ion-row class="tracka">
+          <ion-col size="12" no-padding>
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin">                
+                <ion-label no-padding><h1 no-padding>- Scambi - </h1><br/></ion-label>                                              
+            </ion-list-header>
+          </ion-list> 
+        </ion-col>
+      </ion-row>       
+
+      <ion-row class="trackc">
+          <ion-col size="12" no-padding>
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin">                            
+              <ion-label no-padding><h3 no-padding>- Scambio Stazione</h3></ion-label>                                          
+            </ion-list-header>
+          </ion-list> 
+        </ion-col>
+      </ion-row> 
+      <ion-row>
+        <ion-col size="3">
+          <button ion-button full class="submit-button" color="danger" (click)="sendData('s1|0')">
+              Dritto&nbsp;<ion-icon name=""></ion-icon>
+          </button>
+        </ion-col>
+        <ion-col size="3">
+          <button ion-button full class="submit-button" color="primary" (click)="sendData('s1|1')">
+              Scambia&nbsp;<ion-icon name=""></ion-icon>
+          </button>
+        </ion-col>                      
+      </ion-row>      
+
+      <ion-row class="trackc">
+          <ion-col size="12" no-padding>
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin">                            
+              <ion-label no-padding><h3 no-padding>- Scambio Officina</h3></ion-label>                                          
+            </ion-list-header>
+          </ion-list> 
+        </ion-col>
+      </ion-row> 
+      <ion-row>
+        <ion-col size="3">
+          <button ion-button full class="submit-button" color="danger" (click)="sendData('s2|0')">
+              Dritto&nbsp;<ion-icon name=""></ion-icon>
+          </button>
+        </ion-col>
+        <ion-col size="3">
+          <button ion-button full class="submit-button" color="primary" (click)="sendData('s2|1')">
+              Scambia&nbsp;<ion-icon name=""></ion-icon>
+          </button>
+        </ion-col>                      
+      </ion-row>           
 
       <ion-row class="tracka">
           <ion-col size="12" no-padding>

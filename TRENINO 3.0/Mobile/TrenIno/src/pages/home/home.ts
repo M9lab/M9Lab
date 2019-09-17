@@ -27,6 +27,8 @@ export class HomePage {
   TA=0;
   TB=0;
   TC=0;
+  S1=0;
+  S2=0;
 
 
   constructor(public navCtrl: NavController, private alertCtrl: AlertController, private bluetoothSerial: BluetoothSerial, private toastCtrl: ToastController) {
@@ -37,7 +39,7 @@ export class HomePage {
   checkBluetoothEnabled() {
     this.bluetoothSerial.isEnabled().then(success => {
       this.listPairedDevices();
-      this.pairedDeviceID = JSON.parse(localStorage.getItem('nivobt_address'));
+      this.pairedDeviceID = JSON.parse(localStorage.getItem('treninobt_address'));
     }, error => {
       this.showError("Please Enable Bluetooth")
     });
@@ -73,7 +75,7 @@ export class HomePage {
       this.showToast("Successfully Connected to " + name );    
       if (! this.connected) this.systemStatus();
       this.connected =true;  
-      localStorage.setItem('nivobt_address',JSON.stringify(this.pairedDeviceID));  
+      localStorage.setItem('treninobt_address',JSON.stringify(this.pairedDeviceID));  
               
     }, error => {
       this.showError("Error: Connecting to Device");
@@ -156,6 +158,8 @@ export class HomePage {
     this.TA = data.TA;
     this.TB = data.TB;        
     this.TC = data.TC;        
+    this.S1 = data.S1; 
+    this.S2 = data.S2; 
   }
 
 
