@@ -2,12 +2,10 @@
   <ion-navbar color="light">
     <ion-title no-padding>
       <img src="assets/imgs/TrenIno Logo.png" alt="TrenIno"/>
-        <span class="version">V. 3.3.3</span>
+        <span class="version">V. 3.3.4</span>
     </ion-title>
   </ion-navbar>
 </ion-header>
-
-
 
 <ion-content padding color="light">
   <div *ngIf="! connected">  
@@ -64,7 +62,7 @@
           <ion-list no-padding class="no-margin">
             <ion-list-header text-center no-padding class="no-margin" color=""><h2 class="no-margin">Velocità: <span><b>{{trackA_speed}}</b></span></h2></ion-list-header>          
           </ion-list>
-          <ion-range debounce="500"  [(ngModel)]="trackA_speed"  min="100" max="240" step="10" (ionChange)="setSpeed('a1',trackA_speed)"  color="primary">
+          <ion-range debounce="750"  [(ngModel)]="trackA_speed"  min="100" max="240" step="10" (ionChange)="setSpeed('a1',trackA_speed)"  color="primary">
             <ion-label range-left>100</ion-label>
             <ion-label range-right>240</ion-label>
           </ion-range>
@@ -105,7 +103,7 @@
           <ion-list no-padding class="no-margin">
             <ion-list-header text-center no-padding class="no-margin" color=""><h2 class="no-margin">Velocità: <span><b>{{trackB_speed}}</b></span></h2></ion-list-header>          
           </ion-list>
-          <ion-range  debounce="500" [(ngModel)]="trackB_speed" min="100" max="240" step="10" (ionChange)="setSpeed('a2',trackB_speed)">
+          <ion-range  debounce="750" [(ngModel)]="trackB_speed" min="100" max="240" step="10" (ionChange)="setSpeed('a2',trackB_speed)">
             <ion-label range-left>100</ion-label>
             <ion-label range-right>240</ion-label>
           </ion-range>
@@ -124,12 +122,12 @@
       <ion-row>
         <ion-col size="3">
           <button ion-button full class="submit-button" color="danger" (click)="sendData('tc|0')">
-              Stop&nbsp;<ion-icon name="hand"></ion-icon>
+              Entra&nbsp;<ion-icon name="hand"></ion-icon>
           </button>
         </ion-col>
         <ion-col size="3">
           <button ion-button full class="submit-button" color="primary" (click)="sendData('tc|1')">
-              Start&nbsp;<ion-icon name="arrow-forward"></ion-icon>
+              Parti&nbsp;<ion-icon name="arrow-forward"></ion-icon>
           </button>
         </ion-col>                      
       </ion-row>
@@ -141,7 +139,7 @@
           <ion-list no-padding class="no-margin">
             <ion-list-header text-center no-padding class="no-margin" color=""><h2 class="no-margin">SPEED: <span><b>{{trackC_speed}}</b></span></h2></ion-list-header>          
           </ion-list>
-          <ion-range  debounce="500" [(ngModel)]="trackC_speed" min="100" max="240" step="10" (ionChange)="setSpeed('b',trackC_speed)">
+          <ion-range  debounce="750" [(ngModel)]="trackC_speed" min="100" max="240" step="10" (ionChange)="setSpeed('b',trackC_speed)">
             <ion-label range-left>100</ion-label>
             <ion-label range-right>240</ion-label>
           </ion-range>
@@ -170,12 +168,12 @@
       <ion-row>
         <ion-col size="3">
           <button ion-button full class="submit-button" color="danger" (click)="sendData('s1|0')">
-              Dritto&nbsp;<ion-icon name=""></ion-icon>
+              Dritto&nbsp;<ion-icon name="arrow-round-up"></ion-icon>
           </button>
         </ion-col>
         <ion-col size="3">
           <button ion-button full class="submit-button" color="primary" (click)="sendData('s1|1')">
-              Scambia&nbsp;<ion-icon name=""></ion-icon>
+              Scambia&nbsp;<ion-icon name="arrow-round-forward"></ion-icon>
           </button>
         </ion-col>                      
       </ion-row>      
@@ -192,33 +190,59 @@
       <ion-row>
         <ion-col size="3">
           <button ion-button full class="submit-button" color="danger" (click)="sendData('s2|0')">
-              Dritto&nbsp;<ion-icon name=""></ion-icon>
+              Dritto&nbsp;<ion-icon name="arrow-round-up"></ion-icon>
           </button>
         </ion-col>
         <ion-col size="3">
           <button ion-button full class="submit-button" color="primary" (click)="sendData('s2|1')">
-              Scambia&nbsp;<ion-icon name=""></ion-icon>
+              Scambia&nbsp;<ion-icon name="arrow-round-forward"></ion-icon>
           </button>
         </ion-col>                      
-      </ion-row>           
+      </ion-row> 
 
       <ion-row class="tracka">
           <ion-col size="12" no-padding>
           <ion-list no-padding class="no-margin">
             <ion-list-header text-center no-padding class="no-margin">                
-                <ion-label no-padding><h1 no-padding>- Opzioni - </h1><br/></ion-label>                                              
+                <ion-label no-padding><h1 no-padding>- Audio - </h1><br/></ion-label>                                              
+            </ion-list-header>
+          </ion-list> 
+        </ion-col>
+      </ion-row> 	  
+	  
+      <ion-row>
+          <ion-col size="12"> 
+              <button ion-button full class="submit-button" color="dark" (click)="sendData('vi|0')">
+                  Vietato indicare i personaggi&nbsp;<ion-icon name="md-body"></ion-icon>
+               </button>
+            </ion-col>    
+      </ion-row>     
+      <ion-row>
+          <ion-col size="12"> 
+              <button ion-button full class="submit-button" color="dark" (click)="sendData('vap|0')">
+                  Vietato aprire le porte&nbsp;<ion-icon name="megaphone"></ion-icon>
+               </button>
+            </ion-col>    
+      </ion-row>   
+      <ion-row>
+          <ion-col size="12"> 
+              <button ion-button full class="submit-button" color="dark" (click)="sendData('vap|0')">
+                  Vietato attraversare i binari&nbsp;<ion-icon name="train"></ion-icon>
+               </button>
+            </ion-col>    
+      </ion-row>  	  
+
+      <ion-row class="tracka">
+          <ion-col size="12" no-padding>
+          <ion-list no-padding class="no-margin">
+            <ion-list-header text-center no-padding class="no-margin">                
+                <ion-label no-padding><h1 no-padding>- Funzioni - </h1><br/></ion-label>                                              
             </ion-list-header>
           </ion-list> 
         </ion-col>
       </ion-row> 
-
-      <ion-row>
-          <ion-col size="12"> 
-              <button ion-button full class="submit-button" color="dark" (click)="sendData('vi|0')">
-                  Vietato Indicare i personaggi&nbsp;<ion-icon name="md-body"></ion-icon>
-               </button>
-            </ion-col>    
-      </ion-row>            
+	  
+  	  	  
       <ion-row>               
           <ion-col size="12"> 
             <button ion-button full class="submit-button" color="yellow" (click)="sendData('l1|1')">
@@ -233,32 +257,32 @@
           </ion-col>   
         </ion-row>       
       <ion-row>
-            <ion-col size="12"> 
-              <button ion-button full class="submit-button" color="danger" (click)="sendData('pa|0')">
-                  Panic Button&nbsp;<ion-icon name="alert"></ion-icon>
-              </button>
-            </ion-col>   
-          </ion-row> 
+		<ion-col size="12"> 
+		  <button ion-button full class="submit-button" color="danger" (click)="sendData('pa|0')">
+			  Panic Button&nbsp;<ion-icon name="alert"></ion-icon>
+		  </button>
+		</ion-col>   
+	  </ion-row> 
 
-          <ion-row>               
-            <ion-col size="12"> 
-              <button ion-button full class="submit-button" color="dark" (click)="sendData('sr|0')">
-                 System Reset&nbsp;<ion-icon name="ios-build"></ion-icon>
-              </button>
-            </ion-col>   
-           
-            <ion-col size="12"> 
-              <button ion-button full class="submit-button" color="time" (click)="setTime()">
-                  Aggiorna RTC&nbsp;<ion-icon name="ios-clock-outline"></ion-icon>
-              </button>
-            </ion-col>      
-          </ion-row> 
-          <ion-row>            
-            <ion-col size="12"> 
-              <button ion-button full class="submit-button" color="light" (click)="deviceDisconnect()">
-                  Disconnetti Bluetooth&nbsp; <ion-icon name="bluetooth"></ion-icon>
-              </button>
-          </ion-col>
+	  <ion-row>               
+		<ion-col size="12"> 
+		  <button ion-button full class="submit-button" color="dark" (click)="sendData('sr|0')">
+			 System Reset&nbsp;<ion-icon name="ios-build"></ion-icon>
+		  </button>
+		</ion-col>   
+	   
+		<ion-col size="12"> 
+		  <button ion-button full class="submit-button" color="time" (click)="setTime()">
+			  Aggiorna RTC&nbsp;<ion-icon name="ios-clock-outline"></ion-icon>
+		  </button>
+		</ion-col>      
+	  </ion-row> 
+	  <ion-row>            
+		<ion-col size="12"> 
+		  <button ion-button full class="submit-button" color="light" (click)="deviceDisconnect()">
+			  Disconnetti Bluetooth&nbsp; <ion-icon name="bluetooth"></ion-icon>
+		  </button>
+	  </ion-col>
       </ion-row>       
 
   </div> 

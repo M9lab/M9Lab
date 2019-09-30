@@ -19,7 +19,6 @@ export class HomePage {
 
   allinput:any;
 
-
   // default value
   trackA_speed = 170;
   trackB_speed = 170;
@@ -41,7 +40,7 @@ export class HomePage {
       this.listPairedDevices();
       this.pairedDeviceID = JSON.parse(localStorage.getItem('treninobt_address'));
     }, error => {
-      this.showError("Please Enable Bluetooth")
+      this.showError("Abilita il Bluetooth")
     });
   }
 
@@ -50,7 +49,7 @@ export class HomePage {
       this.pairedList = success;
       this.listToggle = true;
     }, error => {
-      this.showError("Please Enable Bluetooth")
+      this.showError("Abilita il Bluetooth")
       this.listToggle = false;
     });
   }
@@ -58,7 +57,7 @@ export class HomePage {
   selectDevice() {
     let connectedDevice = this.pairedList[this.pairedDeviceID];
     if (!connectedDevice.address) {
-      this.showError('Select Paired Device to connect');
+      this.showError('Seleziona il dispositivo da collegare');
       return;
     }
 
@@ -72,13 +71,13 @@ export class HomePage {
     // Attempt to connect device with specified address, call app.deviceConnected if success
     this.bluetoothSerial.connect(address).subscribe(success => {
       this.deviceConnected();
-      this.showToast("Successfully Connected to " + name );    
-      if (! this.connected) this.systemStatus();
+      this.showToast("Connesso a " + name );          
       this.connected =true;  
+	  if (! this.connected) this.systemStatus();
       localStorage.setItem('treninobt_address',JSON.stringify(this.pairedDeviceID));  
               
     }, error => {
-      this.showError("Error: Connecting to Device");
+      this.showError("Errore durante il collegamento al dispositivo");
     });
   }
 
@@ -96,7 +95,7 @@ export class HomePage {
     // Unsubscribe from data receiving
     this.bluetoothSerial.disconnect();
     this.connected =false;
-    this.showToast("Device Disconnected");
+    this.showToast("Dispositivo Disconnesso");
   }
 
   handleData(data) {     
@@ -116,7 +115,7 @@ export class HomePage {
     this.dataSend+='\n';    
     
     this.bluetoothSerial.write(this.dataSend).then(success => {        
-      this.showToast('Command sent');                             
+      this.showToast('Comando inviato');                             
     }, error => {
       this.showError(error)
     });
@@ -126,7 +125,7 @@ export class HomePage {
     let alert = this.alertCtrl.create({
       title: 'Error',
       subTitle: error,
-      buttons: ['Dismiss']
+      buttons: ['Esci']
     });
     alert.present();
   }

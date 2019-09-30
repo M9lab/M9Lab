@@ -4,10 +4,11 @@
 // 2019 Code by Stefx
 
 // FUNZIONI AGGIUNTE/ MODIFICHE:
-// 1) Settaggio orario da input  (OK)
-// 2) partenza immediata treno (senza audio) ("mta|x","mtb|x")
-// 3) Treno C -> velocità 170 (OK)
-// 4) Output dopo comandi importanti (OK)
+// 1) partenza immediata treno (senza audio) ("mta|x","mtb|x") (da ritestare)
+// 2) Blocca treno se binario occupato prima di avviso audio (da testare)
+// 3) Nuovi audio comandi (da testare)
+
+// ver 3.0.4. del 30/09/2019
 
 /* ************CONFIG***************** */
 
@@ -17,7 +18,7 @@
 #include "RTClib.h"
 #include <Wire.h>
 
-String ver = "3.0.3";
+String ver = "3.0.4";
 
 // settings SM
 RTC_DS1307 rtc;
@@ -331,16 +332,22 @@ void loop()
     // COMANDO NON VALIDO PER TRENO C || command=="tc" 
     // executeAudioPlayList(int sm_train, int sm_track , int sm_action) { 
        
-    if(command=="ta"){      
-      executeAudioPlayList(1,2,value.toInt());            
+    if(command=="ta"){    
+
+		// se tracciato libero parte audio
+		if (myTrack[myTrains[0].tracciato - 1].stato == 0 && myTrack[myTrains[1].tracciato - 1].stato == 0) executeAudioPlayList(1,2,value.toInt());            
+      
     }else if (command=="tb"){
-      executeAudioPlayList(2,3,value.toInt());  
+		
+		// se tracciato libero parte audio			
+		if (myTrack[myTrains[0].tracciato - 1].stato == 0 && myTrack[myTrains[1].tracciato - 1].stato == 0)  executeAudioPlayList(2,3,value.toInt());  
+	   
     }else{
       executeCommand(command, value);  
     }    
 
-    if(command=="mta") executeCommand("ta", value);      
-    if(command=="mtb") executeCommand("tb", value);
+    if(command=="mta") partiTreno(myTrains[0].tracciato, myTrains[0].speedT);
+    if(command=="mtb") partiTreno(myTrains[1].tracciato, myTrains[1].speedT);
     
     
   }
@@ -702,6 +709,26 @@ void sendVietatoIndicareMsg() {
 
 }
 
+void sendVietatoAttraversareBinariMsg() {
+
+  sm_totalFile = 0;
+  //for ( int i = 0; i < sizeof(sm_playList);  i++ )sm_playList[i] = (char)0;  
+  
+  addToPlayList(171);
+  sm_ready = true;
+
+}
+
+void sendVietatoAprirePorteMsg() {
+
+  sm_totalFile = 0;
+  //for ( int i = 0; i < sizeof(sm_playList);  i++ )sm_playList[i] = (char)0;  
+  
+  addToPlayList(181);
+  sm_ready = true;
+
+}
+
 // fine funzioni per SM
 
 
@@ -828,6 +855,8 @@ void executeCommand(String command, String value)
   sendOutput("Input: command->" + command + ", valore->" + value + "");
 
   if (command == "vi") sendVietatoIndicareMsg();
+  if (command == "vab") sendVietatoAttraversareBinariMsg();
+  if (command == "vap") sendVietatoAprirePorteMsg();
 
   if (command == "ta") {
 
