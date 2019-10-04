@@ -7,8 +7,9 @@
 // 1) partenza immediata treno (senza audio) ("mta|x","mtb|x") (da ritestare)
 // 2) Blocca treno se binario occupato prima di avviso audio (da testare)
 // 3) Nuovi audio comandi (da testare)
+// 4) Output solo del JSON stato
 
-// ver 3.0.4. del 30/09/2019
+// ver 3.0.5. del 03/10/2019
 
 /* ************CONFIG***************** */
 
@@ -18,7 +19,7 @@
 #include "RTClib.h"
 #include <Wire.h>
 
-String ver = "3.0.4";
+String ver = "3.0.5";
 
 // settings SM
 RTC_DS1307 rtc;
@@ -37,7 +38,7 @@ int sm_idx = 0;
 // end vars SM
 
 // debug?
-bool verbose = true;
+bool verbose = false;
 //int appoggio;
 bool scaduto = false;
 
@@ -335,20 +336,22 @@ void loop()
     if(command=="ta"){    
 
 		// se tracciato libero parte audio
-		if (myTrack[myTrains[0].tracciato - 1].stato == 0 && myTrack[myTrains[1].tracciato - 1].stato == 0) executeAudioPlayList(1,2,value.toInt());            
+		
+			executeAudioPlayList(1,2,value.toInt());            
+					
       
     }else if (command=="tb"){
 		
 		// se tracciato libero parte audio			
-		if (myTrack[myTrains[0].tracciato - 1].stato == 0 && myTrack[myTrains[1].tracciato - 1].stato == 0)  executeAudioPlayList(2,3,value.toInt());  
+			executeAudioPlayList(2,3,value.toInt());  
+					
 	   
     }else{
       executeCommand(command, value);  
     }    
 
-    if(command=="mta") partiTreno(myTrains[0].tracciato, myTrains[0].speedT);
-    if(command=="mtb") partiTreno(myTrains[1].tracciato, myTrains[1].speedT);
-    
+    if(command=="mta") executeCommand("ta", value);      
+    if(command=="mtb") executeCommand("tb", value);
     
   }
 
@@ -1056,7 +1059,7 @@ void printSystemStatus() {
   }
 
   command =  command.substring(0, command.length() - 1);
-  sendOutput('{' + command + '}');
+  Serial.println('{' + command + '}');
 
 
 }
