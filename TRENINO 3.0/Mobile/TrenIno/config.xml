@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.m9lab.trenino3" version="3.3.5" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>TreniIno</name>
+<widget id="com.m9lab.trenino3" version="3.3.6" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>TrenIno</name>
     <description>Control M9Lab Lego Train</description>
     <author email="info@m9lab.com" href="http://m9lab.com/">Mezzanine Lab</author>
     <content src="index.html" />
