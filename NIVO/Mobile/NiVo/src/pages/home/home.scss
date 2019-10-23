@@ -28,6 +28,40 @@ a {
   margin: 6px 8px 6px 0;
 }
 
+.singledevice{
+  border: 1px solid #002725;
+  margin-bottom: 40px;
+  padding: 10px;
+}
+
+.devicedisabled{
+  opacity: 0.4;
+}
+
+.devicedisabled .control{
+  display:none;
+}
+
+.checkbox-md .checkbox-icon{
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+
+}
+
+.checkbox-md .checkbox-checked .checkbox-inner {
+  left: 6px;
+  top: 2px;
+}  
+
+.item-md {
+  padding-left: 0
+}  
+
+.item.item-md .checkbox-md {
+  margin: 9px 10px 9px 0px;
+}
+
 page-home {
 
     .range-md [range-left] {
@@ -46,6 +80,9 @@ page-home {
         font-size: 30px;
     } 
 
+    h6{
+      color:#fff; 
+    }
 
     .tracka h1 , .trackb h1 span{
       color:#fff;     
@@ -94,8 +131,13 @@ page-home {
       top: 0;
     }
 
-    h1,button,ion-label,ion-footer,.testo{
-      font-family: Roboto;
+    h1,button,ion-label,ion-footer,.testo,ion-select{
+      font-family: Roboto;      
+    }
+
+    ion-select .select-text{
+      font-family: Roboto;      
+      color:#fff;
     }
 
     .testo{
@@ -134,6 +176,12 @@ page-home {
       color: #002725;
     }
 
+    .address{
+      color: #002725;
+      font-size: 12px;
+      margin-top: 2px!important;
+    }
+
     .slogan{
       font-size: 14px;
       font-style: italic;
@@ -147,30 +195,16 @@ page-home {
         border: 1px solid #FFF;
       }
 
-      .speedA{
-        background: map-get($colors, trackA);
-        padding: 5px;
-        vertical-align: middle;
-        border-radius: 5px;
-        display: inline-block;
-        color: #fff;
-      }
-
-      .speedB{
-        background: map-get($colors, trackB);
-        padding: 5px;
-        vertical-align: middle;
-        border-radius: 5px;
-        display: inline-block;
-        color: #fff;
-      }
-
       .no-padding{
         padding:0;
       }
 
       .no-margin{
         margin:0!important;
+      }
+
+      .footerlogo {
+        margin: 20px 0;
       }
 
       .footerlogo ion-icon{

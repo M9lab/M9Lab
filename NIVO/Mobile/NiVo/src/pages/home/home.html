@@ -2,118 +2,100 @@
   <ion-navbar color="light">
     <ion-title no-padding>
       <img src="assets/imgs/Nivo_header2.png" alt="NiVo"/>
-        <span class="version">V. 1.3.3</span>
+        <span class="version">V. 2.0.3</span>
     </ion-title>
   </ion-navbar>
 </ion-header>
 
+
 <ion-content padding color="light">
-  <div *ngIf="! connected">  
+  <div *ngIf="! ready">  
     <button ion-button full class="submit-button" (click)="listPairedDevices()" color="secondary">
       <ion-icon name="refresh"></ion-icon>&nbsp;Refresh Bluetooth Devices
-    </button>
+    </button>    
     <ion-row>
-      <ion-col>
+      <ion-col>        
         <ion-list radio-group [(ngModel)]="pairedDeviceID" *ngIf="listToggle">
-          <ion-item *ngFor="let i of pairedList;let j=index">
-            <ion-label>{{i.name}}</ion-label>
-            <ion-radio value="{{j}}" ></ion-radio>
+          <ion-item *ngFor="let option of pairedList;let i=index">
+            <ion-label color="primary">{{option.name}} <span><h6 class="address">{{option.address}}</h6></span></ion-label>
+            <ion-checkbox color="primary" slot="start" [(ngModel)]="option.checked" (ionChange)="updateDevicesList(i,option)" ></ion-checkbox>
+            <ion-select [(ngModel)]="option.type">                 
+              <ion-option value="motor" selected>Motor</ion-option>
+              <ion-option value="switch" disabled>Switch</ion-option>
+              <ion-option value="sensor" disabled>Sensor</ion-option>
+              <ion-option value="light" disabled>Light</ion-option>              
+              <!--
+              <ion-option *ngFor="let t of deviceType" [value]="t.value" [disabled]="t.disable" [selected]="t.selected">Light</ion-option>                            
+              -->
+            </ion-select>
           </ion-item>
         </ion-list>
       </ion-col>
     </ion-row>
-    <button ion-button full class="submit-button" *ngIf="listToggle" (click)="selectDevice()">
-      <ion-icon name="bluetooth"></ion-icon>&nbsp;Connect Bluetooth Devices
-    </button>
+    <!--{{selectedDevicesList | json}}-->
+    <button ion-button full class="submit-button" *ngIf="listToggle" (click)="selectDevices()">
+      <ion-icon name="bluetooth"></ion-icon>&nbsp;Use Selected Bluetooth Devices
+    </button>          
   </div>  
+
+
+
   
-  <div *ngIf="connected">  
-      <ion-row class="tracka">
-          <ion-col size="12" no-padding>
-          <ion-list no-padding class="no-margin">
-            <ion-list-header text-center no-padding class="no-margin">
-              <ion-label no-padding><h1 no-padding>Track <span>A</span></h1><img src="assets/imgs/treno_a.png" alt="Track A"/></ion-label>              
-            </ion-list-header>
-          </ion-list> 
-        </ion-col>
-      </ion-row> 
-      <ion-row>
-        <ion-col size="3">
-          <button [disabled]="T1 == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|2')">
-            <ion-icon name="arrow-back"></ion-icon>&nbsp;Back
-          </button>
-        </ion-col>
-        <ion-col size="3">
-          <button [disabled]="T1 == 0" ion-button full class="submit-button" color="secondary" (click)="sendData('ta|0')">
-            <ion-icon name="hand"></ion-icon>&nbsp;Stop
-          </button>
-        </ion-col>
-        <ion-col size="3">
-          <button [disabled]="T1 == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|1')">
-              Forward&nbsp;<ion-icon name="arrow-forward"></ion-icon>
-          </button>
-        </ion-col>                      
-      </ion-row>
+  
+  <div *ngIf="ready">  
+      <div *ngFor="let device of selectedDevicesList;let i=index">
+        <div [ngClass]="(device.connected) ? 'singledevice' : 'singledevice devicedisabled'">
+            <ion-row (click)="changeStatus(device)" [ngClass]="(i % 2 == 0) ? 'tracka' : 'trackb'">
+              <ion-col size="12" no-padding>
+              <ion-list no-padding class="no-margin">
+                <ion-list-header text-center no-padding class="no-margin">
+                    
+                  <ion-label no-padding>
+                    <h6>- {{device.name}} -</h6>
+                    <h1 no-padding>Track <span>{{i+1}}</span></h1><img *ngIf="(i % 2 == 0)" src="assets/imgs/treno_a.png" alt="Track A"/><img *ngIf="(i % 2 != 0)" src="assets/imgs/treno_b.png" alt="Track A"/></ion-label>              
+                    <h6>{{device.address}}</h6>
+                </ion-list-header>
+              </ion-list> 
+            </ion-col>
+          </ion-row> 
+          <div class="control">
+            <ion-row>
+              <ion-col size="3">
+                <button [disabled]="track_status == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|2')">
+                  <ion-icon name="arrow-back"></ion-icon>&nbsp;Back
+                </button>
+              </ion-col>
+              <ion-col size="3">
+                <button [disabled]="track_status == 0" ion-button full class="submit-button" color="secondary" (click)="sendData('ta|0')">
+                  <ion-icon name="hand"></ion-icon>&nbsp;Stop
+                </button>
+              </ion-col>
+              <ion-col size="3">
+                <button [disabled]="track_status == 1" ion-button full class="submit-button" color="primary" (click)="sendData('ta|1')">
+                    Forward&nbsp;<ion-icon name="arrow-forward"></ion-icon>
+                </button>
+              </ion-col>                      
+            </ion-row>
 
-      <ion-row>
-        <ion-col> 
-          <ion-list no-padding class="no-margin">
-            <ion-list-header text-center no-padding class="no-margin" color="light"><h2 class="no-margin">SPEED: <span><b>{{trackA_speed}}</b></span></h2></ion-list-header>          
-          </ion-list>
-          <ion-range debounce="500"  [(ngModel)]="trackA_speed"  min="100" max="240" step="10" (ionChange)="setSpeed('a',trackA_speed)"  color="primary">
-            <ion-label range-left>100</ion-label>
-            <ion-label range-right>240</ion-label>
-          </ion-range>
-        </ion-col> 
-      </ion-row>
-
-      <ion-row class="trackb">
-          <ion-col size="12" no-padding>
-          <ion-list no-padding class="no-margin">
-            <ion-list-header text-center no-padding class="no-margin">
-              <ion-label no-padding><h1 no-padding>Track <span>B</span></h1><img src="assets/imgs/treno_b.png" alt="Track B"/></ion-label>              
-            </ion-list-header>
-          </ion-list> 
-        </ion-col>
-      </ion-row> 
-      <ion-row>
-        <ion-col size="3">
-          <button [disabled]="T2 == 2" ion-button full class="submit-button" color="primary" (click)="sendData('tb|2')">
-            <ion-icon name="arrow-back"></ion-icon>&nbsp;Back
-          </button>
-        </ion-col>
-        <ion-col size="3">
-          <button [disabled]="T2 == 0" ion-button full class="submit-button" color="secondary" (click)="sendData('tb|0')">
-            <ion-icon name="hand"></ion-icon>&nbsp;Stop
-          </button>
-        </ion-col>
-        <ion-col size="3">
-          <button [disabled]="T2 == 1" ion-button full class="submit-button" color="primary" (click)="sendData('tb|1')">
-              Forward&nbsp;<ion-icon name="arrow-forward"></ion-icon>
-          </button>
-        </ion-col>                      
-      </ion-row>
-
-      <ion-row>
-        <ion-col> 
-          <ion-list no-padding class="no-margin">
-            <ion-list-header text-center no-padding class="no-margin" color="light"><h2 class="no-margin">SPEED: <span><b>{{trackB_speed}}</b></span></h2></ion-list-header>          
-          </ion-list>
-          <ion-range  debounce="500" [(ngModel)]="trackB_speed" min="100" max="240" step="10" (ionChange)="setSpeed('b',trackB_speed)">
-            <ion-label range-left>100</ion-label>
-            <ion-label range-right>240</ion-label>
-          </ion-range>
-        </ion-col> 
-      </ion-row>  
-      
+            <ion-row>
+              <ion-col> 
+                <ion-list no-padding class="no-margin">
+                  <ion-list-header text-center no-padding class="no-margin" color="light"><h2 class="no-margin">SPEED: <span><b>{{track_speed}}</b></span></h2></ion-list-header>          
+                </ion-list>
+                <ion-range debounce="500"  [(ngModel)]="track_speed"  min="100" max="240" step="10" (ionChange)="setSpeed('a',track_speed)"  color="primary">
+                  <ion-label range-left>100</ion-label>
+                  <ion-label range-right>240</ion-label>
+                </ion-range>
+              </ion-col> 
+            </ion-row>
+          </div>
+        </div>  
+      </div>
+          
       <ion-row>
           <ion-col> 
-              <button ion-button full class="submit-button" color="danger" (click)="sendData('pa|0')">
-                  <ion-icon name="alert"></ion-icon>&nbsp;Panic Button
-                </button>
-                <br/>
-              <button ion-button full class="submit-button"  (click)="deviceDisconnect()">
-                  <ion-icon name="bluetooth"></ion-icon>&nbsp; Disconnect Bluetooth
+              <button ion-button full class="submit-button"  (click)="returnToList()">
+                  <ion-icon name="bluetooth"></ion-icon>&nbsp; Manage Bluetooth List
               </button>
           </ion-col>
       </ion-row>       
