@@ -1,8 +1,7 @@
 import { Component } from '@angular/core';
 import { NavController } from 'ionic-angular';
 import { BluetoothSerial } from '@ionic-native/bluetooth-serial';
-import { AlertController, ToastController } from 'ionic-angular';
-//import { resolveReflectiveProviders } from '@angular/core/src/di/reflective_provider';
+import { AlertController, ToastController, LoadingController } from 'ionic-angular';
 
 @Component({
   selector: 'page-home',
@@ -12,34 +11,53 @@ import { AlertController, ToastController } from 'ionic-angular';
 export class HomePage {
 
   pairedList: any;
-  savedPairedList:any
+  savedPairedList: any=[];
   listToggle: boolean = false;
   ready=false
 
   dataSend: string = "";
-  connected =false;
-
   selectedDevicesList: any=[];
 
   // default value
   track_speed = 170;
   track_status=0;
 
+  loading:any
+
+  /* to test in browser */
+  isSimulated:boolean=false
+
   deviceType:any = [
-    {"name": "motor" , "value": "motor" , "selected": true, "disabled": false},
-    {"name": "switch" , "value": "switch" , "selected": false, "disabled": true},
-    {"name": "sensor" , "value": "sensor" , "selected": false, "disabled": true},
-    {"name": "light" , "value": "light" , "selected": false, "disabled": true}
+    {"name": "Motor" , "value": "motor" , "selected": true, "disabled": false},
+    {"name": "Switch" , "value": "switch" , "selected": false, "disabled": true},
+    {"name": "Sensor" , "value": "sensor" , "selected": false, "disabled": true},
+    {"name": "Light" , "value": "light" , "selected": false, "disabled": true}
   ] ;   
 
+  constructor(public navCtrl: NavController, private alertCtrl: AlertController, private bluetoothSerial: BluetoothSerial, private toastCtrl: ToastController, public loadingCtrl: LoadingController) {        
+    this.checkBluetoothEnabled();        
+  }
 
-  constructor(public navCtrl: NavController, private alertCtrl: AlertController, private bluetoothSerial: BluetoothSerial, private toastCtrl: ToastController) {
-    this.checkBluetoothEnabled();
-    //this.listPairedDevices();
+  presentLoadingDefault() {
+    this.loading = this.loadingCtrl.create({
+      content: 'Please wait...'
+    });
+  
+    this.loading.present();
+  }  
+
+  dismissLoadingDefault() {
+    this.loading.dismiss();
   }
  
 
   checkBluetoothEnabled() {
+
+    if (this.isSimulated){
+      this.listPairedDevicesFake();
+      return;
+    }
+
     this.bluetoothSerial.isEnabled().then(success => {
       this.listPairedDevices();      
     }, error => {
@@ -47,14 +65,32 @@ export class HomePage {
     });
   }
 
+  listPairedDevicesFake() {
+
+    this.pairedList = [
+      {"class": 7936 , "id": "98:D3:32:30:5C:8F" , "address": "98:D3:32:30:5C:8F", "name": "M9lab01"},
+      {"class": 7936, "id": "98:D3:32:10:DB:79", "address": "98:D3:32:10:DB:79", "name": "NiVo001"},
+      {"class": 7936, "id": "AA:D3:32:11:DB:70", "address": "AA:D3:32:11:DB:70", "name": "NiVo002"}
+    ];
+
+     
+    if (typeof(localStorage.getItem('NiVo_lastSelected'))!="undefined") this.savedPairedList = JSON.parse(localStorage.getItem('NiVo_lastSelected')) 
+      
+    this.parsePairedList()
+    this.listToggle = true;
+
+  }
+
   listPairedDevices() {
 
-    
-    this.bluetoothSerial.list().then(success => {
-      console.log(success)
+    if(this.isSimulated){
+      this.listPairedDevicesFake()
+      return;
+    }
+        
+    this.bluetoothSerial.list().then(success => {      
       this.pairedList = success;
-
-      // get saved data
+         
       if (typeof(localStorage.getItem('NiVo_lastSelected'))!="undefined") this.savedPairedList = JSON.parse(localStorage.getItem('NiVo_lastSelected')) 
       
       this.parsePairedList()
@@ -64,42 +100,32 @@ export class HomePage {
       this.showError("Please Enable Bluetooth")
       this.listToggle = false;
     });
-    
 
-    /* test*/
-    /*
-    this.pairedList = [
-      {"class": 7936 , "id": "98:D3:32:30:5C:8F" , "address": "98:D3:32:30:5C:8F", "name": "M9lab01"},
-      {"class": 7936, "id": "98:D3:32:10:DB:79", "address": "98:D3:32:10:DB:79", "name": "NiVo001"},
-      {"class": 7936, "id": "AA:D3:32:11:DB:70", "address": "AA:D3:32:11:DB:70", "name": "NiVo002"}
-    ];
-
-    // get saved data
-    if (typeof(localStorage.getItem('NiVo_lastSelected'))!="undefined") this.savedPairedList = JSON.parse(localStorage.getItem('NiVo_lastSelected')) 
-      
-    this.parsePairedList()
-    this.listToggle = true;
-
-
-    */
-       
   }
   
 
   parsePairedList(){
     this.selectedDevicesList=[];
-    this.pairedList.forEach(element => {         
-      let savedDevice = this.savedPairedList.filter(x => x.address == element["address"])[0];              
-      if (typeof(savedDevice)!="undefined"){                
-        element['type'] = savedDevice['type']
-        element["checked"] = true        
-        delete element["id"];
-        delete element["class"];   
-        this.selectedDevicesList.push(element)
-      }else{
+    this.pairedList.forEach(element => {      
+      if (this.savedPairedList==null){
         element["checked"] = false
-        element['type'] = "motor"
-        delete element["checked"];        
+        //element['type'] = "motor";
+        delete element["checked"];
+      }else{
+
+        let savedDevice = this.savedPairedList.filter(x => x.address == element["address"])[0];              
+
+        if (typeof(savedDevice)!="undefined"){                
+          element['type'] = savedDevice['type']
+          element["checked"] = true        
+          delete element["id"];
+          delete element["class"];   
+          this.selectedDevicesList.push(element)
+        }else{
+          element["checked"] = false
+          //element['type'] = "motor";
+          delete element["checked"];        
+        }  
       }            
     });
   }
@@ -132,23 +158,45 @@ export class HomePage {
 
 
   changeStatus(device){
-          
+                
       this.selectedDevicesList.forEach(element => {
 
         if (element["address"] == device.address){
+            this.presentLoadingDefault();     
             if(element["connected"]){
-              element["connected"]=false;
-              this.deviceDisconnect();
+
+              
+              if (this.isSimulated){
+                element["connected"]=false;
+                this.dismissLoadingDefault();
+                return;
+              }
+              
+              this.deviceDisconnect().then((res)=>{
+                if (res) element["connected"]=false;
+                this.dismissLoadingDefault();
+              })
             }else{
-              element["connected"]=true
-                            
+
+              if (this.isSimulated){
+                element["connected"]=true;
+                this.dismissLoadingDefault();
+                return;
+              }
+              
+                       
               this.deviceDisconnect().then(()=>{
-                this.connect(device.address,device.name)
+                this.connect(device.address,device.name).then((res)=>{
+                  if (res) element["connected"]=true
+                    this.dismissLoadingDefault();
+                    
+                })
               })                            
               
             }
             return;
         }else{
+          //this.dismissLoadingDefault();
           element["connected"]=false;
         } 
 
@@ -159,15 +207,28 @@ export class HomePage {
   connect(address,name) {
 
     // Attempt to connect device with specified address, call app.deviceConnected if success
-    this.bluetoothSerial.connect(address).subscribe(success => {
-      this.deviceConnected();
-      this.showToast("Successfully Connected to " + name );    
-      if (! this.connected) this.systemStatus();
-      this.connected =true;         
-              
-    }, error => {
-      this.showError("Error:Connecting to Device");
-    });
+
+    return new Promise((resolve, reject) =>{
+
+      this.bluetoothSerial.connect(address).subscribe(success => {
+        this.deviceConnected();
+        this.showToast("Successfully Connected to " + name );    
+        
+        // ok connect
+        this.selectedDevicesList.forEach(element => {
+          if (element["address"] == address){
+            element["connected"]=true;
+            this.systemStatus();
+          }
+        })      
+        resolve(true)
+                
+      }, error => {
+        this.showError("Error:Connecting to Device");
+        resolve(false)
+      });
+
+    })  
   }
 
   deviceConnected() {
@@ -186,13 +247,17 @@ export class HomePage {
     return new Promise((resolve, reject) =>{
 
       this.bluetoothSerial.disconnect();    
-      this.showToast("Device Disconnected");
+      //this.showToast("Device Disconnected");
       resolve(true);
     })  
+
   }
 
   returnToList(){
     this.deviceDisconnect().then(()=>{
+      this.selectedDevicesList.forEach(element => {
+        element["connected"]=false; 
+      })
       this.ready =false;
     })  
   }

@@ -17,16 +17,11 @@
       <ion-col>        
         <ion-list radio-group [(ngModel)]="pairedDeviceID" *ngIf="listToggle">
           <ion-item *ngFor="let option of pairedList;let i=index">
-            <ion-label color="primary">{{option.name}} <span><h6 class="address">{{option.address}}</h6></span></ion-label>
+            <ion-label color="primary">{{option.name}}</ion-label>
+            <!--<h6 class="address">{{option.address}}</h6>-->
             <ion-checkbox color="primary" slot="start" [(ngModel)]="option.checked" (ionChange)="updateDevicesList(i,option)" ></ion-checkbox>
-            <ion-select [(ngModel)]="option.type">                 
-              <ion-option value="motor" selected>Motor</ion-option>
-              <ion-option value="switch" disabled>Switch</ion-option>
-              <ion-option value="sensor" disabled>Sensor</ion-option>
-              <ion-option value="light" disabled>Light</ion-option>              
-              <!--
-              <ion-option *ngFor="let t of deviceType" [value]="t.value" [disabled]="t.disable" [selected]="t.selected">Light</ion-option>                            
-              -->
+            <ion-select [(ngModel)]="option.type">                                         
+              <ion-option *ngFor="let t of deviceType" [value]="t.value" [disabled]="t.disabled" [selected]="t.selected">{{t.name}}</ion-option>                                          
             </ion-select>
           </ion-item>
         </ion-list>
