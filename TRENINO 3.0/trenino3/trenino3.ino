@@ -506,7 +506,7 @@ void audiocontrol(){
     sm_idx = 0;
     sm_ready = false;
 
-    Serial.println("fine annuncio");
+    //Serial.println("fine annuncio");
     // TODO in base a azione faccio uscire treno o lo faccio entrare
     //Serial.println(sm_action); //112 (a) 123 (b)
     //Serial.println(sm_train);

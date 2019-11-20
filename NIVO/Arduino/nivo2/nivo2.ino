@@ -22,7 +22,7 @@ bool BTverbose = true;
 // initial settings
 int speedA1 = 170; //170 velocità treno 1 tracciato 1 (mai sotto 80 sennò non parte)
 int speedA2 = 170; //170 velocità treno 2 tracciato 1 (mai sotto 80 sennò non parte)
-float speedCalbrate = 1.2; // fattore aumento velocità per 2 treni contemporaneamente in circolo (x bug calo di potenza)
+float speedCalbrate = 1.5; // fattore aumento velocità per 2 treni contemporaneamente in circolo (x bug calo di potenza)
 
 /* ************PIN***************** */
 
@@ -128,13 +128,15 @@ void executeCommand(String command, String value)
     /*velocità*/  
     if (command == "va"){          
       speedA1 = value.toInt();    
-	  setTrainSpeed(0, speedT);                 
+	    //setTrainSpeed(0, speedA1);                 
+     analogWrite(myTrack[0].T_ENA, speedA1);   
       sendResponseOutput();                              
     } 
 
     if (command == "vb"){      
       speedA2 = value.toInt();    
-	  setTrainSpeed(1, speedT);          
+	    //setTrainSpeed(1, speedA2);          
+      analogWrite(myTrack[1].T_ENA, speedA2);   
       sendResponseOutput();                     
     } 
 	    
@@ -217,7 +219,7 @@ void partiTreno(int idtrack, int speedT){
   myTrack[idtrack].stato=1;  
 
   // setta velocità del treno  
-  setTrainSpeed(idtrack, speedT);       
+  setTrainSpeed(idtrack, speedT);         
   
   // Muovo avanti treno
   digitalWrite(myTrack[idtrack].T_IN1,LOW); 
@@ -232,6 +234,9 @@ void fermaTreno(int idtrack){
   digitalWrite(myTrack[idtrack].T_IN1,LOW); 
   digitalWrite(myTrack[idtrack].T_IN2,LOW); 
   
+  if (idtrack==0 && myTrack[1].stato>0) setTrainSpeed(1, speedA2/speedCalbrate);
+  if (idtrack==1 && myTrack[0].stato>0) setTrainSpeed(0, speedA1/speedCalbrate);
+
   // setto stato
   myTrack[idtrack].stato=0;   
   
@@ -260,20 +265,34 @@ void invertiTreno(int idtrack, int speedT){
 
 
 void setTrainSpeed(int idtrack, int speedT){
+
+  int speedT1,speedT2;
 	
 	// controlla se 2 treni sono in funzione
 	if (myTrack[0].stato>0 && myTrack[1].stato>0){
+//Serial.println('both');
+    
 		// risetta velocità
-		if (idtrack==0) speedA1 = speedT;								
-		if (idtrack==1) speedA2 = speedT;
+		
+		//speedT = speedT*speedCalbrate;
+		if (idtrack==0){
+		  speedT1 = (int) speedT*speedCalbrate;
+      speedT2 = (int) speedA2*speedCalbrate;
+		}  
+		if (idtrack==1){
+      speedT1 = (int) speedA1*speedCalbrate;
+      speedT2 = (int) speedT*speedCalbrate;
+		}
 		
 		// ricalcolo nuove velocità aumentando potenza						
-		analogWrite(myTrack[0].T_ENA, speedA1*speedCalbrate);   
-		analogWrite(myTrack[1].T_ENA, speedA2*speedCalbrate);   		
+		analogWrite(myTrack[0].T_ENA, (int) speedT1);   
+		analogWrite(myTrack[1].T_ENA, (int) speedT2);   		
 		
 	}else{	
+
+    //  Serial.println('single');
 	
 		// altrimenti se un solo treno setta velocità
-		analogWrite(myTrack[idtrack].T_ENA, speedT);   
+		analogWrite(myTrack[idtrack].T_ENA, (int) speedT);   
 	}	
 }
