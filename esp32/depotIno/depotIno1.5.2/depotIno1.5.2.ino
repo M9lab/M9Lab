@@ -15,7 +15,6 @@
 
 // TODO:
 // leggere livello batteria e scambiare di conseguenza il binario (to check)
-// implementare roulette prima di far partire treno (ok)
 
 /* laed part */
 #include <FastLED.h>
@@ -59,7 +58,7 @@ CRGB leds[NUM_LEDS];
 
 #include "Lpf2Hub.h"
 
-String ver = "1.5.2";
+String ver = "1.5.2.2";
 
 // create a hub instance for train
 Lpf2Hub myTrainHub_TA;
