@@ -15,6 +15,8 @@
 
 // TODO:
 // leggere livello batteria e scambiare di conseguenza il binario (to check)
+// controllare partenza manuale treni (to check)
+// aggiungere telecomando per partenza manuale + aumento velocità
 
 /* laed part */
 #include <FastLED.h>
@@ -58,7 +60,7 @@ CRGB leds[NUM_LEDS];
 
 #include "Lpf2Hub.h"
 
-String ver = "1.5.2.2";
+String ver = "1.5.2.3";
 
 // create a hub instance for train
 Lpf2Hub myTrainHub_TA;
@@ -123,7 +125,7 @@ typedef struct {
 byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN, (byte)Color::RED, (byte)Color::YELLOW};  // (byte)Color::BLUE,(byte)Color::WHITE
 
 // Trains Maps
-//code  - hubobj - hubColor  -  hubAddress - speed - lastcolor - hubState (-1 = off, 0=ready, 1=active) - trainstate - batteryLevel - switchPosition
+// hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
 Train myTrains[MY_TRAIN_LEN] = {
   { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", 30 , 0, 0, -1, 0, 100, "01", RED}
   , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", 30, 0, 0, -1, 0, 100, "00", GREEN}
@@ -143,7 +145,7 @@ Switches mySwitchControlleres[MY_SWITCH_LEN] = {
 void printLegenda() {
 
   // print command
-  Serial.println("*** M9Lab - TrenIno4 v." + ver + " ***");
+  Serial.println("*** M9Lab - DepotIno4 v." + ver + " ***");
   Serial.println("_________________________________________________");
   Serial.println("List of commands used by system:");
 
@@ -163,6 +165,11 @@ void printLegenda() {
   Serial.println("swb1 = set switch B turned");
   Serial.println("swc0 = set switch C straight");
   Serial.println("swc1 = set switch C turned");
+  
+  Serial.println("str = start RED Train");
+  Serial.println("stg = start GREEN Train");
+  Serial.println("sty = start YELLOW Train");
+  
   Serial.println("resetsw = reset all switches");
 
   Serial.println("_________________________________________________");
@@ -188,6 +195,12 @@ void readFromSerial() {
     else if (command == "swb1") setSwitch(&mySwitchControlleres[1], 1);
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
+	
+	else if (command == "str") manualStartTrain(0);
+	else if (command == "stg") manualStartTrain(1);
+	else if (command == "sty") manualStartTrain(2);	
+	
+	
     else if (command == "resetsw") switchReset();
     else {
       Serial.println(">command not found");
@@ -355,8 +368,6 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
             myTrains[idTrain].hubState = -1;            
             stopTrain(idTrain);            
 
-            Serial.print("activeTrain");
-            Serial.println(activeTrain);
 
           }
           break;
@@ -530,6 +541,22 @@ void loop() {
     if (isSystemReady) doMainCode();
   }
 
+}
+
+void manualStartTrain(idtrain){
+	
+	if (checkIfAllTrainIsStopped()) {
+		
+		if (activeTrain > 1) return;
+		Lpf2Hub *myTrain = myTrains[idtrain].hubobj;
+		if (!myTrain->isConnected()) return;
+		
+		fullColor(colour[idtrain]);
+		delay(1000);		
+		lastTrainStarted = -1;
+		startTrain(idtrain);      
+	}	
+	
 }
 
 void doMainCode() {
