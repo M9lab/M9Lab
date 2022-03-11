@@ -80,7 +80,7 @@ void loop(){
     if (!mp3->loop()) mp3->stop();
   } else {
     Serial.printf("MP3 done\n");
-    delay(1000);
+    delay(100);
     // play again
         file = new AudioFileSourceSD("/riverloop.mp3");
     id3 = new AudioFileSourceID3(file);
