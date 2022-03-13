@@ -14,9 +14,9 @@
 */
 
 // TODO:
-// leggere livello batteria e scambiare di conseguenza il binario (to check)
 // controllare partenza manuale treni (to check)
 // aggiungere telecomando per partenza manuale + aumento velocità
+// start=last color red ???
 
 /* laed part */
 #include <FastLED.h>
@@ -122,13 +122,13 @@ typedef struct {
 // GREEN instead CYAN -> to add
 
 // Color Maps
-byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN, (byte)Color::RED, (byte)Color::YELLOW};  // (byte)Color::BLUE,(byte)Color::WHITE
+byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN, (byte)Color::RED, (byte)Color::YELLOW };  // (byte)Color::BLUE,(byte)Color::WHITE
 
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
 Train myTrains[MY_TRAIN_LEN] = {
   { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", 30 , 0, 0, -1, 0, 100, "01", RED}
-  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", 30, 0, 0, -1, 0, 100, "00", GREEN}
+  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", 25, 0, 0, -1, 0, 100, "00", GREEN}
   , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", 30 , 0, 0, -1, 0, 100, "10", YELLOW}
 };
 
@@ -326,7 +326,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
   if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){
     
     myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);      
-    _println("Train " + myTrains[idTrain].hubColor + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
+    //_println("Train " + myTrains[idTrain].hubColor + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
   }  
 
   if (hubProperty == HubPropertyReference::BUTTON)
@@ -405,10 +405,10 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
     
     // set hub LED color to detected color of sensor and set motor speed dependent on color
     if (color == (byte)Color::RED) stopTrain(idTrain);
-    else if (color == (byte)Color::WHITE) invertTrain(idTrain);
+    //else if (color == (byte)Color::WHITE) invertTrain(idTrain);
     else if (color == (byte)Color::YELLOW) stopAndDoTrain(idTrain, true); //GREEN
     else if (color == (byte)Color::CYAN) killTrain(idTrain);
-    else if (color == (byte)Color::BLUE) stopAndDoTrain(idTrain, false);    	
+    //else if (color == (byte)Color::BLUE) stopAndDoTrain(idTrain, false);    	
 	  //manca startTrain(idTrain);
 
   }
@@ -449,11 +449,13 @@ void startTrain(int idTrain) {
     setSwitch(&mySwitchControlleres[i], c);
   }
   
-  //   Battery Level Switch
-  if( myTrains[idTrain].batteryLevel<20){
+  //   Battery Level Switch (evito stop immediato)
+  myTrains[idTrain].lastcolor = (byte)Color::RED;
+  if( myTrains[idTrain].batteryLevel<10){
     setSwitch(&mySwitchControlleres[2], 1);
   }else{
     setSwitch(&mySwitchControlleres[2], 0);
+    
   }
 
   mySwitchController.setLedColor(myTrains[idTrain].ledColor);
@@ -491,6 +493,7 @@ void killTrain(int idTrain) {
   myTrains[idTrain].hubState = -1;
   
   //activeTrain--;
+  setSwitch(&mySwitchControlleres[2], 0);
   delay(2000);
 
 }
@@ -543,17 +546,20 @@ void loop() {
 
 }
 
-void manualStartTrain(idtrain){
-	
+void manualStartTrain(int idtrain){
+
+  
+
+  
 	if (checkIfAllTrainIsStopped()) {
-		
-		if (activeTrain > 1) return;
+				
 		Lpf2Hub *myTrain = myTrains[idtrain].hubobj;
 		if (!myTrain->isConnected()) return;
 		
 		fullColor(colour[idtrain]);
 		delay(1000);		
 		lastTrainStarted = -1;
+    
 		startTrain(idtrain);      
 	}	
 	
