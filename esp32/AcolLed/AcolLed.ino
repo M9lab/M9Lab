@@ -34,14 +34,14 @@ void DeviceCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
   //Lpf2Hub *myMario = (Lpf2Hub *)hub;
   Lpf2Hub *myRemote = (Lpf2Hub *)hub;
 
-  Serial.println("DeviceCallback!!!");
-  Serial.println((byte)deviceType);
+  //Serial.println("DeviceCallback!!!");
+  //Serial.println((byte)deviceType);
 
   if (deviceType == DeviceType::MARIO_HUB_BARCODE_SENSOR)
   {
     MarioColor color = myRemote->parseMarioColor(pData);
-    Serial.print("Mario Color: ");
-    Serial.println((byte)color);
+    //Serial.print("Mario Color: ");
+    //Serial.println((byte)color);
     marioColorToLed((byte)color);    
   }
   
@@ -93,7 +93,7 @@ void setup()
 {
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);    
   fullColor(CRGB::White);
-  Serial.begin(115200);  
+  //Serial.begin(115200);  
 
   // force shutdown
   /*
@@ -116,8 +116,8 @@ void loop()
     {
 
       typeD = myRemote.getHubType();
-      Serial.println("getHubType");
-      Serial.print((byte)typeD);
+      //Serial.println("getHubType");
+      //Serial.print((byte)typeD);
 
       // 4 remote
       // 7 mario
@@ -130,12 +130,12 @@ void loop()
         //This is the right device
         if (!myRemote.connectHub())
         {
-          Serial.println("Unable to connect to hub");
+          //Serial.println("Unable to connect to hub");
         }
         else
         {
           myRemote.setLedColor(GREEN);
-          Serial.println("Remote connected.");
+          //Serial.println("Remote connected.");
         }
       }
 
@@ -144,11 +144,11 @@ void loop()
         //This is the right device
         if (!myRemote.connectHub())
         {
-          Serial.println("Unable to connect to hub");
+          //Serial.println("Unable to connect to hub");
         }
         else
         {          
-          Serial.println("Mario connected.");
+          //Serial.println("Mario connected.");
         }
       }
     }
@@ -160,21 +160,21 @@ void loop()
       
       if ((byte)typeD == 7){
         byte portForDevice = myRemote.getPortForDeviceType((byte)barcodeSensor);
-        Serial.println(portForDevice);
+        //Serial.println(portForDevice);
         if (portForDevice != 255)
         {    
           myRemote.activatePortDevice(portForDevice, DeviceCallback);
           delay(200);
           isRemoteInitialized = true;          
           isRemoteInitFirst = false;
-          Serial.println("Mario is initialized");
+          //Serial.println("Mario is initialized");
         };
                       
       }  
 
       if ((byte)typeD==4){
         isRemoteInitialized = true;        
-        Serial.println("Remote is initialized");
+        //Serial.println("Remote is initialized");
         myRemote.activatePortDevice(portLeft, DeviceCallback);
         myRemote.activatePortDevice(portRight, DeviceCallback);    
         myRemote.setLedColor(GREEN);    

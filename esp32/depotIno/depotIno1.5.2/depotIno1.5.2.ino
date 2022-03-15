@@ -437,7 +437,8 @@ void startTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
-  myTrains[idTrain].lastcolor = 0;
+  //(evito stop immediato)
+  myTrains[idTrain].lastcolor = (byte)Color::RED;  
     
   _println("Start " + myTrains[idTrain].hubColor);
   _println("Train " + myTrains[idTrain].hubColor + " Battery Level: "  + myTrains[idTrain].batteryLevel);  
@@ -449,13 +450,12 @@ void startTrain(int idTrain) {
     setSwitch(&mySwitchControlleres[i], c);
   }
   
-  //   Battery Level Switch (evito stop immediato)
-  myTrains[idTrain].lastcolor = (byte)Color::RED;
+
+  //   Battery Level Switch   
   if( myTrains[idTrain].batteryLevel<10){
     setSwitch(&mySwitchControlleres[2], 1);
   }else{
-    setSwitch(&mySwitchControlleres[2], 0);
-    
+    setSwitch(&mySwitchControlleres[2], 0);    
   }
 
   mySwitchController.setLedColor(myTrains[idTrain].ledColor);

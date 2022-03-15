@@ -1,0 +1,29 @@
+void setSwitch(Switches *cSwitch, bool position) {
+
+  byte *myPort = (byte *)cSwitch->port;
+
+  // position 0=straight, 1= turned
+
+  if (cSwitch->switchState == position) {
+    _println("already setted");
+    return;
+  }
+
+  bool p = position;
+  if (cSwitch->switchInvert == 1 ) p = !position;    
+  
+  int velocity = p ? switchVelocity : (switchVelocity * -1);    
+
+  mySwitchController.setTachoMotorSpeed(*myPort, velocity);
+  delay(switchInterval);
+  mySwitchController.stopTachoMotor(*myPort);
+  cSwitch->switchState = position;
+
+}
+
+void switchReset() {
+  for (int idSwitch = 0; idSwitch < MY_SWITCH_LEN; idSwitch++) {
+    setSwitch(&mySwitchControlleres[idSwitch], 0);
+  }
+}
+
