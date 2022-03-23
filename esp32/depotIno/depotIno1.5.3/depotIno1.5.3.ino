@@ -16,9 +16,6 @@
 // TODO:
 // aggiungere telecomando per partenza manuale (to check) + aumento velocità 
 
-// BUG FIX:
-// start=last color red ??? (to check)
-
 
 /* led part */
 #include <FastLED.h>
@@ -137,7 +134,7 @@ Switches mySwitchControlleres[MY_SWITCH_LEN] = {
 
 
 /* remote part */
-HubType typeD; //4 remote 7 mario
+HubType typeD; //6 remote 7 mario
 bool isRemoteInitialized = false;
 bool isRemoteInitFirst = false;
 
@@ -146,7 +143,7 @@ Lpf2Hub myRemote;
 
 byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
-DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
+//DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 
 void printLegenda() {
@@ -159,7 +156,7 @@ void printLegenda() {
   Serial.println("on = set system on");
   Serial.println("off = set system off");
   Serial.println("panic = shutDown all hubs and reset the system");
-  Serial.println("ksw = kill the switch");  
+  Serial.println("killsw = kill the switch");  
   Serial.println("reset = reset the system");
   Serial.println("status = show system status");
   Serial.println("help = show this message again");
@@ -173,9 +170,19 @@ void printLegenda() {
   Serial.println("swc0 = set switch C straight");
   Serial.println("swc1 = set switch C turned");
   
-  Serial.println("str = start RED Train");
-  Serial.println("stg = start GREEN Train");
-  Serial.println("sty = start YELLOW Train");
+  Serial.println("str1 = start RED Train");
+  Serial.println("stg1 = start GREEN Train");
+  Serial.println("sty1 = start YELLOW Train");
+
+  Serial.println("str0 = stop RED Train");
+  Serial.println("stg0 = stop GREEN Train");
+  Serial.println("sty0 = stop YELLOW Train");
+
+  Serial.println("killr = kill RED Train");
+  Serial.println("killg = kill GREEN Train");
+  Serial.println("killy = kill YELLOW Train");
+
+  Serial.println("killall = kill all Trains");    
   
   Serial.println("resetsw = reset all switches");
 
@@ -188,7 +195,7 @@ void readFromSerial() {
     Serial.println(">" + command);
     
     if (command == "panic") panic();
-    else if(command == "ksw") killSwitch();
+    else if(command == "killsw") killSwitch();
     else if (command == "reset") systemReset();
     else if (command == "on") systemOn();
     else if (command == "off") systemOff();
@@ -204,10 +211,25 @@ void readFromSerial() {
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
 	
-	  else if (command == "str") manualStartTrain(0);
-	  else if (command == "stg") manualStartTrain(1);
-	  else if (command == "sty") manualStartTrain(2);	
-	
+	  else if (command == "str1") manualStartTrain(0);
+	  else if (command == "stg1") manualStartTrain(1);
+	  else if (command == "sty1") manualStartTrain(2);	
+
+    else if (command == "str0") stopTrain(0);
+    else if (command == "stg0") stopTrain(1);
+    else if (command == "sty0") stopTrain(2);  
+
+    else if (command == "killr") killTrain(0);
+    else if (command == "killg") killTrain(1);
+    else if (command == "killy") killTrain(2);  
+
+    else if (command == "killall"){
+      killTrain(0);  
+      killTrain(1);  
+      killTrain(2);  
+    }
+
+  
     else if (command == "resetsw") switchReset();
     else {
       Serial.println(">command not found");
@@ -305,7 +327,7 @@ void loop() {
 
     //check for switch controller
     if (! mySwitchController.isConnected()) scanSwitchController();
-    if (! myRemote.isConnected()) scanRemoteController();
+    //if (! myRemote.isConnected()) scanRemoteController();
 
     // check for train
 	  activeTrain = 0;

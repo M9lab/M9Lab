@@ -24,7 +24,6 @@ void scanHub( int idTrain) {
       
       myTrains[idTrain].trainState = 0;
       myTrains[idTrain].hubState = 0;
-
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);
       delay(200);
@@ -51,7 +50,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
   if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){
     
     myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);      
-    _println("Train " + myTrains[idTrain].hubColor + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
+    //_println("Train " + myTrains[idTrain].hubColor + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
   }  
 
   if (hubProperty == HubPropertyReference::BUTTON)
@@ -124,16 +123,14 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
     
       Serial.print("Color ");
       Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
-      Serial.println(COLOR_STRING[color]);
-      Serial.print("Color dec: ");
-      Serial.println(color);
+      Serial.println(COLOR_STRING[color]);      
     
       myHub->setLedColor((Color)color);
     
     // set hub LED color to detected color of sensor and set motor speed dependent on color
-    if (color == (byte)Color::RED) stopTrain(idTrain);
+    if (color == (byte)Color::RED) killTrain(idTrain); 
     else if (color == (byte)Color::YELLOW) stopAndDoTrain(idTrain, true); 
-    else if (color == (byte)Color::CYAN) killTrain(idTrain); //GREEN
+    else if (color == (byte)Color::CYAN) stopTrain(idTrain);//GREEN
     //else if (color == (byte)Color::BLUE) stopAndDoTrain(idTrain, false);    	
     //else if (color == (byte)Color::WHITE) invertTrain(idTrain);
 	  //manca startTrain(idTrain);

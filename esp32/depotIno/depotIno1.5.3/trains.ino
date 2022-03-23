@@ -43,7 +43,8 @@ void startTrain(int idTrain) {
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
   //(evito stop immediato)
-  myTrains[idTrain].lastcolor = (byte)Color::RED;  
+  myTrains[idTrain].lastcolor = (byte)Color::CYAN;  
+  Serial.println(myTrains[idTrain].lastcolor);
     
   _println("Start " + myTrains[idTrain].hubColor);
   _println("Train " + myTrains[idTrain].hubColor + " Battery Level: "  + myTrains[idTrain].batteryLevel);  

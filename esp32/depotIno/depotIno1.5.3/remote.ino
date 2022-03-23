@@ -1,17 +1,15 @@
-
-
-
 void RemoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData)
 {
   //Lpf2Hub *myMario = (Lpf2Hub *)hub;
   Lpf2Hub *myRemote = (Lpf2Hub *)hub;
 
-
+  /*
   if (deviceType == DeviceType::MARIO_HUB_BARCODE_SENSOR)
   {
     MarioColor color = myRemote->parseMarioColor(pData);
     marioColorToLed((byte)color);    
   }
+  */
   
    if (deviceType == DeviceType::REMOTE_CONTROL_BUTTON){
       ButtonState buttonState = myRemote->parseRemoteButton(pData);     
@@ -30,6 +28,7 @@ void remoteColorToLed( byte buttonState, byte portNumber){
   if (buttonState==127 && portNumber == 1) {    
     myRemote.shutDownHub();
     isRemoteInitFirst = false;
+    Serial.println("Remote disconnected.");
   }
     
 }
@@ -63,11 +62,12 @@ void marioColorToLed( byte color){
 void scanRemoteController()
 {
 
+  
   /* remote */      
     if (myRemote.isConnecting())
     {
 
-      typeD = myRemote.getHubType();
+      typeD = myRemote.getHubType();      
       if ((byte)typeD == 4)
       {
        
@@ -101,7 +101,7 @@ void scanRemoteController()
     {
             
       delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost      
-      
+      /*      
       if ((byte)typeD == 7){
         byte portForDevice = myRemote.getPortForDeviceType((byte)barcodeSensor);        
         if (portForDevice != 255)
@@ -113,7 +113,8 @@ void scanRemoteController()
           Serial.println("Mario is initialized");
         };
                       
-      }  
+      } 
+      */ 
 
       if ((byte)typeD==4){
         isRemoteInitialized = true;        
