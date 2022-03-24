@@ -226,7 +226,7 @@ void readFromSerial() {
 	else if (command == "sbl1") startBlikLights();
 	else if (command == "sbl0") stopBlikLights();
 	
-	else if (command == "sl1") startLights(pPortA);
+	else if (command == "sl1") startLight(pPortA);
 	else if (command == "sl0") stopLights(pPortA);
 	
 	else if (command == "str1") manualStartTrain(0);
