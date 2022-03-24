@@ -15,6 +15,7 @@
 
 // TODO:
 // aggiungere telecomando per partenza manuale (to check) + aumento velocità 
+// luci in porta hub lampeggianti quando parte treno
 
 
 /* led part */
@@ -73,9 +74,10 @@ int lastTrainStarted = -1;
 
 // create a hub instance for switch
 Lpf2Hub mySwitchController;
-byte pPortC = (byte)ControlPlusHubPort::D; //0 -> A) White (D)
-byte pPortD = (byte)ControlPlusHubPort::C; //1 -> B) Blue (C)
-byte pPortA = (byte)ControlPlusHubPort::B; //2 -> C) Red (B) // battery shed
+byte pPortD = (byte)ControlPlusHubPort::D; //0 -> A) White (D)
+byte pPortC = (byte)ControlPlusHubPort::C; //1 -> B) Blue (C)
+byte pPortB = (byte)ControlPlusHubPort::B; //2 -> C) Red (B) // battery shed
+byte pPortA = (byte)ControlPlusHubPort::A; // -> Lights
 int switchInterval = 350;
 int switchVelocity = 35;
 int switchBatteryLevel = 100;
@@ -127,20 +129,17 @@ Train myTrains[MY_TRAIN_LEN] = {
 // Switch Maps
 //port  - color  -  status (0= straight 1= change) - invert
 Switches mySwitchControlleres[MY_SWITCH_LEN] = {
-  { &pPortC, "White" , 0, 0 }, //first switch
-  { &pPortD, "Blu" , 0, 1}, // second switch
-  { &pPortA, "Red" , 0, 0 } // battery shed switch
+  { &pPortD, "White" , 0, 0 }, //first switch
+  { &pPortC, "Blu" , 0, 1}, // second switch
+  { &pPortB, "Red" , 0, 0 } // battery shed switch
 };
 
 
 /* remote part */
-HubType typeD; //6 remote 7 mario
+//HubType typeD; //6 remote 7 mario
 bool isRemoteInitialized = false;
 bool isRemoteInitFirst = false;
-
-// create a hub instance
 Lpf2Hub myRemote;
-
 byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 //DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
@@ -181,6 +180,9 @@ void printLegenda() {
   Serial.println("killr = kill RED Train");
   Serial.println("killg = kill GREEN Train");
   Serial.println("killy = kill YELLOW Train");
+  
+  Serial.println("sl1 = turn on Lights");
+  Serial.println("sl0 = turn off Lights");
 
   Serial.println("killall = kill all Trains");    
   
@@ -211,9 +213,12 @@ void readFromSerial() {
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
 	
-	  else if (command == "str1") manualStartTrain(0);
-	  else if (command == "stg1") manualStartTrain(1);
-	  else if (command == "sty1") manualStartTrain(2);	
+	else if (command == "sl1") startLights(pPortA);
+	else if (command == "sl0") stopLights(pPortA);
+	
+	else if (command == "str1") manualStartTrain(0);
+	else if (command == "stg1") manualStartTrain(1);
+	else if (command == "sty1") manualStartTrain(2);	
 
     else if (command == "str0") stopTrain(0);
     else if (command == "stg0") stopTrain(1);
