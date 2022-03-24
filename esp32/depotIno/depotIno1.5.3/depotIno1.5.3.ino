@@ -145,6 +145,13 @@ byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 //DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 
+/* lights */
+unsigned long currentMillis_lights  = 0; 
+unsigned long previousMillis_lights  = 0; 
+const long interval_lights = 1000;  
+bool lights_blink_ison = false;
+bool lights_ison = false;
+
 void printLegenda() {
 
   // print command
@@ -183,6 +190,9 @@ void printLegenda() {
   
   Serial.println("sl1 = turn on Lights");
   Serial.println("sl0 = turn off Lights");
+  
+  Serial.println("sbl1 = turn on blinking Lights");
+  Serial.println("sbl0 = turn off blinking Lights");
 
   Serial.println("killall = kill all Trains");    
   
@@ -212,6 +222,9 @@ void readFromSerial() {
     else if (command == "swb1") setSwitch(&mySwitchControlleres[1], 1);
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
+	
+	else if (command == "sbl1") startBlikLights(pPortA);
+	else if (command == "sbl0") stopBlikLights(pPortA);
 	
 	else if (command == "sl1") startLights(pPortA);
 	else if (command == "sl0") stopLights(pPortA);
@@ -346,6 +359,11 @@ void loop() {
     }
   
     if (isSystemReady) doMainCode();
+	
+	if (lights_blink_ison){
+		 currentMillis_lights = millis();
+		 blinkLights(pPortA);
+	}
   }
 
 }
