@@ -1,19 +1,14 @@
-void startLights(byte myPort) {
+void startLights() {
 
   // always on
-  //mySwitchController.setTachoMotorSpeed(*myPort, 50);
-  
-  // repeat 10 times (to test)
-  for (int repeat = 0; repeat < 10; repeat++) {
-	mySwitchController.setTachoMotorSpeedForTime(myPort, 50,200);
-  }		  
+  mySwitchController.setTachoMotorSpeed(pPortA, 50);    		 
  
 }
 
-void stopLights(byte myPort) {
+void stopLights() {
 	
 	//byte *myPort = (byte *)cSwitch->port;
-	mySwitchController.stopTachoMotor(myPort);
+	mySwitchController.stopTachoMotor(pPortA);
 	
 	// lights_ison = false;
 }
@@ -23,20 +18,27 @@ void startBlikLights() {
 }	
 
 void stopBlikLights() {
-	lights_blink_ison=false;
+  lights_blink_ison=false;
+  mySwitchController.stopTachoMotor(pPortA);
+  currentMillis_lights=0;
+  previousMillis_lights=0;	
 }	
 
 
-void blinkLights(byte myPort){
-	 //byte *myPort = (byte *)cSwitch->port;
-	 	 
+void blinkLights(){	
+
+  currentMillis_lights = millis(); 
+
 	if (currentMillis_lights - previousMillis_lights >= interval_lights) {
+    
     previousMillis_lights = currentMillis_lights;
 
     if (lights_ison) {
-      mySwitchController.stopTachoMotor(myPort);
+      mySwitchController.stopTachoMotor(pPortA);
+      lights_ison=false;
     } else {
-      mySwitchController.setTachoMotorSpeed(myPort, 50);
+      mySwitchController.setTachoMotorSpeed(pPortA, 50);
+      lights_ison=true;
     }
 
     

@@ -148,7 +148,7 @@ byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 /* lights */
 unsigned long currentMillis_lights  = 0; 
 unsigned long previousMillis_lights  = 0; 
-const long interval_lights = 1000;  
+const long interval_lights = 20;  
 bool lights_blink_ison = false;
 bool lights_ison = false;
 
@@ -226,8 +226,8 @@ void readFromSerial() {
 	else if (command == "sbl1") startBlikLights();
 	else if (command == "sbl0") stopBlikLights();
 	
-	else if (command == "sl1") startLights(pPortA);
-	else if (command == "sl0") stopLights(pPortA);
+	else if (command == "sl1") startLights();
+	else if (command == "sl0") stopLights();
 	
 	else if (command == "str1") manualStartTrain(0);
 	else if (command == "stg1") manualStartTrain(1);
@@ -360,10 +360,8 @@ void loop() {
   
     if (isSystemReady) doMainCode();
 	
-	if (lights_blink_ison){
-		 currentMillis_lights = millis();
-		 blinkLights(pPortA);
-	}
+	if (lights_blink_ison)blinkLights();
+	
   }
 
 }
