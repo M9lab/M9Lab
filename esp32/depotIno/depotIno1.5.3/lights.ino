@@ -1,31 +1,29 @@
-void startLights() {
+void startLights(byte port) {  
 
-  // always on
-  mySwitchController.setTachoMotorSpeed(pPortA, 50);    		 
- 
+  Serial.println("Lights ON");
+  if (mySwitchController.isConnected()) mySwitchController.setTachoMotorSpeed(port, 50);    		  
 }
 
-void stopLights() {
-	
-	//byte *myPort = (byte *)cSwitch->port;
-	mySwitchController.stopTachoMotor(pPortA);
-	
-	// lights_ison = false;
+void stopLights(byte port) {		
+
+  Serial.println("Lights OFF");
+	if (mySwitchController.isConnected()) mySwitchController.stopTachoMotor(port);		
 }
 
-void startBlikLights() {
+void startBlikLights(byte port) {
 	lights_blink_ison=true;
+  lights_count = 0;
 }	
 
-void stopBlikLights() {
+void stopBlikLights(byte port) {
   lights_blink_ison=false;
-  mySwitchController.stopTachoMotor(pPortA);
+  stopLights(port); 
   currentMillis_lights=0;
   previousMillis_lights=0;	
 }	
 
 
-void blinkLights(){	
+void blinkLights(byte port){	
 
   currentMillis_lights = millis(); 
 
@@ -33,12 +31,16 @@ void blinkLights(){
     
     previousMillis_lights = currentMillis_lights;
 
+    lights_count++;
+
     if (lights_ison) {
-      mySwitchController.stopTachoMotor(pPortA);
+      startLights(port);
       lights_ison=false;
     } else {
-      mySwitchController.setTachoMotorSpeed(pPortA, 50);
+      stopLights(port);
       lights_ison=true;
+      // stop after 10 blink
+      if (lights_count>10) stopBlikLights(port);
     }
 
     

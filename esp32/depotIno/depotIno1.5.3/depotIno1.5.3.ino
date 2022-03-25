@@ -151,6 +151,7 @@ unsigned long previousMillis_lights  = 0;
 const long interval_lights = 20;  
 bool lights_blink_ison = false;
 bool lights_ison = false;
+int lights_count = 0;
 
 void printLegenda() {
 
@@ -223,11 +224,11 @@ void readFromSerial() {
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
 	
-	else if (command == "sbl1") startBlikLights();
-	else if (command == "sbl0") stopBlikLights();
+	else if (command == "sbl1") startBlikLights(pPortA);
+	else if (command == "sbl0") stopBlikLights(pPortA);
 	
-	else if (command == "sl1") startLights();
-	else if (command == "sl0") stopLights();
+	else if (command == "sl1") startLights(pPortA);
+	else if (command == "sl0") stopLights(pPortA);
 	
 	else if (command == "str1") manualStartTrain(0);
 	else if (command == "stg1") manualStartTrain(1);
@@ -333,34 +334,35 @@ void setup() {
   delay(3000);
   Serial.begin(115200);
   printLegenda();  
-
-  fullColor(colour[0]);
+  fullColor(CRGB::Purple);
 
 }
 
 void loop() {
 
   readFromSerial();
-  while (Serial.available() == 0) {
-
+  while (Serial.available() == 0) {      
     //check for switch controller
-    if (! mySwitchController.isConnected()) scanSwitchController();
-    //if (! myRemote.isConnected()) scanRemoteController();
+    if (! mySwitchController.isConnected()){
+      scanSwitchController();
+    }else{
+       //if (! myRemote.isConnected()) scanRemoteController();
 
-    // check for train
-	  activeTrain = 0;
-    for (int i = 0; i < MY_TRAIN_LEN; i++) {
-      checkIntervalisExpired(i);
-      if (! myTrains[i].hubobj->isConnected()) {
-  		  scanHub(i);
-  	  } else{
-  		  if (myTrains[i].hubState == 1) activeTrain++;
-  	  }		  
-    }
-  
-    if (isSystemReady) doMainCode();
-	
-	if (lights_blink_ison)blinkLights();
+      // check for train
+      activeTrain = 0;
+      for (int i = 0; i < MY_TRAIN_LEN; i++) {
+        checkIntervalisExpired(i);
+        if (! myTrains[i].hubobj->isConnected()) {
+          scanHub(i);
+        } else{
+          if (myTrains[i].hubState == 1) activeTrain++;
+        }     
+      }
+    
+      if (isSystemReady) doMainCode();    
+      if (lights_blink_ison) blinkLights(pPortA);     
+      
+    }    
 	
   }
 
