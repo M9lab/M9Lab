@@ -10,6 +10,7 @@ void scanSwitchController() {
       char hubName[] = "Switch";
       mySwitchController.setHubName(hubName);
       mySwitchController.activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallbackSwitch);
+      fullColor(CRGB::Cyan);
 
     } else {
       Serial.println("Failed to connect to Switch Controller");
@@ -20,6 +21,7 @@ void scanSwitchController() {
 
 void killSwitch(){
   mySwitchController.shutDownHub();
+  fullColor(CRGB::Purple);
 }
 
 

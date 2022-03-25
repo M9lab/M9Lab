@@ -1,16 +1,13 @@
-void startLights(byte port) {  
-
-  Serial.println("Lights ON");
+void startLights(byte port) {    
   if (mySwitchController.isConnected()) mySwitchController.setTachoMotorSpeed(port, 50);    		  
 }
 
 void stopLights(byte port) {		
-
-  Serial.println("Lights OFF");
 	if (mySwitchController.isConnected()) mySwitchController.stopTachoMotor(port);		
 }
 
 void startBlikLights(byte port) {
+  _println("Start blinking lights");
 	lights_blink_ison=true;
   lights_count = 0;
 }	
@@ -26,11 +23,9 @@ void stopBlikLights(byte port) {
 void blinkLights(byte port){	
 
   currentMillis_lights = millis(); 
-
 	if (currentMillis_lights - previousMillis_lights >= interval_lights) {
     
     previousMillis_lights = currentMillis_lights;
-
     lights_count++;
 
     if (lights_ison) {
@@ -42,7 +37,6 @@ void blinkLights(byte port){
       // stop after 10 blink
       if (lights_count>10) stopBlikLights(port);
     }
-
     
   }
 }

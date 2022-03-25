@@ -1,6 +1,4 @@
-
 void manualStartTrain(int idtrain){
-
   
 	if (checkIfAllTrainIsStopped()) {
 				
@@ -16,12 +14,10 @@ void manualStartTrain(int idtrain){
 	
 }
 
-
-
-
 void stopAndDoTrain(int idTrain, bool invert) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+  if (!myTrain->isConnected()) return;
 
   _print("Stop & ");
   (invert) ? _print("Invert") : _print("Go");
@@ -41,16 +37,16 @@ void startTrain(int idTrain) {
   systemStatus();
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+  if (!myTrain->isConnected()) return;
 
   //(evito stop immediato)
-  myTrains[idTrain].lastcolor = (byte)Color::CYAN;  
-  Serial.println(myTrains[idTrain].lastcolor);
+  myTrains[idTrain].lastcolor = (byte)Color::CYAN;    
     
   _println("Start " + myTrains[idTrain].hubColor);
   _println("Train " + myTrains[idTrain].hubColor + " Battery Level: "  + myTrains[idTrain].batteryLevel);  
   
 
-  // TODO -> setta scambi per il ritorno
+  //  setta scambi per il ritorno
   for (int i = 0; i < strlen(myTrains[idTrain].switchPosition); i++ ) {
     bool c = (myTrains[idTrain].switchPosition[i]) == '1' ? true : false;
     setSwitch(&mySwitchControlleres[i], c);
@@ -75,6 +71,7 @@ void startTrain(int idTrain) {
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
   _println("Train: " + myTrains[idTrain].hubColor + " Started!!!");
+  startBlikLights(pPortA);
 
 
 }
@@ -82,8 +79,9 @@ void startTrain(int idTrain) {
 void stopTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-
+  if (!myTrain->isConnected()) return;
   _println("Stop " + myTrains[idTrain].hubColor);
+  
   myTrain->stopBasicMotor(portA);
   myTrains[idTrain].trainState = 0;
 
@@ -92,6 +90,8 @@ void stopTrain(int idTrain) {
 void killTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+  if (!myTrain->isConnected()) return;
+  
   _println("Kill " + myTrains[idTrain].hubColor);
   myTrain->stopBasicMotor(portA);
   myTrain->shutDownHub();
@@ -107,10 +107,11 @@ void killTrain(int idTrain) {
 void invertTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-
+  if (!myTrain->isConnected()) return;
+  
   _println("Invert " + myTrains[idTrain].hubColor);
-
   myTrains[idTrain].speed = -1 * myTrains[idTrain].speed;
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
+  
 }

@@ -1,6 +1,7 @@
 void setSwitch(Switches *cSwitch, bool position) {
 
   byte *myPort = (byte *)cSwitch->port;
+  if (!mySwitchController.isConnected()) return;
 
   // position 0=straight, 1= turned
 
@@ -22,8 +23,11 @@ void setSwitch(Switches *cSwitch, bool position) {
 }
 
 void switchReset() {
+
+  if (!mySwitchController.isConnected()) return;
+  
   for (int idSwitch = 0; idSwitch < MY_SWITCH_LEN; idSwitch++) {
     setSwitch(&mySwitchControlleres[idSwitch], 0);
   }
+  
 }
-

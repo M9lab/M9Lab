@@ -15,7 +15,7 @@
 
 // TODO:
 // aggiungere telecomando per partenza manuale (to check) + aumento velocità 
-// luci in porta hub lampeggianti quando parte treno
+// luci in porta hub lampeggianti quando parte treno (to check)
 
 
 /* led part */
@@ -86,7 +86,7 @@ String switchControllerAddress = "90:84:2b:51:ba:b0";
 // global
 bool isSystemReady = false;
 bool isVerbose = true;
-String ver = "1.5.2.3";
+String ver = "1.5.2.5";
 
 // Trains structure
 typedef struct {
@@ -138,10 +138,11 @@ Switches mySwitchControlleres[MY_SWITCH_LEN] = {
 /* remote part */
 //HubType typeD; //6 remote 7 mario
 bool isRemoteInitialized = false;
-bool isRemoteInitFirst = false;
+//bool isRemoteInitFirst = false;
 Lpf2Hub myRemote;
 byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
+String remoteAddress = "04:ee:03:b9:d8:19";
 //DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 
@@ -224,15 +225,15 @@ void readFromSerial() {
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
 	
-	else if (command == "sbl1") startBlikLights(pPortA);
-	else if (command == "sbl0") stopBlikLights(pPortA);
-	
-	else if (command == "sl1") startLights(pPortA);
-	else if (command == "sl0") stopLights(pPortA);
-	
-	else if (command == "str1") manualStartTrain(0);
-	else if (command == "stg1") manualStartTrain(1);
-	else if (command == "sty1") manualStartTrain(2);	
+  	else if (command == "sbl1") startBlikLights(pPortA);
+  	else if (command == "sbl0") stopBlikLights(pPortA);
+  	
+  	else if (command == "sl1") startLights(pPortA);
+  	else if (command == "sl0") stopLights(pPortA);
+  	
+  	else if (command == "str1") manualStartTrain(0);
+  	else if (command == "stg1") manualStartTrain(1);
+  	else if (command == "sty1") manualStartTrain(2);	
 
     else if (command == "str0") stopTrain(0);
     else if (command == "stg0") stopTrain(1);
@@ -278,7 +279,7 @@ void systemOff() {
 }
 
 void systemReset() {
-  //TODO
+  
   systemOff();
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
     stopTrain(idTrain);
@@ -290,21 +291,23 @@ void systemReset() {
 }
 
 void panic() {
-  //TODO
+  
+  //TODO check  
   systemReset();
-
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-    // shutDown all Hub
-    //Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-    //myTrain->shutDownHub();
+
     myTrains[idTrain].trainState = 0;
     myTrains[idTrain].hubState = -1;    
-    //killTrain(idTrain);
+    // shutDown Hub
+    killTrain(idTrain);
     Serial.println("Disconnected from hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
   }
   activeTrain = 0;
 
-  //mySwitchController.shutDownHub();
+  myRemote.shutDownHub();
+  isRemoteInitialized = false; 
+  
+  killSwitch();
 
 }
 
@@ -346,7 +349,7 @@ void loop() {
     if (! mySwitchController.isConnected()){
       scanSwitchController();
     }else{
-       //if (! myRemote.isConnected()) scanRemoteController();
+       if (! myRemote.isConnected()) scanRemoteController();
 
       // check for train
       activeTrain = 0;

@@ -1,9 +1,7 @@
 
-/* led part */
-
 void doCountdown(int colorIndex){
- for(int num=9; num>-1; num--){
-      
+  
+ for(int num=9; num>-1; num--){      
       char b[1];
       String str;
       str=String(num);
@@ -11,21 +9,21 @@ void doCountdown(int colorIndex){
       osCopyChar(str[0],colorIndex);  
       delay(1000);  
    }  
+   
 }
 
 void fullColor(uint32_t color){
-
+  
  for(int num=0; num<NUM_LEDS; num++) {    
     leds[num] = color;
     FastLED.show();     
   }
-
+  
 }
 
-void osCopyChar (char myChar, int colorIndex)
-{
+void osCopyChar (char myChar, int colorIndex){
+  
   myChar -= charStart;
-
   for (int i=0; i<5; i++)
     for (int j=0; j<5; j++)
     {
@@ -34,9 +32,11 @@ void osCopyChar (char myChar, int colorIndex)
       leds[XYTable[pos]] = typex;
       FastLED.show(); 
     }
+    
 }
 
 void rulette(){
+  
   _println("rulette");  
   SN = 1;
   while (SN<SM) {
