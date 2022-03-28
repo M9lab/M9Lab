@@ -236,7 +236,9 @@ void loop() {
     if (! mySwitchController.isConnected()){
       scanSwitchController();
     }else{
-       //if (! myRemote.isConnected()) scanRemoteController();
+
+      // remote cotroller
+      //if (! myRemote.isConnected()) scanRemoteController();
 
       // check for train
       activeTrain = 0;
@@ -249,7 +251,10 @@ void loop() {
         }     
       }
     
+      // do main code
       if (isSystemReady) doMainCode();    
+
+      // light interval
       if (lights_blink_ison) blinkLights(pPortA);     
       
     }    
