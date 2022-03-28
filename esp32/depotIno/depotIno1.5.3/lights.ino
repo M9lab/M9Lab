@@ -34,7 +34,7 @@ void blinkLights(byte port){
     } else {
       stopLights(port);
       lights_ison=true;
-      // stop after 10 blink
+      // stop after 8 blink
       if (lights_count>8) stopBlikLights(port);
     }
     

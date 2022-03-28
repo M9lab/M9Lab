@@ -25,8 +25,9 @@ void remoteColorToLed( byte buttonState, byte portNumber){
     Serial.println("Remote disconnected.");
   }
 
-  // direction TODO
-   //if (buttonState == ButtonState::UP)  
+   // set velocity TODO
+   //if (buttonState == ButtonState::UP)  increaseCurrentTrainSpeed(); 
+   //if (buttonState == ButtonState::DOWN)  decreaseCurrentTrainSpeed(); 
 }
 
 void scanRemoteController(){

@@ -4,7 +4,6 @@ void setSwitch(Switches *cSwitch, bool position) {
   if (!mySwitchController.isConnected()) return;
 
   // position 0=straight, 1= turned
-
   if (cSwitch->switchState == position) {
     _println("already setted");
     return;

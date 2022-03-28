@@ -1,3 +1,30 @@
+
+void randomStartTrain() {
+
+  if (checkIfAllTrainIsStopped()) {
+	  
+    int randIdTrain = random(0, MY_TRAIN_LEN - 1);
+    if (activeTrain > 1 && lastTrainStarted == randIdTrain) return;
+	  Lpf2Hub *myTrain = myTrains[randIdTrain].hubobj;
+    if (!myTrain->isConnected()) return;
+  
+	  //rulette();  
+    fullColor(colour[randIdTrain]);
+    delay(1000);
+    //doCountdown(randIdTrain);
+    fullColor(colour[randIdTrain]);
+
+    lastTrainStarted = randIdTrain;
+  
+     //startBlikLights(pPortA);
+    delayBlinkLights(pPortA);
+    startTrain(randIdTrain);      
+    delay(beforeStartInterval);      
+	  
+  }
+
+}
+
 void manualStartTrain(int idtrain){
   
 	if (checkIfAllTrainIsStopped()) {
@@ -39,21 +66,21 @@ void startTrain(int idTrain) {
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()) return;
    
-  //(evito stop immediato)
+  //(avoid immediate stop by discarge stop color )
   myTrains[idTrain].lastcolor = sensorAcceptedColors[0];    
     
   _println("Start " + myTrains[idTrain].hubColor);
   _println("Train " + myTrains[idTrain].hubColor + " Battery Level: "  + myTrains[idTrain].batteryLevel);  
   
 
-  //  setta scambi per il ritorno
+  //  set the switches ready for the trains return
   for (int i = 0; i < strlen(myTrains[idTrain].switchPosition); i++ ) {
     bool c = (myTrains[idTrain].switchPosition[i]) == '1' ? true : false;
     setSwitch(&mySwitchControlleres[i], c);
   }
   
 
-  //   Battery Level Switch   
+  // Battery Level Switch   
   if( myTrains[idTrain].batteryLevel<10){
     setSwitch(&mySwitchControlleres[2], 1);
   }else{
@@ -96,7 +123,7 @@ void killTrain(int idTrain) {
   myTrains[idTrain].trainState = 0;     
   myTrains[idTrain].hubState = -1;
   
-  //activeTrain--;
+  activeTrain--;
   setSwitch(&mySwitchControlleres[2], 0);
   delay(2000);
 

@@ -1,13 +1,13 @@
 
-// Questo sketch gestisce 3 treni (A,B,C) su un tracciato che va dal deposito alla galleria
-// i treni partono una alla volta in maniera casuale oppure manualmente (remote opzionale)
-// utilizza lego poweredup con la libreria Legoino by Cornelius Munz  (https://github.com/corneliusmunz/legoino) ver 1.0.1
-// necessita di 3 hub city per i treni (motore + sensore colore) e un hub technic (3 motori) per gli scambi.
+// This sketch manages 3 trains (A, B, C) on a track that goes from the depot to the tunnel
+// trains depart one at a time randomly or manually (remotelly is optional)
+// use lego poweredup with the Legoino library by Cornelius Munz (https://github.com/corneliusmunz/legoino) ver 1.0.1
+// needs 3 city hubs for trains (engine + color sensor) and a technic hub (3 engines) for exchanges and 1 kit lights.
 // DepotIno - 2022 Code by Stefx
 
 /* note
-1) aumentare max device (default=3) in NimBLE-Arduino/src/nimconfig.h #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS X
-2) installare cp210x su linux
+1) set max device (default=3) in NimBLE-Arduino/src/nimconfig.h #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS X
+2) install cp210x library on linux
 	apt list linux-modules-extra-5.8.0-38-generic
 	dpkg -L linux-modules-extra-5.8.0-38-generic | grep cp210x
 	sudo modprobe cp210x
@@ -17,8 +17,10 @@
 // aggiungere telecomando per partenza manuale (to check)
 // luci in porta hub lampeggianti quando parte treno (to check)
 // aumento velocità (to check)
+// new status print (to check)
 
-
+// version
+String ver = "1.5.2.7";
 
 /* led part */
 #include <FastLED.h>
@@ -70,8 +72,8 @@ byte portA = (byte)PoweredUpHubPort::A;
 byte portB = (byte)PoweredUpHubPort::B;
 
 int activeTrain = 0;
-int colorInterval = 5000;
-int beforeStartInterval = 5000;
+int colorInterval = 5000; //how much wait before start after train is waiting for a action (go or invert)
+int beforeStartInterval = 5000; //how much wait before start the train
 int lastTrainStarted = -1;
 
 // create a hub instance for switch
@@ -85,10 +87,9 @@ int switchVelocity = 35;
 int switchBatteryLevel = 100;
 String switchControllerAddress = "90:84:2b:51:ba:b0";
 
-// global
+// global flags
 bool isSystemReady = false;
 bool isVerbose = true;
-String ver = "1.5.2.5";
 
 // Trains structure
 typedef struct {
@@ -117,17 +118,18 @@ typedef struct {
 #define MY_SWITCH_LEN 3
 #define MY_COLOR_LEN 3
 
+// default trains speed
 int initialTrainSpeed = 25;
 
-// Color Maps --> stop | invert | kill
+// Color Maps for trains --> 1 stop | 2 invert | 3 kill
 byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN,  (byte)Color::YELLOW, (byte)Color::RED, };
-// other color (byte)Color::BLUE,(byte)Color::WHITE
+// other color no used (byte)Color::BLUE, (byte)Color::WHITE
 
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
 Train myTrains[MY_TRAIN_LEN] = {
-  { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed , 0, 0, -1, 0, 100, "01", RED}
-  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", initialTrainSpeed, 0, 0, -1, 0, 100, "00", GREEN}
+    { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed , 0, 0, -1, 0, 100, "01", RED}
+  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", initialTrainSpeed , 0, 0, -1, 0, 100, "00", GREEN}
   , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed , 0, 0, -1, 0, 100, "10", YELLOW}
 };
 
@@ -141,13 +143,12 @@ Switches mySwitchControlleres[MY_SWITCH_LEN] = {
 
 
 /* remote part */
-//HubType typeD; //6 remote 7 mario
 bool isRemoteInitialized = false;
-//bool isRemoteInitFirst = false;
 Lpf2Hub myRemote;
 byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 String remoteAddress = "04:ee:03:b9:d8:19";
+//bool isRemoteInitFirst = false;
 //DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 
@@ -237,10 +238,10 @@ void loop() {
       scanSwitchController();
     }else{
 
-      // remote cotroller
+      // remote controller
       //if (! myRemote.isConnected()) scanRemoteController();
 
-      // check for train
+      // check for all trains
       activeTrain = 0;
       for (int i = 0; i < MY_TRAIN_LEN; i++) {
         checkIntervalisExpired(i);
@@ -251,41 +252,14 @@ void loop() {
         }     
       }
     
-      // do main code
-      if (isSystemReady) doMainCode();    
+      // do the automatic train start is activated
+      if (isSystemReady) randomStartTrain();    
 
-      // light interval
+      // check bliking light interval
       if (lights_blink_ison) blinkLights(pPortA);     
       
     }    
 	
-  }
-
-}
-
-
-void doMainCode() {
-
-  if (checkIfAllTrainIsStopped()) {
-	  
-    int randIdTrain = random(0, MY_TRAIN_LEN - 1);
-    if (activeTrain > 1 && lastTrainStarted == randIdTrain) return;
-	  Lpf2Hub *myTrain = myTrains[randIdTrain].hubobj;
-    if (!myTrain->isConnected()) return;
-  
-	  //rulette();  
-    fullColor(colour[randIdTrain]);
-    delay(1000);
-    //doCountdown(randIdTrain);
-    fullColor(colour[randIdTrain]);
-
-    lastTrainStarted = randIdTrain;
-  
-     //startBlikLights(pPortA);
-    delayBlinkLights(pPortA);
-    startTrain(randIdTrain);      
-    delay(beforeStartInterval);      
-	  
   }
 
 }

@@ -68,7 +68,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
 
             Serial.println("Hub " + myTrains[idTrain].hubColor + " is ready");
             myTrains[idTrain].hubState = 1;            
-            //activeTrain++;
+            activeTrain++;
             byte portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
             if (portForDevice != 255) {
               // activate hub button to receive updates
@@ -132,7 +132,7 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
       else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
       else if (color == sensorAcceptedColors[2]) stopTrain(idTrain); 
       
-      //other functions
+      //other functions not used
       /*
       startTrain(idTrain);
       stopAndDoTrain(idTrain, false);
