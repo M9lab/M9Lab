@@ -116,10 +116,9 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
     
     int color = myHub->parseColor(pData);
     
-
     if (myTrains[idTrain].lastcolor == color || !checkIfSensorColorIsAccepted(color) || color==0 || color==255) return;
-      myTrains[idTrain].lastcolor = color;
 
+      myTrains[idTrain].lastcolor = color;
     
       Serial.print("Color ");
       Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
@@ -127,13 +126,18 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
     
       myHub->setLedColor((Color)color);
     
-    // set hub LED color to detected color of sensor and set motor speed dependent on color
-    if (color == (byte)Color::RED) killTrain(idTrain); 
-    else if (color == (byte)Color::YELLOW) stopAndDoTrain(idTrain, true); 
-    else if (color == (byte)Color::CYAN) stopTrain(idTrain);//GREEN
-    //else if (color == (byte)Color::BLUE) stopAndDoTrain(idTrain, false);    	
-    //else if (color == (byte)Color::WHITE) invertTrain(idTrain);
-	  //manca startTrain(idTrain);
+      // set hub LED color to detected color of sensor and set motor speed dependent on color
+      // stop | invert | kill -> sensorAcceptedColors
+      if (color == sensorAcceptedColors[0]) killTrain(idTrain); 
+      else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
+      else if (color == sensorAcceptedColors[2]) stopTrain(idTrain); 
+      
+      //other functions
+      /*
+      startTrain(idTrain);
+      stopAndDoTrain(idTrain, false);
+      invertTrain(idTrain);
+      */
 
   }
 }

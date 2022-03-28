@@ -40,3 +40,15 @@ void blinkLights(byte port){
     
   }
 }
+
+
+// blink with normal delay
+void delayBlinkLights(byte port){
+
+  for (int i = 0; i < 4; i++ ) {
+     startLights(port);
+     delay(500);
+     stopLights(port);
+  }
+
+}

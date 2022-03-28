@@ -14,8 +14,10 @@
 */
 
 // TODO:
-// aggiungere telecomando per partenza manuale (to check) + aumento velocità 
+// aggiungere telecomando per partenza manuale (to check)
 // luci in porta hub lampeggianti quando parte treno (to check)
+// aumento velocità (to check)
+
 
 
 /* led part */
@@ -115,15 +117,18 @@ typedef struct {
 #define MY_SWITCH_LEN 3
 #define MY_COLOR_LEN 3
 
-// Color Maps
-byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN, (byte)Color::RED, (byte)Color::YELLOW };  // (byte)Color::BLUE,(byte)Color::WHITE
+int initialTrainSpeed = 25;
+
+// Color Maps --> stop | invert | kill
+byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN,  (byte)Color::YELLOW, (byte)Color::RED, };
+// other color (byte)Color::BLUE,(byte)Color::WHITE
 
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
 Train myTrains[MY_TRAIN_LEN] = {
-  { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", 30 , 0, 0, -1, 0, 100, "01", RED}
-  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", 25, 0, 0, -1, 0, 100, "00", GREEN}
-  , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", 30 , 0, 0, -1, 0, 100, "10", YELLOW}
+  { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed , 0, 0, -1, 0, 100, "01", RED}
+  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", initialTrainSpeed, 0, 0, -1, 0, 100, "00", GREEN}
+  , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed , 0, 0, -1, 0, 100, "10", YELLOW}
 };
 
 // Switch Maps
@@ -154,60 +159,13 @@ bool lights_blink_ison = false;
 bool lights_ison = false;
 int lights_count = 0;
 
-void printLegenda() {
-
-  // print command
-  Serial.println("*** M9Lab - DepotIno4 v." + ver + " ***");
-  Serial.println("_________________________________________________");
-  Serial.println("List of commands used by system:");
-
-  Serial.println("on = set system on");
-  Serial.println("off = set system off");
-  Serial.println("panic = shutDown all hubs and reset the system");
-  Serial.println("killsw = kill the switch");  
-  Serial.println("reset = reset the system");
-  Serial.println("status = show system status");
-  Serial.println("help = show this message again");
-  Serial.println("verboseon = show more status messages");
-  Serial.println("verboseoff = show less status messages");
-
-  Serial.println("swa0 = set switch A straight");
-  Serial.println("swa1 = set switch A turned");
-  Serial.println("swb0 = set switch B straight");
-  Serial.println("swb1 = set switch B turned");
-  Serial.println("swc0 = set switch C straight");
-  Serial.println("swc1 = set switch C turned");
-  
-  Serial.println("str1 = start RED Train");
-  Serial.println("stg1 = start GREEN Train");
-  Serial.println("sty1 = start YELLOW Train");
-
-  Serial.println("str0 = stop RED Train");
-  Serial.println("stg0 = stop GREEN Train");
-  Serial.println("sty0 = stop YELLOW Train");
-
-  Serial.println("killr = kill RED Train");
-  Serial.println("killg = kill GREEN Train");
-  Serial.println("killy = kill YELLOW Train");
-  
-  Serial.println("sl1 = turn on Lights");
-  Serial.println("sl0 = turn off Lights");
-  
-  Serial.println("sbl1 = turn on blinking Lights");
-  Serial.println("sbl0 = turn off blinking Lights");
-
-  Serial.println("killall = kill all Trains");    
-  
-  Serial.println("resetsw = reset all switches");
-
-  Serial.println("_________________________________________________");
-}
 
 void readFromSerial() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
     Serial.println(">" + command);
     
+    // system
     if (command == "panic") panic();
     else if(command == "killsw") killSwitch();
     else if (command == "reset") systemReset();
@@ -218,6 +176,7 @@ void readFromSerial() {
     else if (command == "verboseon") verboseOn();
     else if (command == "verboseoff") verboseOff();
 
+    // switches
     else if (command == "swa0") setSwitch(&mySwitchControlleres[0], 0);
     else if (command == "swa1") setSwitch(&mySwitchControlleres[0], 1);
     else if (command == "swb0") setSwitch(&mySwitchControlleres[1], 0);
@@ -225,12 +184,11 @@ void readFromSerial() {
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
 	
+    //lights
   	else if (command == "sbl1") startBlikLights(pPortA);
-  	else if (command == "sbl0") stopBlikLights(pPortA);
+  	else if (command == "sbl0") stopBlikLights(pPortA);  	
   	
-  	else if (command == "sl1") startLights(pPortA);
-  	else if (command == "sl0") stopLights(pPortA);
-  	
+    // trains
   	else if (command == "str1") manualStartTrain(0);
   	else if (command == "stg1") manualStartTrain(1);
   	else if (command == "sty1") manualStartTrain(2);	
@@ -243,13 +201,13 @@ void readFromSerial() {
     else if (command == "killg") killTrain(1);
     else if (command == "killy") killTrain(2);  
 
-    else if (command == "killall"){
-      killTrain(0);  
-      killTrain(1);  
-      killTrain(2);  
-    }
+    else if (command == "cts+") increaseCurrentTrainSpeed();  
+    else if (command == "cts-") decreaseCurrentTrainSpeed();  
+    else if (command == "cts=") resetCurrentTrainSpeed();  
 
+    else if (command == "killall") for (int i = 0; i < MY_TRAIN_LEN; i++) { killTrain(i);}      
   
+    // main hub
     else if (command == "resetsw") switchReset();
     else {
       Serial.println(">command not found");
@@ -257,77 +215,6 @@ void readFromSerial() {
   }
 }
 
-void verboseOn() {
-  isVerbose = true;
-}
-
-void verboseOff() {
-  isVerbose = false;
-}
-
-void systemOn() {
-  if (!mySwitchController.isConnected()) {
-    _println("Cannot find the Switch Controller");
-  } else {
-    isSystemReady = true;
-  }
-
-}
-
-void systemOff() {
-  isSystemReady = false;
-}
-
-void systemReset() {
-  
-  systemOff();
-  for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-    stopTrain(idTrain);
-    myTrains[idTrain].speed = 0;
-    myTrains[idTrain].lastcolor = 0;
-    myTrains[idTrain].colorPreviousMillis = 0;
-  }
-  switchReset();
-}
-
-void panic() {
-  
-  //TODO check  
-  systemReset();
-  for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-
-    myTrains[idTrain].trainState = 0;
-    myTrains[idTrain].hubState = -1;    
-    // shutDown Hub
-    killTrain(idTrain);
-    Serial.println("Disconnected from hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
-  }
-  activeTrain = 0;
-
-  if(myRemote.isConnected()) myRemote.shutDownHub();
-  isRemoteInitialized = false; 
-  
-  killSwitch();
-
-}
-
-
-// uso interno private
-void systemStatus() {
-
-  Serial.println("hubColor,batteryLevel,hubState,trainState,speed");
-  Serial.println("_________________________________________________");
-
-  for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-    Serial.println(myTrains[idTrain].hubColor + "," + myTrains[idTrain].batteryLevel + "," + myTrains[idTrain].hubState + "," +  myTrains[idTrain].trainState + "," + myTrains[idTrain].speed);
-  }
-
-  Serial.println("_________________________________________________");
-
-  Serial.println("Switch Battery Level: ");
-  Serial.println(switchBatteryLevel);
-
-}
 
 
 void setup() {
@@ -376,7 +263,7 @@ void doMainCode() {
 
   if (checkIfAllTrainIsStopped()) {
 	  
-    int randIdTrain = random(1, MY_TRAIN_LEN + 1) - 1;
+    int randIdTrain = random(0, MY_TRAIN_LEN - 1);
     if (activeTrain > 1 && lastTrainStarted == randIdTrain) return;
 	  Lpf2Hub *myTrain = myTrains[randIdTrain].hubobj;
     if (!myTrain->isConnected()) return;
@@ -386,54 +273,14 @@ void doMainCode() {
     delay(1000);
     //doCountdown(randIdTrain);
     fullColor(colour[randIdTrain]);
-  
+
     lastTrainStarted = randIdTrain;
-    startTrain(randIdTrain);  
-    delay(beforeStartInterval);  
+  
+     //startBlikLights(pPortA);
+    delayBlinkLights(pPortA);
+    startTrain(randIdTrain);      
+    delay(beforeStartInterval);      
 	  
-  }
-
-}
-
-
-void _print(String text) {
-  if (isVerbose) Serial.print(text);
-}
-
-void _println(String text) {
-  if (isVerbose) Serial.println(text);
-}
-
-
-void saveInterval(unsigned long &previousMillis) {
-  previousMillis = millis();
-}
-
-
-bool checkIfAllTrainIsStopped() {
-  for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    if (myTrains[i].trainState != 0) return false;
-  }
-  return true;
-}
-
-
-bool checkIfSensorColorIsAccepted(byte inputColor) {
-  for (int i = 0; i < MY_COLOR_LEN; i++) {
-    if (sensorAcceptedColors[i] == inputColor) return true;
-  }
-  return false;
-}
-
-
-void checkIntervalisExpired(int idTrain ) {
-
-  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-
-  if (millis() - myTrains[idTrain].colorPreviousMillis > colorInterval && myTrains[idTrain].colorPreviousMillis > 0) {
-    myTrains[idTrain].trainState = myTrains[idTrain].speed;
-    myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
-    myTrains[idTrain].colorPreviousMillis = 0;
   }
 
 }

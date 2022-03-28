@@ -38,11 +38,9 @@ void startTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()) return;
-  //stg0
-  startBlikLights(pPortA);
-
+   
   //(evito stop immediato)
-  myTrains[idTrain].lastcolor = (byte)Color::CYAN;    
+  myTrains[idTrain].lastcolor = sensorAcceptedColors[0];    
     
   _println("Start " + myTrains[idTrain].hubColor);
   _println("Train " + myTrains[idTrain].hubColor + " Battery Level: "  + myTrains[idTrain].batteryLevel);  
@@ -72,9 +70,7 @@ void startTrain(int idTrain) {
   if (myTrains[idTrain].speed < 0) myTrains[idTrain].speed = -1 * myTrains[idTrain].speed;
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
-  _println("Train: " + myTrains[idTrain].hubColor + " Started!!!");
-  
-
+  _println("Train: " + myTrains[idTrain].hubColor + " Started!!!");    
 
 }
 
@@ -116,4 +112,29 @@ void invertTrain(int idTrain) {
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
   
+}
+
+
+void increaseCurrentTrainSpeed(){
+  if (lastTrainStarted==-1) return;
+
+   myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed + 5;
+   _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed); 
+
+}
+
+void decreaseCurrentTrainSpeed(){
+  if (lastTrainStarted==-1) return;
+
+  myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed - 5;
+  _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed); 
+
+}
+
+void resetCurrentTrainSpeed(){
+  if (lastTrainStarted==-1) return;
+
+  myTrains[lastTrainStarted].speed =  initialTrainSpeed;
+  _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is" + myTrains[lastTrainStarted].speed + " (default)"); 
+
 }
