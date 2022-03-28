@@ -49,6 +49,7 @@ void delayBlinkLights(byte port){
      startLights(port);
      delay(500);
      stopLights(port);
+     delay(500);
   }
 
 }

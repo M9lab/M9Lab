@@ -128,9 +128,9 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
     
       // set hub LED color to detected color of sensor and set motor speed dependent on color
       // stop | invert | kill -> sensorAcceptedColors
-      if (color == sensorAcceptedColors[0]) killTrain(idTrain); 
+      if (color == sensorAcceptedColors[0]) stopTrain(idTrain); 
       else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
-      else if (color == sensorAcceptedColors[2]) stopTrain(idTrain); 
+      else if (color == sensorAcceptedColors[2]) killTrain(idTrain); 
       
       //other functions not used
       /*

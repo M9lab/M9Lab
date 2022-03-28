@@ -14,9 +14,7 @@
 */
 
 // TODO:
-// luci in porta hub lampeggianti quando parte treno (to check)
-// aumento velocità (to check)
-// aggiungere telecomando per partenza manuale (to check)
+// aggiungere telecomando per partenza manuale (to check - optional)
 
 // version
 String ver = "1.5.2.7";
@@ -74,6 +72,8 @@ int activeTrain = 0;
 int colorInterval = 5000; //how much wait before start after train is waiting for a action (go or invert)
 int beforeStartInterval = 5000; //how much wait before start the train
 int lastTrainStarted = -1;
+int lastTrainRandomStarted = -1;
+int unsigned addspeed =0;
 
 // create a hub instance for switch
 Lpf2Hub mySwitchController;
@@ -121,7 +121,7 @@ typedef struct {
 int initialTrainSpeed = 25;
 
 // Color Maps for trains --> 1 stop | 2 invert | 3 kill
-byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::CYAN,  (byte)Color::YELLOW, (byte)Color::RED, };
+byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::CYAN, (byte)Color::RED, };
 // other color no used (byte)Color::BLUE, (byte)Color::WHITE
 
 // Trains Maps

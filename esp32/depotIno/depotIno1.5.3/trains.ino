@@ -4,7 +4,7 @@ void randomStartTrain() {
   if (checkIfAllTrainIsStopped()) {
 	  
     int randIdTrain = random(0, MY_TRAIN_LEN - 1);
-    if (activeTrain > 1 && lastTrainStarted == randIdTrain) return;
+    if (activeTrain > 1 && lastTrainRandomStarted == randIdTrain) return;
 	  Lpf2Hub *myTrain = myTrains[randIdTrain].hubobj;
     if (!myTrain->isConnected()) return;
   
@@ -14,10 +14,8 @@ void randomStartTrain() {
     //doCountdown(randIdTrain);
     fullColor(colour[randIdTrain]);
 
-    lastTrainStarted = randIdTrain;
+    lastTrainRandomStarted = randIdTrain;
   
-     //startBlikLights(pPortA);
-    delayBlinkLights(pPortA);
     startTrain(randIdTrain);      
     delay(beforeStartInterval);      
 	  
@@ -34,7 +32,7 @@ void manualStartTrain(int idtrain){
 		
 		fullColor(colour[idtrain]);
 		delay(1000);		
-		lastTrainStarted = -1;
+		lastTrainRandomStarted = -1;
     
 		startTrain(idtrain);      
 	}	
@@ -65,8 +63,10 @@ void startTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()) return;
+
+  lastTrainStarted =idTrain;
    
-  //(avoid immediate stop by discarge stop color )
+  // avoid immediate stop by discarge stop color 
   myTrains[idTrain].lastcolor = sensorAcceptedColors[0];    
     
   _println("Start " + myTrains[idTrain].hubColor);
@@ -93,7 +93,8 @@ void startTrain(int idTrain) {
   //float f = (100 - myTrains[idTrain].batteryLevel )/ 5;
   //myTrains[idTrain].speed = (int) (trainSpeed + f);
   //Serial.println(myTrains[idTrain].speed);
-
+  delayBlinkLights(pPortA);
+  
   if (myTrains[idTrain].speed < 0) myTrains[idTrain].speed = -1 * myTrains[idTrain].speed;
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
@@ -143,9 +144,11 @@ void invertTrain(int idTrain) {
 
 
 void increaseCurrentTrainSpeed(){
+  
   if (lastTrainStarted==-1) return;
 
-   myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed + 5;
+   addspeed = myTrains[lastTrainStarted].speed < 0 ? -5 : +5; 
+   myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed + addspeed;
    _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed); 
 
 }
@@ -153,7 +156,8 @@ void increaseCurrentTrainSpeed(){
 void decreaseCurrentTrainSpeed(){
   if (lastTrainStarted==-1) return;
 
-  myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed - 5;
+  addspeed = myTrains[lastTrainStarted].speed < 0 ? +5 : -5; 
+  myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed - addspeed;
   _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed); 
 
 }
@@ -162,6 +166,6 @@ void resetCurrentTrainSpeed(){
   if (lastTrainStarted==-1) return;
 
   myTrains[lastTrainStarted].speed =  initialTrainSpeed;
-  _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is" + myTrains[lastTrainStarted].speed + " (default)"); 
+  _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed + " (default)"); 
 
 }
