@@ -14,10 +14,9 @@
 */
 
 // TODO:
-// aggiungere telecomando per partenza manuale (to check)
 // luci in porta hub lampeggianti quando parte treno (to check)
 // aumento velocità (to check)
-// new status print (to check)
+// aggiungere telecomando per partenza manuale (to check)
 
 // version
 String ver = "1.5.2.7";

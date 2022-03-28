@@ -5,7 +5,7 @@ void printLegenda() {
   Serial.println("*** M9Lab - DepotIno4 v." + ver + " ***");
   Serial.println("_________________________________________________");
   
-
+  Serial.println("");
   Serial.println("-----System commands:-----");
   Serial.println("help = show this message again");
   Serial.println("on = set automatic system to on");
@@ -13,46 +13,47 @@ void printLegenda() {
   Serial.println("panic = shutDown all hubs and reset the system");
   Serial.println("reset = reset the system");
   
-
+  Serial.println("");
   Serial.println("-----Log commands:-----");
   Serial.println("status = show system status");
   Serial.println("verboseon = show more status messages");
   Serial.println("verboseoff = show less status messages");
 
-
+  Serial.println("");
   Serial.println("-----Switches commands:-----");
-  Serial.println("swa0 = set switch A straight");
-  Serial.println("swa1 = set switch A turned");
-  Serial.println("swb0 = set switch B straight");
-  Serial.println("swb1 = set switch B turned");
-  Serial.println("swc0 = set switch C straight");
-  Serial.println("swc1 = set switch C turned");  
+  Serial.println("sw<X>0 = set switch X (a,b,c) straight");
+  Serial.println("sw<X>1 = set switch X (a,b,c) turned");
   Serial.println("resetsw = reset all switches");  
   Serial.println("killsw = kill the main hub");
 
-
+  Serial.println("");
   Serial.println("-----Trains commands:-----");
-  Serial.println("str1 = start RED Train");
-  Serial.println("stg1 = start GREEN Train");
-  Serial.println("sty1 = start YELLOW Train");
+  Serial.println("str1|stg1|sty1 = start RED,GREEN or YELLOW Train");
+  //Serial.println("stg1 = start GREEN Train");
+  //Serial.println("sty1 = start YELLOW Train");
 
-  Serial.println("str0 = stop RED Train");
-  Serial.println("stg0 = stop GREEN Train");
-  Serial.println("sty0 = stop YELLOW Train");
+  Serial.println("str0|stg0|sty0 = stop RED,GREEN or YELLOW Train");
+  //Serial.println("stg0 = stop GREEN Train");
+  //Serial.println("sty0 = stop YELLOW Train");
 
-  Serial.println("killr = kill RED Train");
-  Serial.println("killg = kill GREEN Train");
-  Serial.println("killy = kill YELLOW Train");
+  Serial.println("killr|killg|killy = kill RED,GREEN or YELLOW Train");
+  //Serial.println("killg = kill GREEN Train");
+  //Serial.println("killy = kill YELLOW Train");
   Serial.println("killall = kill all Trains");    
 
   Serial.println("cts+ = increase current train speed set +5");
   Serial.println("cts- = decrease current train speed set -5");
-  Serial.println("cts+ = reset current train speed set to default" + initialTrainSpeed);
+  Serial.print("cts= = reset current train speed set to default ");
+  Serial.print("(");
+  Serial.print(initialTrainSpeed);
+  Serial.println(")");
 
-  
+  /*
+  Serial.println("");
   Serial.println("-----Lights commands:-----");
   Serial.println("sbl1 = turn on blinking Lights");
   Serial.println("sbl0 = turn off blinking Lights");
+  */
 
 
   Serial.println("_________________________________________________");
@@ -116,8 +117,9 @@ void panic() {
 
 void systemStatus() {
 
-  Serial.println("hubColor|batteryLevel|hubState|trainState|speed");
-  Serial.println("_________________________________________________");
+  Serial.println("");
+  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|");
+  Serial.println("------------------------------------------------");
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
     //Serial.println(myTrains[idTrain].hubColor + "|" + myTrains[idTrain].batteryLevel + "|" + myTrains[idTrain].hubState + "|" +  myTrains[idTrain].trainState + "|" + myTrains[idTrain].speed);
@@ -131,7 +133,7 @@ void systemStatus() {
     Serial.println("");
   }
 
-  Serial.println("_________________________________________________");
+  Serial.println("------------------------------------------------");
 
   Serial.print("Switch Battery Level: ");
   Serial.println(switchBatteryLevel);
@@ -142,9 +144,8 @@ void _print_withspaces(String inputS, String lengthS){
 
   Serial.print(inputS);
   unsigned int nspaces = lengthS.length() - inputS.length();
-  for(int i=0; i<nspaces-1; i++) Serial.print(" ");
-  Serial.print("|");
-  Serial.println();
+  for(int i=0; i<nspaces; i++) Serial.print(" ");
+  Serial.print("|");  
 
 }
 
