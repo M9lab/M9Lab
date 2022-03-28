@@ -1,5 +1,5 @@
 void startLights(byte port) {    
-  if (mySwitchController.isConnected()) mySwitchController.setTachoMotorSpeed(port, 50);    		  
+  if (mySwitchController.isConnected()) mySwitchController.setTachoMotorSpeed(port, 20);    		  
 }
 
 void stopLights(byte port) {		
@@ -35,7 +35,7 @@ void blinkLights(byte port){
       stopLights(port);
       lights_ison=true;
       // stop after 10 blink
-      if (lights_count>10) stopBlikLights(port);
+      if (lights_count>8) stopBlikLights(port);
     }
     
   }

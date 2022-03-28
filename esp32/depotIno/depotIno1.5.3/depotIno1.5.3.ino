@@ -149,7 +149,7 @@ String remoteAddress = "04:ee:03:b9:d8:19";
 /* lights */
 unsigned long currentMillis_lights  = 0; 
 unsigned long previousMillis_lights  = 0; 
-const long interval_lights = 20;  
+const long interval_lights = 500;  
 bool lights_blink_ison = false;
 bool lights_ison = false;
 int lights_count = 0;
@@ -304,7 +304,7 @@ void panic() {
   }
   activeTrain = 0;
 
-  myRemote.shutDownHub();
+  if(myRemote.isConnected()) myRemote.shutDownHub();
   isRemoteInitialized = false; 
   
   killSwitch();
@@ -349,7 +349,7 @@ void loop() {
     if (! mySwitchController.isConnected()){
       scanSwitchController();
     }else{
-       if (! myRemote.isConnected()) scanRemoteController();
+       //if (! myRemote.isConnected()) scanRemoteController();
 
       // check for train
       activeTrain = 0;

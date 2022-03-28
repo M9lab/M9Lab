@@ -38,6 +38,8 @@ void startTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()) return;
+  //stg0
+  startBlikLights(pPortA);
 
   //(evito stop immediato)
   myTrains[idTrain].lastcolor = (byte)Color::CYAN;    
@@ -71,7 +73,7 @@ void startTrain(int idTrain) {
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
   _println("Train: " + myTrains[idTrain].hubColor + " Started!!!");
-  startBlikLights(pPortA);
+  
 
 
 }
