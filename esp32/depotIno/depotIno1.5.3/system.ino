@@ -12,8 +12,8 @@ void printLegenda() {
   Serial.println("off = set automatic system off");
   Serial.println("panic = shutDown all hubs and reset the system");
   Serial.println("reset = reset the system");
-  Serial.println("sron = set remote on");
-  Serial.println("sroff = set remote on");
+  Serial.println("sron = enable remote control");
+  Serial.println("sroff = disable remote control");
   
   Serial.println("");
   Serial.println("-----Log commands:-----");
