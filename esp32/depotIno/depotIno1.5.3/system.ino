@@ -27,6 +27,9 @@ void printLegenda() {
   Serial.println("sw<X>1 = set switch X (a,b,c) turned");
   Serial.println("resetsw = reset all switches");  
   Serial.println("killsw = kill the main hub");
+  Serial.println("sws+ = increase current switch motor speed to +5");
+  Serial.println("sws- = decrease current switch motor speed to -5");
+  Serial.println("sws= = reset current switch motor speed set to default (35)");
 
   Serial.println("");
   Serial.println("-----Trains commands:-----");
