@@ -69,5 +69,13 @@ void scanRemoteController(){
       //isRemoteInitFirst = true;
     }
     
-  
-} // End of loop
+ 
+}
+
+void setRemoteOn(){
+  isRemoteActive=true;
+}
+
+void setRemoteOff(){
+  isRemoteActive=false;
+}

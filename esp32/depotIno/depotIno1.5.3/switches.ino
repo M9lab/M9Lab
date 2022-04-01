@@ -30,3 +30,21 @@ void switchReset() {
   }
   
 }
+
+void increaseSwitchSpeed(){
+  switchVelocity = switchVelocity+ 5;
+  _print("Switch motor speed now is "); 
+  _println(String(switchVelocity));
+}
+
+void decreaseSwitchSpeed(){
+  switchVelocity = switchVelocity - 5;
+  _print("Switch motor speed now is "); 
+  _println(String(switchVelocity));
+}
+
+void resetSwitchSpeed(){
+  switchVelocity = 35;
+  _print("Switch motor speed now is "); 
+  _println(String(switchVelocity));
+}

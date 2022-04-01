@@ -8,10 +8,12 @@ void printLegenda() {
   Serial.println("");
   Serial.println("-----System commands:-----");
   Serial.println("help = show this message again");
-  Serial.println("on = set automatic system to on");
-  Serial.println("off = set automatic system to off");
+  Serial.println("on = set automatic system on");
+  Serial.println("off = set automatic system off");
   Serial.println("panic = shutDown all hubs and reset the system");
   Serial.println("reset = reset the system");
+  Serial.println("sron = set remote on");
+  Serial.println("sroff = set remote on");
   
   Serial.println("");
   Serial.println("-----Log commands:-----");
@@ -55,7 +57,6 @@ void printLegenda() {
   Serial.println("sbl0 = turn off blinking Lights");
   */
 
-
   Serial.println("_________________________________________________");
 }
 
@@ -71,13 +72,15 @@ void systemOn() {
   if (!mySwitchController.isConnected()) {
     _println("Cannot find the Switch Controller");
   } else {
-    isSystemReady = true;
+    _println("Automatic mode is active");
+    isAutoEnabled = true;
   }
 
 }
 
 void systemOff() {
-  isSystemReady = false;
+  _println("Automatic mode is disabled");
+  isAutoEnabled = false;
 }
 
 void systemReset() {
@@ -117,12 +120,10 @@ void panic() {
 
 void systemStatus() {
 
-  Serial.println("");
   Serial.println("hubColor|batteryLevel|hubState|trainState|speed|");
   Serial.println("------------------------------------------------");
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-    //Serial.println(myTrains[idTrain].hubColor + "|" + myTrains[idTrain].batteryLevel + "|" + myTrains[idTrain].hubState + "|" +  myTrains[idTrain].trainState + "|" + myTrains[idTrain].speed);
     
     _print_withspaces(myTrains[idTrain].hubColor,"hubColor");    
     _print_withspaces(String(myTrains[idTrain].batteryLevel),"batteryLevel");    
@@ -137,6 +138,14 @@ void systemStatus() {
 
   Serial.print("Switch Battery Level: ");
   Serial.println(switchBatteryLevel);
+
+  Serial.print("Switch Motor Speed: ");
+  Serial.println(switchVelocity);
+
+  Serial.print("Automatic mode on: ");
+  Serial.println(isAutoEnabled);
+
+  
 
 }
 
