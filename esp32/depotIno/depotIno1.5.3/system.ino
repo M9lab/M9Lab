@@ -71,13 +71,13 @@ void systemOn() {
   if (!mySwitchController.isConnected()) {
     _println("Cannot find the Switch Controller");
   } else {
-    isSystemReady = true;
+    isSystemAutoActive = true;
   }
 
 }
 
 void systemOff() {
-  isSystemReady = false;
+  isSystemAutoActive = false;
 }
 
 void systemReset() {

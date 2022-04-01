@@ -69,8 +69,8 @@ byte portA = (byte)PoweredUpHubPort::A;
 byte portB = (byte)PoweredUpHubPort::B;
 
 int activeTrain = 0;
-int colorInterval = 5000; //how much wait before start after train is waiting for a action (go or invert)
-int beforeStartInterval = 5000; //how much wait before start the train
+int colorInterval = 5000; //how much wait before start after train is waiting for a action (go or invert) -- test is 5000
+int beforeStartInterval = 5000; //how much wait before start the train - optional
 int lastTrainStarted = -1;
 int lastTrainRandomStarted = -1;
 int unsigned addspeed =0;
@@ -87,7 +87,7 @@ int switchBatteryLevel = 100;
 String switchControllerAddress = "90:84:2b:51:ba:b0";
 
 // global flags
-bool isSystemReady = false;
+bool isSystemAutoActive = false;
 bool isVerbose = true;
 
 // Trains structure
@@ -121,8 +121,8 @@ typedef struct {
 int initialTrainSpeed = 25;
 
 // Color Maps for trains --> 1 stop | 2 invert | 3 kill
-byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::CYAN, (byte)Color::RED, };
-// other color no used (byte)Color::BLUE, (byte)Color::WHITE
+byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::CYAN, (byte)Color::RED};
+// other color not used: (byte)Color::BLUE, (byte)Color::WHITE
 
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
@@ -252,10 +252,10 @@ void loop() {
       }
     
       // do the automatic train start is activated
-      if (isSystemReady) randomStartTrain();    
+      if (isSystemAutoActive) randomStartTrain();    
 
       // check bliking light interval
-      if (lights_blink_ison) blinkLights(pPortA);     
+      //if (lights_blink_ison) blinkLights(pPortA);     
       
     }    
 	

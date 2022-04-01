@@ -8,10 +8,10 @@ void randomStartTrain() {
 	  Lpf2Hub *myTrain = myTrains[randIdTrain].hubobj;
     if (!myTrain->isConnected()) return;
   
-	  //rulette();  
+	  rulette();  
     fullColor(colour[randIdTrain]);
     delay(1000);
-    //doCountdown(randIdTrain);
+    doCountdown(randIdTrain);
     fullColor(colour[randIdTrain]);
 
     lastTrainRandomStarted = randIdTrain;
