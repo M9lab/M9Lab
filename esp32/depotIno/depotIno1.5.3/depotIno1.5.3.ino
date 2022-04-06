@@ -13,9 +13,6 @@
 	sudo modprobe cp210x
 */
 
-// TODO:
-// test with legoino 1.1.0
-// aggiungere telecomando per partenza manuale (to check - optional)
 
 // version
 String ver = "1.5.3.1";
@@ -70,8 +67,8 @@ byte portA = (byte)PoweredUpHubPort::A;
 byte portB = (byte)PoweredUpHubPort::B;
 
 int activeTrain = 0;
-int colorInterval = 5000; //how much wait before start after train is waiting for a action (go or invert) -- test is 5000
-int beforeStartInterval = 5000; //how much wait before start the train - optional
+int colorInterval = 35000; //how much wait before start after train is waiting for a action (go or invert)
+int beforeStartInterval = 5000; //how much wait before start the train
 int lastTrainStarted = -1;
 int lastTrainRandomStarted = -1;
 int unsigned addspeed =0;
@@ -88,7 +85,7 @@ int switchBatteryLevel = 100;
 String switchControllerAddress = "90:84:2b:51:ba:b0";
 
 // global flags
-bool isSystemAutoActive = false;
+bool isAutoEnabled = false;
 bool isVerbose = true;
 
 // Trains structure
@@ -148,7 +145,7 @@ Lpf2Hub myRemote;
 byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 String remoteAddress = "04:ee:03:b9:d8:19";
-//bool isRemoteInitFirst = false;
+bool isRemoteActive = false;
 //DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 
@@ -164,11 +161,13 @@ int lights_count = 0;
 void readFromSerial() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
+    Serial.println("");
     Serial.println(">" + command);
+    Serial.println("");
     
     // system
     if (command == "panic") panic();
-    else if(command == "killsw") killSwitch();
+    else if (command == "killsw") killSwitch();
     else if (command == "reset") systemReset();
     else if (command == "on") systemOn();
     else if (command == "off") systemOff();
@@ -176,6 +175,8 @@ void readFromSerial() {
     else if (command == "status") systemStatus();
     else if (command == "verboseon") verboseOn();
     else if (command == "verboseoff") verboseOff();
+    else if (command == "sron") setRemoteOn();
+    else if (command == "sroff") setRemoteOff();
 
     // switches
     else if (command == "swa0") setSwitch(&mySwitchControlleres[0], 0);
@@ -184,6 +185,9 @@ void readFromSerial() {
     else if (command == "swb1") setSwitch(&mySwitchControlleres[1], 1);
     else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
     else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
+    else if (command == "sws+") increaseSwitchSpeed();
+    else if (command == "sws-") decreaseSwitchSpeed();
+    else if (command == "sws=") resetSwitchSpeed();
 	
     //lights
   	else if (command == "sbl1") startBlikLights(pPortA);
@@ -211,6 +215,7 @@ void readFromSerial() {
     // main hub
     else if (command == "resetsw") switchReset();
     else {
+      Serial.println("");
       Serial.println(">command not found");
     }
   }
@@ -239,7 +244,7 @@ void loop() {
     }else{
 
       // remote controller
-      //if (! myRemote.isConnected()) scanRemoteController();
+      if (isRemoteActive && ! myRemote.isConnected()) scanRemoteController();
 
       // check for all trains
       activeTrain = 0;
@@ -253,7 +258,7 @@ void loop() {
       }
     
       // do the automatic train start is activated
-      if (isSystemAutoActive) randomStartTrain();    
+      if (isAutoEnabled) randomStartTrain();    
 
       // check bliking light interval
       //if (lights_blink_ison) blinkLights(pPortA);     

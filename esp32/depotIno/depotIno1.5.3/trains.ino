@@ -3,7 +3,8 @@ void randomStartTrain() {
 
   if (checkIfAllTrainIsStopped()) {
 	  
-    int randIdTrain = random(0, MY_TRAIN_LEN - 1);
+    int randIdTrain = random(0, MY_TRAIN_LEN);
+    
     if (activeTrain > 1 && lastTrainRandomStarted == randIdTrain) return;
 	  Lpf2Hub *myTrain = myTrains[randIdTrain].hubobj;
     if (!myTrain->isConnected()) return;
@@ -62,7 +63,10 @@ void startTrain(int idTrain) {
   systemStatus();
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-  if (!myTrain->isConnected()) return;
+  if (!myTrain->isConnected()){
+    _println("Train " + myTrains[idTrain].hubColor + " is disconnected");
+    return;
+  }
 
   lastTrainStarted =idTrain;
    
@@ -81,7 +85,7 @@ void startTrain(int idTrain) {
   
 
   // Battery Level Switch   
-  if( myTrains[idTrain].batteryLevel<10){
+  if( myTrains[idTrain].batteryLevel<2){
     setSwitch(&mySwitchControlleres[2], 1);
   }else{
     setSwitch(&mySwitchControlleres[2], 0);    
@@ -105,7 +109,12 @@ void startTrain(int idTrain) {
 void stopTrain(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-  if (!myTrain->isConnected()) return;
+  
+  if (!myTrain->isConnected()){
+    _println("Train " + myTrains[idTrain].hubColor + " is disconnected");
+    return;
+  }
+  
   _println("Stop " + myTrains[idTrain].hubColor);
   
   myTrain->stopBasicMotor(portA);
@@ -149,6 +158,10 @@ void increaseCurrentTrainSpeed(){
 
    addspeed = myTrains[lastTrainStarted].speed < 0 ? -5 : +5; 
    myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed + addspeed;
+   
+   Lpf2Hub *myTrain = myTrains[lastTrainStarted].hubobj;
+   myTrain->setBasicMotorSpeed(portA, myTrains[lastTrainStarted].speed);
+   
    _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed); 
 
 }
@@ -157,7 +170,10 @@ void decreaseCurrentTrainSpeed(){
   if (lastTrainStarted==-1) return;
 
   addspeed = myTrains[lastTrainStarted].speed < 0 ? +5 : -5; 
-  myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed - addspeed;
+  myTrains[lastTrainStarted].speed =  myTrains[lastTrainStarted].speed + addspeed;
+  
+  Lpf2Hub *myTrain = myTrains[lastTrainStarted].hubobj;
+   myTrain->setBasicMotorSpeed(portA, myTrains[lastTrainStarted].speed);
   _println("Train: " + myTrains[lastTrainStarted].hubColor + " speed now is " + myTrains[lastTrainStarted].speed); 
 
 }
