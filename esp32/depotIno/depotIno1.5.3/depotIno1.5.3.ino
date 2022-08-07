@@ -1,7 +1,7 @@
 
 // This sketch manages 3 trains (A, B, C) on a track that goes from the depot to the tunnel
 // trains depart one at a time randomly or manually (remotelly is optional)
-// use lego poweredup with the Legoino library by Cornelius Munz (https://github.com/corneliusmunz/legoino) ver 1.0.1
+// use lego poweredup with the Legoino library by Cornelius Munz (https://github.com/corneliusmunz/legoino) ver 1.1.0 (ex ver 1.0.1)
 // needs 3 city hubs for trains (engine + color sensor) and a technic hub (3 engines) for exchanges and 1 kit lights.
 // DepotIno - 2022 Code by Stefx
 
@@ -119,8 +119,8 @@ typedef struct {
 int initialTrainSpeed = 25;
 
 // Color Maps for trains --> 1 stop | 2 invert | 3 kill
-byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::CYAN, (byte)Color::RED, };
-// other color no used (byte)Color::BLUE, (byte)Color::WHITE
+byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::GREEN, (byte)Color::RED};
+// other color not used: (byte)Color::BLUE, (byte)Color::WHITE
 
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
@@ -250,7 +250,7 @@ void loop() {
       for (int i = 0; i < MY_TRAIN_LEN; i++) {
         checkIntervalisExpired(i);
         if (! myTrains[i].hubobj->isConnected()) {
-          scanHub(i);
+         scanHub(i);
         } else{
           if (myTrains[i].hubState == 1) activeTrain++;
         }     
@@ -260,7 +260,7 @@ void loop() {
       if (isAutoEnabled) randomStartTrain();    
 
       // check bliking light interval
-      if (lights_blink_ison) blinkLights(pPortA);     
+      //if (lights_blink_ison) blinkLights(pPortA);     
       
     }    
 	

@@ -16,19 +16,18 @@ sensor = ColorDistanceSensor(Port.B)
 while True:
 
     # Here you can make your train/vehicle stop.
-
     if (sensor.color()==Color.RED):
-	cityHub.light.on(Color.RED)
+	cityHub.on(Color.RED)
 	train.dc(0)
 
     # Here you can make your train/vehicle go forward.
-
     if (sensor.color()==Color.GREEN):
-	cityHub.light.on(Color.GREEN);
+	cityHub.on(Color.GREEN);
 	train.dc(30)
 	
-	# Here you can make your train/vehicle go backward.
-	
+	# Here you can make your train/vehicle go backward.	
     if (sensor.color()==Color.WHITE):
-	cityHub.light.on(Color.WHITE);
+	cityHub.on(Color.WHITE);
 	train.dc(-1 * train.dc())	
+	
+	#wait(1000)

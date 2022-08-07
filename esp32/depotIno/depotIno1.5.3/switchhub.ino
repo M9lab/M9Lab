@@ -1,9 +1,11 @@
 
 void scanSwitchController() {
 
-  if (!mySwitchController.isConnected() && !mySwitchController.isConnecting()) mySwitchController.init(switchControllerAddress.c_str(), 1);
-
-  if (mySwitchController.isConnecting()) {
+  if (!mySwitchController.isConnecting()){
+    mySwitchController.init(switchControllerAddress.c_str(), 1);
+    //mySwitchController.init();
+    delay(1000);
+  }else{  
     mySwitchController.connectHub();
     if (mySwitchController.isConnected()) {
       Serial.println("Connected to Switch Controller");
