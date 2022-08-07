@@ -67,7 +67,7 @@ byte portA = (byte)PoweredUpHubPort::A;
 byte portB = (byte)PoweredUpHubPort::B;
 
 int activeTrain = 0;
-int colorInterval = 35000; //how much wait before start after train is waiting for a action (go or invert)
+int colorInterval = 20000; //how much wait before start after train is waiting for a action (go or invert)
 int beforeStartInterval = 5000; //how much wait before start the train
 int lastTrainStarted = -1;
 int lastTrainRandomStarted = -1;
@@ -79,7 +79,7 @@ byte pPortD = (byte)ControlPlusHubPort::D; //0 -> A) White (D)
 byte pPortC = (byte)ControlPlusHubPort::C; //1 -> B) Blue (C)
 byte pPortB = (byte)ControlPlusHubPort::B; //2 -> C) Red (B) // battery shed
 byte pPortA = (byte)ControlPlusHubPort::A; // -> Lights
-int switchInterval = 350;
+int switchInterval = 300;
 int switchVelocity = 35;
 int switchBatteryLevel = 100;
 String switchControllerAddress = "90:84:2b:51:ba:b0";
@@ -161,9 +161,8 @@ int lights_count = 0;
 void readFromSerial() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
-    Serial.println("");
     Serial.println(">" + command);
-    Serial.println("");
+    //Serial.println("");
     
     // system
     if (command == "panic") panic();
