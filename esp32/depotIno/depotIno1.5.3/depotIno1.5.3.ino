@@ -19,7 +19,7 @@
 
 
 // version
-String ver = "1.5.3.2";
+String ver = "1.5.3.3";
 
 /* led part */
 #include <FastLED.h>
@@ -253,7 +253,9 @@ void loop() {
       activeTrain = 0;
       for (int i = 0; i < MY_TRAIN_LEN; i++) {
         checkIntervalisExpired(i);
-        if (! myTrains[i].hubobj->isConnected()) {
+        //if (! myTrains[i].hubobj->isConnected()) {
+        // to test
+        if (myTrains[i].hubState == -1) { 
          scanHub(i);
         } else{
           if (myTrains[i].hubState == 1) activeTrain++;

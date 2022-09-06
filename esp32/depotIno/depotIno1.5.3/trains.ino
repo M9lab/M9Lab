@@ -130,12 +130,14 @@ void killTrain(int idTrain) {
   
   _println("Kill " + myTrains[idTrain].hubColor);
   myTrain->stopBasicMotor(portA);
-  myTrain->shutDownHub();
   myTrains[idTrain].trainState = 0;     
   myTrains[idTrain].hubState = -1;
   
+  
+  
   activeTrain--;
   setSwitch(&mySwitchControlleres[2], 0);
+  myTrain->shutDownHub();
   delay(2000);
 
 }
