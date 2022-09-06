@@ -5,7 +5,7 @@ from pybricks.tools import wait
 
 # Initialize the CityHub
 cityHub = CityHub()
-print("Battery voltage: " + str(hub.battery.voltage()))
+print("Battery voltage: " + str(cityHub.battery.voltage()))
 
 # Initialize the sensor.
 train = DCMotor(Port.A)

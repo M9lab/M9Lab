@@ -85,7 +85,7 @@ void startTrain(int idTrain) {
   
 
   // Battery Level Switch     
-  if( myTrains[idTrain].batteryLevel < 2){
+  if( myTrains[idTrain].batteryLevel < 10){
     // to the battery shed
     setSwitch(&mySwitchControlleres[2], 1);
   }else{
