@@ -57,7 +57,7 @@ int initialTrainSpeed = 25;
 byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::GREEN, (byte)Color::RED, (byte)Color::BLUE, (byte)Color::WHITE};
 
 // Trains Maps
-// hubobj - hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) 
+// hubobj - hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batterylevel
 Train myTrains[MY_TRAIN_LEN] = {
     { &myTrainHub_TB, "", initialTrainSpeed , 0, 0, -1, 0, 100}
   , { &myTrainHub_TC, "", initialTrainSpeed , 0, 0, -1, 0, 100}
@@ -109,7 +109,6 @@ void readFromSerial() {
 }
 
 
-
 void setup() {
   Serial.begin(115200);
   printLegenda();  
@@ -125,7 +124,13 @@ void loop() {
       for (int i = 0; i < MY_TRAIN_LEN; i++) {
         //checkIntervalisExpired(i);
         if (! myTrains[i].hubobj->isConnected()) {
+
+          myTrains[i].hubAddress = "";
+          myTrains[idTrain].hubState = -1;
+          myTrains[idTrain].trainState = 0;
+
          scanHub(i);
+         
         } else{
           if (myTrains[i].hubState == 1) activeTrain++;
         }     

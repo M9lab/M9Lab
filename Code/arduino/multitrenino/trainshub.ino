@@ -2,12 +2,12 @@
 void scanHub( int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-  myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
-
-  // read battery and update
+ 
+  // read battery and update and update addr
   if (myTrain->isConnected()) {
+     myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
      myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-  }else{
+  }else{    
     if (!myTrain->isConnecting()) myTrain->init(myTrains[idTrain].hubAddress.c_str(), 1);
   }
   
@@ -15,12 +15,13 @@ void scanHub( int idTrain) {
 
     myTrain->connectHub();
     if (myTrain->isConnected()) {
-      delay(500);
+      delay(200);
+      // init
+      myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
+      myTrains[idTrain].hubState = 0;
+      myTrains[idTrain].trainState = 0;
       Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);
            
-      // init
-      myTrains[idTrain].trainState = 0;
-      myTrains[idTrain].hubState = 0;
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);
       delay(200);
