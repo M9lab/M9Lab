@@ -27,8 +27,8 @@ void osCopyChar (int myCharIndex, uint32_t color){
     {
       uint32_t typex = (bitRead(chargen[myCharIndex][i], j) == 0x00) ? CRGB::Black : color;
       int pos = (i*5)+j;
-      //leds[pos] = typex;
-      leds[XYTable[pos]] = typex;
+      leds[pos] = typex;
+      //leds[XYTable[pos]] = typex;      
       FastLED.show(); 
     }
     
@@ -48,7 +48,7 @@ void initDisplay(){
    
    for (int num = 0; num < TOTNUM_COLORS; num++) {	   
 	   colorSquare(allsquares[num],maincolour[num],1,4);	   
-	   delay(1000);	   
+	   delay(500);	   
    }   
 
 }

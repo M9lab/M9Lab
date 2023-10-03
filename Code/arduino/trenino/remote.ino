@@ -32,42 +32,40 @@ void remoteColorToLed( byte buttonState, byte portNumber){
 }
 
 void scanRemoteController(){
-  	
-    if (myRemote.isConnecting())
-	  {
-  		if (myRemote.getHubType() == HubType::POWERED_UP_REMOTE)
-  		{  		  
-  		  if (!myRemote.connectHub())
-  		  {
-  			  Serial.println("Unable to connect to hub");
-  		  }
-  		  else
-  		  {
-    			myRemote.setLedColor(PURPLE);
-          colorSquare(remote,CRGB::White,0,9);
-    			Serial.println("Remote connected.");
-          Serial.println(myRemote.getHubAddress().toString().c_str());
-  		  }
-  		}
-	  }
-	  
-  
-    if (myRemote.isConnected() && !isRemoteInitialized)
+ if (myRemote.isConnecting())
+  {
+    if (myRemote.getHubType() == HubType::POWERED_UP_REMOTE)
     {
-      Serial.println("Remote is initialized");
-  		isRemoteInitialized = true;   		
-  		delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost           
-  		myRemote.activatePortDevice(portLeft, remoteCallback);
-  		myRemote.activatePortDevice(portRight, remoteCallback);         
-  		myRemote.setLedColor(PURPLE);      		
-        
+      //This is the right device
+      if (!myRemote.connectHub())
+      {
+        Serial.println("Unable to connect to hub");
+      }
+      else
+      {
+        myRemote.setLedColor(PURPLE);
+		    //colorSquare(remote,CRGB::White,0,9);
+        Serial.println("Remote connected.");
+		    //Serial.println(myRemote.getHubAddress().toString().c_str());
+      }
     }
-  
-    if (! myRemote.isConnected() ){     
-      myRemote.init(1);
-      isRemoteInitialized = false;       
-    }
-    
- 
-}
+  }
+
+
+  if (!myRemote.isConnected())
+  {
+    myRemote.init(1);
+  }
+
+  if (myRemote.isConnected()  && !isRemoteInitialized)
+  {
+    Serial.println("System is initialized");
+    isRemoteInitialized = true;
+    delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost
+    // both activations are needed to get status updates
+    myRemote.activatePortDevice(portLeft, remoteCallback);
+    myRemote.activatePortDevice(portRight, remoteCallback);
+    myRemote.setLedColor(PURPLE);
+  }
+}  
 

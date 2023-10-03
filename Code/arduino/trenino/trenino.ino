@@ -1,6 +1,16 @@
 /*
 
 */
+/* remote */
+#include "Lpf2Hub.h"
+Lpf2Hub myRemote;
+byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
+byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
+bool isRemoteInitialized = false;
+
+/* end remote */
+
+
 /* led part */
 #include <FastLED.h>
 #define NUM_LEDS 25
@@ -16,10 +26,10 @@ int remote[] =  {2,7,12,17,22,10,11,13,14};
 
 
 byte chargen[][5] = {
-{0x04, 0x0A, 0x11, 0x1F, 0x11},  // A
-{0x1E, 0x11, 0x10, 0x11, 0x1E},  // C
+{0x1E, 0x05, 0x05, 0x05, 0x1E},  // A
+{0x0E, 0x11, 0x11, 0x11, 0x11},  // C
 {0x0E, 0x11, 0x11, 0x11, 0x0E},  // O
-{0x10, 0x10, 0x10, 0x10, 0x1F},  // L
+{0x1F, 0x10, 0x10, 0x10, 0x10},  // L
 };
 
 
@@ -32,30 +42,23 @@ uint32_t tilecolour[] = {CRGB::Red, CRGB::Green, CRGB::Yellow, CRGB::Blue, CRGB:
 //rotate / flip
 // https://macetech.github.io/FastLED-XY-Map-Generator/
 const uint8_t XYTable[] = {
-     4,   3,   2,   1,   0,
-     9,   8,   7,   6,   5,
-    14,  13,  12,  11,  10,
-    19,  18,  17,  16,  15,
-    24,  23,  22,  21,  20
+     0,   5,  10,  15,  20,
+     1,   6,  11,  16,  21,
+     2,   7,  12,  17,  22,
+     3,   8,  13,  18,  23,
+     4,   9,  14,  19,  24
   };
 CRGB leds[NUM_LEDS];
 
 /* end led */
 
-/* remote */
-#include "Lpf2Hub.h"
-Lpf2Hub myRemote;
-byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
-byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
-bool isRemoteInitialized = false;
 
-/* end remote */
 
 void setup() {
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(20);
   delay(1000);
-  Serial.begin(9600);  
+  Serial.begin(115200);  
     
   init();
 
@@ -69,13 +72,12 @@ void setup() {
   colorSquare(squareA,CRGB::Red,0,1); 
   */ 
   
-
 }
 
 void loop() {
 
     // remote controller
-    if (! myRemote.isConnected()) scanRemoteController();
+     if (! isRemoteInitialized) scanRemoteController();
 }
 
 void init(){
@@ -84,8 +86,7 @@ void init(){
    initDisplay();
 
    //remote
-   myRemote.init();
-
+   myRemote.init(1);
   
 }
 
