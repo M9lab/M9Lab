@@ -36,7 +36,7 @@ byte chargen[][5] = {
 
 // ref: http://fastled.io/docs/3.1/struct_c_r_g_b.html
 int TOTNUM_COLORS = 4;
-uint32_t maincolour[] = {CRGB::Red, CRGB::Yellow, CRGB::Teal, CRGB::Green };
+uint32_t maincolour[] = {CRGB::FireBrick, CRGB::Gold, CRGB::Teal, CRGB::SeaGreen };
 uint32_t tilecolour[] = {CRGB::Red, CRGB::Green, CRGB::Yellow, CRGB::Blue, CRGB::White };
 
 //rotate / flip
@@ -77,7 +77,8 @@ void setup() {
 void loop() {
 
     // remote controller
-     if (! isRemoteInitialized) scanRemoteController();
+    // if (! isRemoteInitialized) 
+	scanRemoteController();
 }
 
 void init(){

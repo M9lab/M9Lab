@@ -11,6 +11,9 @@ void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
 void remoteColorToLed( byte buttonState, byte portNumber){
 
   if (!myRemote.isConnected()) return;
+  
+   Serial.println("buttonState=" + buttonState);
+   Serial.println("portNumber=" + portNumber);
    
   /* 
   if (buttonState==1 && portNumber == 0)  panic(); //blue
@@ -44,7 +47,7 @@ void scanRemoteController(){
       else
       {
         myRemote.setLedColor(PURPLE);
-		    //colorSquare(remote,CRGB::White,0,9);
+		colorSquare(remote,CRGB::White,0,9);
         Serial.println("Remote connected.");
 		    //Serial.println(myRemote.getHubAddress().toString().c_str());
       }
@@ -54,7 +57,8 @@ void scanRemoteController(){
 
   if (!myRemote.isConnected())
   {
-    myRemote.init(1);
+		colorSquare(remote,CRGB::Black,0,9);
+		myRemote.init(1);
   }
 
   if (myRemote.isConnected()  && !isRemoteInitialized)
