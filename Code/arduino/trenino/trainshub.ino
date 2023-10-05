@@ -1,4 +1,24 @@
 
+void scanAllTrains(){
+
+  activeTrain = 0;
+  for (int i = 0; i < MY_TRAIN_LEN; i++) {
+    //checkIntervalisExpired(i);
+    if (! myTrains[i].hubobj->isConnected()) {
+
+      colorSquare(allsquares[i],maincolour[num],1,4);	
+      //myTrains[i].hubAddress = "";
+      myTrains[i].hubState = -1;
+      myTrains[i].trainState = 0;
+      
+      scanHub(i);
+      
+    } else{
+      if (myTrains[i].hubState == 1) activeTrain++;
+    }     
+    
+}
+
 void scanHub( int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
@@ -78,9 +98,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
 
         case 1: //active -> turnoff
         {
-          myHub->setLedColor(RED);
-          // disconnect color sensor
-          //myHub->deactivatePortDevice(_portB, 37);
+          myHub->setLedColor(RED);                    
           delay(100);
           myHub->shutDownHub();
           Serial.println(myTrains[idTrain].hubAddress + " is disconnected");            
@@ -109,29 +127,26 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
   if (deviceType == DeviceType::COLOR_DISTANCE_SENSOR) {            
     
     int color = myHub->parseColor(pData);
-	double distance = myHub->parseDistance(pData);
-	
-
-    
+	  double distance = myHub->parseDistance(pData);
+	    
     if (myTrains[idTrain].lastcolor == color || !checkIfSensorColorIsAccepted(color) || color==0 || color==255) return;
 
       myTrains[idTrain].lastcolor = color;
     
       Serial.print("Color ");
       Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
-	  Serial.print("Distance: ");
-	  Serial.println(distance, DEC);
-	  
-      //Serial.println(COLOR_STRING[color]);     
       Serial.println(LegoinoCommon::ColorStringFromColor(color).c_str()); 
+
+	    Serial.print("Distance: ");
+	    Serial.println(distance, DEC);	                  
     
       myHub->setLedColor((Color)color);
     
       // set hub LED color to detected color of sensor and set motor speed dependent on color
       // stop | invert | kill -> sensorAcceptedColors
-      if (color == sensorAcceptedColors[0]) stopTrain(idTrain); 
-      else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
-      else if (color == sensorAcceptedColors[2]) killTrain(idTrain);     
+      //if (color == sensorAcceptedColors[0]) stopTrain(idTrain); 
+      //else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
+      //else if (color == sensorAcceptedColors[2]) killTrain(idTrain);     
 
   }
 }

@@ -16,22 +16,25 @@ void remoteColorToLed( byte buttonState, byte portNumber){
    Serial.println("portNumber=" + portNumber);
    
   /* 
-  if (buttonState==1 && portNumber == 0)  panic(); //blue
-  if (buttonState==255 && portNumber == 0)  manualStartTrain(1); //green
-  if (buttonState==1 && portNumber == 1)  manualStartTrain(0); //red 
-  if (buttonState==255 && portNumber == 1) manualStartTrain(2); //yellow
-  if (buttonState==127 && portNumber == 0)  systemStatus();
-  if (buttonState==127 && portNumber == 1) {    
-    myRemote.shutDownHub();
-    isRemoteInitialized = false; 
-    //isRemoteInitFirst = false;
-    Serial.println("Remote disconnected.");
-  }
+   if (portNumber == (byte)portLeft && buttonState == ButtonState::UP){
+      increaseCurrentTrainSpeed();
+   }
+   if (portNumber == (byte)portLeft && buttonState == ButtonState::DOWN){
+      decreaseCurrentTrainSpeed();
+   }
+   if (portNumber == (byte)portLeft && buttonState == ButtonState::STOP){
+      stopCurrentTrain();
+   }
+   if (portNumber == (byte)portRight && buttonState == ButtonState::UP){
+      setCurrentTrainNext();
+   }
+   if (portNumber == (byte)portRight && buttonState == ButtonState::DOWN){
+      setCurrentTrainPrev();
+   }
+   if (portNumber == (byte)portRight && buttonState == ButtonState::STOP){
+      killRemote();
+   }
   */
-
-   // set velocity TODO
-   //if (buttonState == ButtonState::UP)  increaseCurrentTrainSpeed(); 
-   //if (buttonState == ButtonState::DOWN)  decreaseCurrentTrainSpeed(); 
 }
 
 void scanRemoteController(){
@@ -46,10 +49,7 @@ void scanRemoteController(){
       }
       else
       {
-        myRemote.setLedColor(PURPLE);
-		colorSquare(remote,CRGB::White,0,9);
-        Serial.println("Remote connected.");
-		    //Serial.println(myRemote.getHubAddress().toString().c_str());
+        remoteIsConnected();
       }
     }
   }
@@ -57,7 +57,7 @@ void scanRemoteController(){
 
   if (!myRemote.isConnected())
   {
-		colorSquare(remote,CRGB::Black,0,9);
+		remoteIsNotConnected();
 		myRemote.init(1);
   }
 
@@ -69,7 +69,57 @@ void scanRemoteController(){
     // both activations are needed to get status updates
     myRemote.activatePortDevice(portLeft, remoteCallback);
     myRemote.activatePortDevice(portRight, remoteCallback);
-    myRemote.setLedColor(PURPLE);
+    remoteIsConnected();
   }
 }  
+
+void remoteIsConnected(){
+    myRemote.setLedColor(PURPLE);
+    colorSquare(remote,CRGB::White,0,9);
+    Serial.println("Remote ");
+    Serial.println(myRemote.getHubAddress().toString().c_str());
+    Serial.println(" is now connected.");    
+}
+
+void remoteIsNotConnected(){
+  isRemoteInitialized = false;
+  colorSquare(remote,CRGB::Black,0,9);
+}
+
+void killRemote(){
+  myRemote.shutDownHub();
+  remoteIsNotConnected();
+}
+
+void setCurrentTrainNext(){
+
+    if (activeTrain < 2) return;
+
+    int startIndex = currentActiveTrainOnRemote = -1 || currentActiveTrainOnRemote== (MY_TRAIN_LEN-1) ? 0 : currentActiveTrainOnRemote;
+
+    for (int i = currentActiveTrainOnRemote; i < MY_TRAIN_LEN; i++) {
+      if (myTrains[i].hubState == 1){
+          currentActiveTrainOnRemote = i;
+          colorSquare(myTrains[i].square,CRGB::Purple,0,1);
+          return;
+      }       
+    }        
+    
+}
+
+void setCurrentTrainPrev(){
+
+    if (activeTrain < 2) return;
+
+    int startIndex = currentActiveTrainOnRemote = -1 || currentActiveTrainOnRemote == 0 ? (MY_TRAIN_LEN-1) : currentActiveTrainOnRemote;
+
+    for (int i = currentActiveTrainOnRemote; i > -1; i--) {
+      if (myTrains[i].hubState == 1){
+          currentActiveTrainOnRemote = i;
+          colorSquare(myTrains[i].square,CRGB::Purple,0,1);
+          return;
+      }       
+    }   
+
+}
 
