@@ -17,6 +17,7 @@ void scanAllTrains(){
       if (myTrains[i].hubState == 1) activeTrain++;
     }     
     
+  }
 }
 
 void scanHub( int idTrain) {
@@ -65,7 +66,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
   if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){
     
     myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);      
-    _println("Train " + myTrains[idTrain].hubAddress + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
+    Serial.println("Train " + myTrains[idTrain].hubAddress + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
   }  
 
   if (hubProperty == HubPropertyReference::BUTTON)
@@ -73,7 +74,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
     ButtonState buttonState = myHub->parseHubButton(pData);
     if (buttonState == ButtonState::PRESSED)
     {
-      // auto start
+      // auto start ???
       //myHub->setBasicMotorSpeed(portA, 15);
 
       switch (myTrains[idTrain].hubState) {
@@ -104,7 +105,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
           Serial.println(myTrains[idTrain].hubAddress + " is disconnected");            
           
           myTrains[idTrain].hubState = -1;            
-          stopTrain(idTrain);            
+          //stopTrain(idTrain);            
 
         }
         break;
@@ -149,4 +150,11 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
       //else if (color == sensorAcceptedColors[2]) killTrain(idTrain);     
 
   }
+}
+
+bool checkIfSensorColorIsAccepted(byte inputColor) {
+  for (int i = 0; i < MY_COLOR_LEN; i++) {
+    if (sensorAcceptedColors[i] == inputColor) return true;
+  }
+  return false;
 }
