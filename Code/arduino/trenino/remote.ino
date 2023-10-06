@@ -38,8 +38,13 @@ void remoteColorToLed( byte buttonState, byte portNumber){
 }
 
 void scanRemoteController(){
- if (myRemote.isConnecting())
-  {
+
+  if (!myRemote.isConnected()){
+		remoteIsNotConnected();
+		myRemote.init(5);
+  }
+
+  if (myRemote.isConnecting()){
     if (myRemote.getHubType() == HubType::POWERED_UP_REMOTE)
     {
       //This is the right device
@@ -54,15 +59,7 @@ void scanRemoteController(){
     }
   }
 
-
-  if (!myRemote.isConnected())
-  {
-		remoteIsNotConnected();
-		myRemote.init(1);
-  }
-
-  if (myRemote.isConnected()  && !isRemoteInitialized)
-  {
+  if (myRemote.isConnected()  && !isRemoteInitialized){
     Serial.println("System is initialized");
     isRemoteInitialized = true;
     delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost
@@ -71,6 +68,7 @@ void scanRemoteController(){
     myRemote.activatePortDevice(portRight, remoteCallback);
     remoteIsConnected();
   }
+
 }  
 
 void remoteIsConnected(){

@@ -1,4 +1,5 @@
 /*
+TrainIno
 
 Matrix
 
@@ -12,9 +13,9 @@ C(b)|D(g)
 */
 
 
-// version
+// Global
 String ver = "1.0.1";
-
+bool isVerbose = true;
 
 /* led part */
 #include <FastLED.h>
@@ -26,7 +27,7 @@ int squareA[] = {0,1,5,6};
 int squareB[] = {4,3,8,9};
 int squareC[] = {20,15,16,21};
 int squareD[] = {24,18,19,23};
-int* allsquares[4] = {squareA,squareB,squareD,squareC};
+int* allsquares[4] = {squareA,squareB,squareC,squareD};
 int remote[] =  {2,7,12,17,22,10,11,13,14};
 
 
@@ -40,7 +41,7 @@ byte chargen[][5] = {
 
 // ref: http://fastled.io/docs/3.1/struct_c_r_g_b.html
 int TOTNUM_COLORS = 4;
-uint32_t maincolour[] = {CRGB::FireBrick, CRGB::Gold, CRGB::Teal, CRGB::SeaGreen};
+uint32_t maincolour[] = {CRGB::Red, CRGB::Yellow, CRGB::Teal, CRGB::Green};
 
 //rotate / flip
 // https://macetech.github.io/FastLED-XY-Map-Generator/
@@ -84,6 +85,7 @@ int beforeStartInterval = 5000; //how much wait before start the train
 
 // default trains speed
 int initialTrainSpeed = 25;
+int speedIncreaseStep = 10;
 
 // Trains structure
 typedef struct {
@@ -127,6 +129,8 @@ void setup() {
     
   init();
 
+  printLegenda(); 
+
   // test remote(tutti treni collegati)
   testRemote();
   
@@ -134,11 +138,14 @@ void setup() {
 
 void loop() {
 
+  readFromSerial();
+  while (Serial.available() == 0) {      
     // remote controller
     // if (! isRemoteInitialized) 
 	  scanRemoteController();
-
     //scanAllTrains();
+
+  }
 
 }
 
@@ -148,7 +155,7 @@ void init(){
    initDisplay();
 
    //remote
-   myRemote.init(1);
+    scanRemoteController();
   
 }
 
@@ -158,7 +165,7 @@ void testRemote(){
   delay(3000);
   activeTrain = 0;
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    myTrains[i].hubState =1;
+    myTrains[i].hubState = 1;
     colorSquare(myTrains[i].square,maincolour[i],0,1);    
     activeTrain++;
   }

@@ -6,7 +6,7 @@ void scanAllTrains(){
     //checkIntervalisExpired(i);
     if (! myTrains[i].hubobj->isConnected()) {
 
-      colorSquare(allsquares[i],maincolour[num],1,4);	
+      colorSquare(allsquares[i],maincolour[i],1,4);	
       //myTrains[i].hubAddress = "";
       myTrains[i].hubState = -1;
       myTrains[i].trainState = 0;
@@ -26,7 +26,7 @@ void scanHub( int idTrain) {
  
   // read battery and update and update addr
   if (myTrain->isConnected()) {
-     myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
+     //myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
      myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
   }else{    
     if (!myTrain->isConnecting()) myTrain->init(myTrains[idTrain].hubAddress.c_str(), 1);
@@ -38,7 +38,7 @@ void scanHub( int idTrain) {
     if (myTrain->isConnected()) {
       delay(200);
       // init
-      myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
+      //myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
       Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);
@@ -152,9 +152,11 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
   }
 }
 
-bool checkIfSensorColorIsAccepted(byte inputColor) {
-  for (int i = 0; i < MY_COLOR_LEN; i++) {
-    if (sensorAcceptedColors[i] == inputColor) return true;
+
+
+int getHubIdByAddress(String address) {
+  for (int i = 0; i < MY_TRAIN_LEN; i++) {
+    if (myTrains[i].hubAddress == address) return i;
   }
-  return false;
+  return -1;
 }

@@ -37,9 +37,9 @@ void initDisplay(){
    // scritta ACOL (facoltativa) 
    
    for (int num = 0; num < TOTNUM_COLORS; num++) {
-	   //osCopyChar(num,maincolour[num]);
-     fullColor(maincolour[num]);
-     osCopyChar(num, CRGB::White);
+	   osCopyChar(num,maincolour[num]);
+     //fullColor(maincolour[num]);
+     //osCopyChar(num, CRGB::White);
 	   delay(500);	   
    }
    
@@ -49,8 +49,7 @@ void initDisplay(){
    /* fine */
    
    for (int num = 0; num < TOTNUM_COLORS; num++) {	   
-	   colorSquare(allsquares[num],maincolour[num],1,4);	   
-	   delay(250);	   
+	   colorSquare(allsquares[num],maincolour[num],1,4);	   	      
    }   
 
 }
