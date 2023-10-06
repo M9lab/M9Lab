@@ -1,7 +1,9 @@
 void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData){
 
+  
+
 	Lpf2Hub *myRemote = (Lpf2Hub *)hub;  
-	if (deviceType == DeviceType::REMOTE_CONTROL_BUTTON){
+	if (deviceType == DeviceType::REMOTE_CONTROL_BUTTON){    
 		ButtonState buttonState = myRemote->parseRemoteButton(pData);     
 		remoteColorToLed((byte)buttonState,(byte)portNumber);       
   }
@@ -10,32 +12,27 @@ void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
 
 void remoteColorToLed( byte buttonState, byte portNumber){
 
-  if (!myRemote.isConnected()) return;
-  
-   Serial.print("buttonState=");
-   Serial.println(buttonState);
-   Serial.print("portNumber=");
-   Serial.println(portNumber);
+  if (!myRemote.isConnected()) return;  
    
-   
-   if (portNumber == 0 && buttonState == 255){
+   if (portNumber == 0 && buttonState == 1){
       //increaseCurrentTrainSpeed();
    }
-   if (portNumber == 0 && buttonState == 0){
+   if (portNumber == 0 && buttonState == 255){
       //decreaseCurrentTrainSpeed();
    }
    if (portNumber == 0 && buttonState == 127){
       //stopCurrentTrain();
    }
-   if (portNumber == 1 && buttonState == 255){
+   if (portNumber == 1 && buttonState == 1){
       setCurrentTrainNext();
    }
-   if (portNumber == 1 && buttonState == 0){
+   if (portNumber == 1 && buttonState == 255){
       setCurrentTrainPrev();
    }
    if (portNumber == 1 && buttonState == 127){
       killRemote();
    }
+   
   
 }
 
