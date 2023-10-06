@@ -155,7 +155,7 @@ void init(){
    initDisplay();
 
    //remote
-    scanRemoteController();
+   //scanRemoteController();
   
 }
 
@@ -179,7 +179,3 @@ void testRemote(){
   */ 
 
 }
-
-
-
-

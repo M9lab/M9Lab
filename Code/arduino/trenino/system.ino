@@ -140,9 +140,8 @@ void checkIntervalisExpired(int idTrain ) {
 }
 
 bool checkIfSensorColorIsAccepted(byte inputColor) {
-  for (int i = 0; i < MY_COLOR_LEN; i++) {
+  for (int i = 0; i < MY_TILE_COLOR_LEN; i++) {
     if (sensorAcceptedColors[i] == inputColor) return true;
   }
   return false;
 }
-

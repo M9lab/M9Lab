@@ -91,7 +91,7 @@ void increaseCurrentTrainSpeed(){
   
   if (currentActiveTrainOnRemote == -1) return;
 
-   addspeed = myTrains[currentActiveTrainOnRemote].speed < 0 ? (speedIncreaseStep*-1) : + speedIncreaseStep; 
+   int addspeed = myTrains[currentActiveTrainOnRemote].speed < 0 ? (speedIncreaseStep*-1) : + speedIncreaseStep; 
    myTrains[currentActiveTrainOnRemote].speed =  myTrains[currentActiveTrainOnRemote].speed + addspeed;
    
    Lpf2Hub *myTrain = myTrains[currentActiveTrainOnRemote].hubobj;
@@ -104,7 +104,7 @@ void increaseCurrentTrainSpeed(){
 void decreaseCurrentTrainSpeed(){
   if (currentActiveTrainOnRemote == -1) return;
 
-  addspeed = myTrains[currentActiveTrainOnRemote].speed < 0 ? speedIncreaseStep : (speedIncreaseStep*-1); 
+ int  addspeed = myTrains[currentActiveTrainOnRemote].speed < 0 ? speedIncreaseStep : (speedIncreaseStep*-1); 
   myTrains[currentActiveTrainOnRemote].speed =  myTrains[currentActiveTrainOnRemote].speed + addspeed;
   
   Lpf2Hub *myTrain = myTrains[currentActiveTrainOnRemote].hubobj;
@@ -112,4 +112,3 @@ void decreaseCurrentTrainSpeed(){
   _println("Train: " + myTrains[currentActiveTrainOnRemote].hubColor + " speed now is " + myTrains[currentActiveTrainOnRemote].speed); 
 
 }
-
