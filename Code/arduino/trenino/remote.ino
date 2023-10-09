@@ -1,6 +1,4 @@
-void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData){
-
-  
+void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData){  
 
 	Lpf2Hub *myRemote = (Lpf2Hub *)hub;  
 	if (deviceType == DeviceType::REMOTE_CONTROL_BUTTON){    
@@ -40,8 +38,7 @@ void scanRemoteController(){
 
   if (!myRemote.isConnected()){
     myRemote.init();
-		remoteIsNotConnected();
-		
+		remoteIsNotConnected();		
   }
 
   if (myRemote.isConnecting()){
@@ -79,15 +76,16 @@ void remoteIsConnected(){
     Serial.print(" is now connected.");    
 }
 
-void remoteIsNotConnected(){
-    
-    isRemoteInitialized = false;
-    //colorSquare(remote,CRGB::Black,0,9);
+void remoteIsNotConnected(){    
+    isRemoteInitialized = false;    
+    currentActiveTrainOnRemote = -1;
+    refreshLed(2);  
+    colorSquare(remote,CRGB::Black,0,9);    
 }
 
 void killRemote(){
+  //remoteIsNotConnected();    
   myRemote.shutDownHub();
-  remoteIsNotConnected();
 }
 
 void setCurrentTrainNext(){
@@ -99,6 +97,7 @@ void setCurrentTrainNext(){
        
       if (myTrains[i].hubState == 1){
           currentActiveTrainOnRemote = i;
+          myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
           refreshLed(2);   
           saveInterval(remoteactivityMillis);             
           return;        
@@ -106,6 +105,7 @@ void setCurrentTrainNext(){
 
       if(i == (MY_TRAIN_LEN-1) && myTrains[MY_TRAIN_LEN-1].hubState != 1){
         currentActiveTrainOnRemote = 0;
+        myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
         refreshLed(2);   
         saveInterval(remoteactivityMillis); 
       }       
@@ -124,6 +124,7 @@ void setCurrentTrainPrev(){
       
       if (myTrains[i].hubState == 1){
           currentActiveTrainOnRemote = i;
+          myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
           refreshLed(2);    
           saveInterval(remoteactivityMillis);                    
           return;      
@@ -131,20 +132,9 @@ void setCurrentTrainPrev(){
 
       if(i == (0) && myTrains[0].hubState != 1){
         currentActiveTrainOnRemote = 3;
+        myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
         refreshLed(2);   
         saveInterval(remoteactivityMillis); 
       }    
     }       
-}
-
-void refreshLed(int num){   
-   // 0 = connected, 1= color, 2= selected, 3=battery
-   
-   for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    uint32_t color = CRGB::Black;
-    if (num==0) color = myTrains[i].hubState == 1 ? maincolour[i] : CRGB::Black;
-    if (num==2) color = currentActiveTrainOnRemote == i ? CRGB::White : maincolour[i];
-    if (num==3) color = myTrains[i].batteryLevel > 10 ? maincolour[i] : CRGB::Purple;        
-    colorSquare(myTrains[i].square,color,num,num+1);        
-  }
 }

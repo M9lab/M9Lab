@@ -15,7 +15,7 @@ void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
   for (int num = numfrom; num < numto; num++) {      
     //leds[XYTable[num]] = color;
     leds[square[num]] = color;    
-    if (numto==9) delay(100);    
+    //if (numto==9) delay(100);    
   }
   FastLED.show();
 
@@ -53,4 +53,16 @@ void initDisplay(){
 	   colorSquare(allsquares[num],maincolour[num],1,4);	   	      
    }   
 
+}
+
+void refreshLed(int num){   
+   // 0 = connected, 1= color, 2= selected, 3=battery
+   
+   for (int i = 0; i < MY_TRAIN_LEN; i++) {
+    uint32_t color = CRGB::Black;
+    if (num==0) color = myTrains[i].hubState == 1 ? maincolour[i] : CRGB::Black;
+    if (num==2) color = currentActiveTrainOnRemote == i ? CRGB::White : maincolour[i];
+    if (num==3) color = myTrains[i].batteryLevel > 10 ? maincolour[i] : CRGB::Purple;        
+    colorSquare(myTrains[i].square,color,num,num+1);        
+  }
 }

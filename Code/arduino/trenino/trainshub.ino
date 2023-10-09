@@ -23,30 +23,41 @@ void scanAllTrains(){
 void scanHub( int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+  Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
  
   // read battery and update and update addr
-  if (myTrain->isConnected()) {
-     //myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
+  if (myTrain->isConnected()) {     
      myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-  }else{    
-    if (!myTrain->isConnecting()) myTrain->init(myTrains[idTrain].hubAddress.c_str(), 1);
+  }else{  
+    refreshLed(0);
+    if (!myTrain->isConnecting()){
+      //int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());      
+      //Serial.println(myHub->getHubAddress().toString().c_str());
+      //if (idTrain == -1){
+        myTrain->init(3);
+      //}else{
+       // myTrain->init(3);
+        //myTrain->init(myTrains[idTrain].hubAddress.c_str(),3);  
+      //}        
+    }
   }
+  
   
   if (myTrain->isConnecting()) {
 
     myTrain->connectHub();
     if (myTrain->isConnected()) {
-      delay(200);
-      // init
-      //myTrains[idTrain].hubAddress = myTrains->getHubAddress().toString().c_str();
+        
+      myTrains[idTrain].hubAddress = myHub->getHubAddress().toString().c_str();
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
-      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);
+      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubColor);
            
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);
       delay(200);
-      //myTrain->setLedColor(PURPLE);
+      myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
+      myTrain->setLedColor(PURPLE);
       
     } else {
       Serial.println("Failed to connect with hub n " + idTrain);
@@ -62,7 +73,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
   int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());
   if (idTrain == -1) return;
   
-
+  
   if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){
     
     myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);      
@@ -71,7 +82,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
 
   if (hubProperty == HubPropertyReference::BUTTON)
   {
-    ButtonState buttonState = myHub->parseHubButton(pData);
+    ButtonState buttonState = myHub->parseHubButton(pData);  
     if (buttonState == ButtonState::PRESSED)
     {
       // auto start ???
@@ -88,23 +99,21 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
           byte portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
           if (portForDevice != 255) {
             // activate hub button to receive updates
-            //myHub->activatePortDevice(portB, colorDistanceSensorCallback);
+            myHub->activatePortDevice(portB, colorDistanceSensorCallback);
             delay(200);
           }
-
-          myHub->setLedColor(CYAN);
+          refreshLed(0);
+          myHub->setLedColor(myTrains[idTrain].ledColor);
 
         }
         break;
 
         case 1: //active -> turnoff
-        {
-          myHub->setLedColor(RED);                    
-          delay(100);
+        {                    
           myHub->shutDownHub();
-          Serial.println(myTrains[idTrain].hubAddress + " is disconnected");            
-          
+          Serial.println(myTrains[idTrain].hubAddress + " is disconnected");                      
           myTrains[idTrain].hubState = -1;            
+          refreshLed(0);
           //stopTrain(idTrain);            
 
         }
