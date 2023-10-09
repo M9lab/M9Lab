@@ -102,7 +102,14 @@ void setCurrentTrainNext(){
           refreshLed(2);   
           saveInterval(remoteactivityMillis);             
           return;        
+      }
+
+      if(i == (MY_TRAIN_LEN-1) && myTrains[MY_TRAIN_LEN-1].hubState != 1){
+        currentActiveTrainOnRemote = 0;
+        refreshLed(2);   
+        saveInterval(remoteactivityMillis); 
       }       
+
     }        
 
 }
@@ -120,7 +127,13 @@ void setCurrentTrainPrev(){
           refreshLed(2);    
           saveInterval(remoteactivityMillis);                    
           return;      
-      }       
+      }   
+
+      if(i == (0) && myTrains[0].hubState != 1){
+        currentActiveTrainOnRemote = 3;
+        refreshLed(2);   
+        saveInterval(remoteactivityMillis); 
+      }    
     }       
 }
 

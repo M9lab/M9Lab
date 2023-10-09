@@ -126,10 +126,8 @@ void _println(String text) {
 }
 
 
-void saveInterval(unsigned long &previousMillis) {
-  Serial.println("saveInterval");
-  previousMillis = millis();
-  Serial.println(previousMillis);
+void saveInterval(unsigned long &previousMillis) {  
+  previousMillis = millis();  
 }
 
 void checkRemoteIntervalisExpired(){    
