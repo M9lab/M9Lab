@@ -99,14 +99,12 @@ void setCurrentTrainNext(){
        
       if (myTrains[i].hubState == 1){
           currentActiveTrainOnRemote = i;
-          restoreLed(2);
-          //colorSquare(myTrains[i].square,CRGB::White,2,3);          
+          refreshLed(2);   
+          saveInterval(remoteactivityMillis);             
           return;        
       }       
     }        
 
-    
-    
 }
 
 void setCurrentTrainPrev(){
@@ -119,14 +117,14 @@ void setCurrentTrainPrev(){
       
       if (myTrains[i].hubState == 1){
           currentActiveTrainOnRemote = i;
-          restoreLed(2);
-          //colorSquare(myTrains[i].square,CRGB::White,2,3);                    
+          refreshLed(2);    
+          saveInterval(remoteactivityMillis);                    
           return;      
       }       
     }       
 }
 
-void restoreLed(int num){   
+void refreshLed(int num){   
    // 0 = connected, 1= color, 2= selected, 3=battery
    
    for (int i = 0; i < MY_TRAIN_LEN; i++) {

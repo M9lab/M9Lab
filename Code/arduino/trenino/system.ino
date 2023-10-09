@@ -126,10 +126,19 @@ void _println(String text) {
 }
 
 
-/* interval */
-
 void saveInterval(unsigned long &previousMillis) {
+  Serial.println("saveInterval");
   previousMillis = millis();
+  Serial.println(previousMillis);
+}
+
+void checkRemoteIntervalisExpired(){    
+
+  if (millis() - remoteactivityMillis > remoteInterval && remoteactivityMillis > 0) {
+      
+      currentActiveTrainOnRemote = -1;
+      refreshLed(2);
+  }
 }
 
 

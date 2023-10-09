@@ -70,6 +70,8 @@ Lpf2Hub myRemote;
 byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 bool isRemoteInitialized = false;
+unsigned long remoteactivityMillis = 0;
+int remoteInterval = 20000;
 
 /* end remote */
 
@@ -150,6 +152,7 @@ void loop() {
     // remote controller
     // if (! isRemoteInitialized) 
 	  scanRemoteController();
+    checkRemoteIntervalisExpired();
     //scanAllTrains();
 
   }
