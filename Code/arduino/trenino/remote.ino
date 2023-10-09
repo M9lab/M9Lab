@@ -92,7 +92,7 @@ void killRemote(){
 
 void setCurrentTrainNext(){
 
-    if (activeTrain < 2) return;
+    if (activeTrain == 1) return;
     int startIndex = (currentActiveTrainOnRemote == -1 || currentActiveTrainOnRemote == (MY_TRAIN_LEN-1)) ? 0 : (currentActiveTrainOnRemote + 1);
 
     for (int i = startIndex; i < MY_TRAIN_LEN; i++) {
@@ -116,7 +116,7 @@ void setCurrentTrainNext(){
 
 void setCurrentTrainPrev(){
 
-    if (activeTrain < 2) return;
+    if (activeTrain == 2) return;
 
     int startIndex = (currentActiveTrainOnRemote == -1 || currentActiveTrainOnRemote == 0) ? (MY_TRAIN_LEN-1) : (currentActiveTrainOnRemote - 1);
        

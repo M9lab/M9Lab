@@ -175,7 +175,7 @@ void testRemote(){
   delay(3000);
   activeTrain = 0;
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    if (i==1 || i==3){
+    if (i==0){
       myTrains[i].hubState = 1;
       colorSquare(myTrains[i].square,maincolour[i],0,1);    
       activeTrain++;
