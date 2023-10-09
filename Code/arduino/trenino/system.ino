@@ -14,6 +14,8 @@ void readFromSerial() {
     else if (command == "status") systemStatus();
     else if (command == "verboseon") verboseOn();
     else if (command == "verboseoff") verboseOff();
+    else if (command == "+") setCurrentTrainNext();
+    else if (command == "-") setCurrentTrainPrev();
 	
     else {
       Serial.println("");
@@ -39,6 +41,12 @@ void printLegenda() {
   Serial.println("status = show system status");
   Serial.println("verboseon = show more status messages");
   Serial.println("verboseoff = show less status messages");
+
+  Serial.println("");
+  Serial.println("-----Remote commands:-----");
+  Serial.println("+ = select next Train");
+  Serial.println("- = select prev Train");  
+
 
   Serial.println("_________________________________________________");
 }
@@ -77,9 +85,7 @@ void panic() {
   if(myRemote.isConnected()) myRemote.shutDownHub();
   isRemoteInitialized = false; 
   
-
 }
-
 
 void systemStatus() {
 

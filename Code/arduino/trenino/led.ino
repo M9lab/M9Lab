@@ -11,6 +11,7 @@ void fullColor(uint32_t color) {
 
 void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
 
+
   for (int num = numfrom; num < numto; num++) {      
     //leds[XYTable[num]] = color;
     leds[square[num]] = color;    

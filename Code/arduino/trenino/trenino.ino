@@ -6,9 +6,16 @@ Matrix
 ---------
 A(r)|B(y)
 ----+----
-C(b)|D(g)
+D(b)|C(g)
 ----^----
    usb
+
+
+0,   1,   2,   3,   4,
+5,   6,   7,   8,   9,
+10,  11,  12,  13,  14,
+15,  16,  17,  18,  19,
+20,  21,  22,  23,  24
 
 */
 
@@ -22,11 +29,11 @@ bool isVerbose = true;
 #define NUM_LEDS 25
 #define DATA_PIN 27
 
-
-int squareA[] = {0,1,5,6};
+// 0 = connected, 1= color, 2= selected, 3=battery
+int squareA[] = {0,1,6,5};
 int squareB[] = {4,3,8,9};
-int squareC[] = {20,15,16,21};
-int squareD[] = {24,18,19,23};
+int squareC[] = {24,23,18,19};
+int squareD[] = {20,21,16,15};
 int* allsquares[4] = {squareA,squareB,squareC,squareD};
 int remote[] =  {2,7,12,17,22,10,11,13,14};
 
@@ -169,6 +176,7 @@ void testRemote(){
     colorSquare(myTrains[i].square,maincolour[i],0,1);    
     activeTrain++;
   }
+  
 
   /*    
   colorSquare(squareB,CRGB::Black,0,1);

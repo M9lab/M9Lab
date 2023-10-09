@@ -82,7 +82,7 @@ void remoteIsConnected(){
 void remoteIsNotConnected(){
     
     isRemoteInitialized = false;
-    colorSquare(remote,CRGB::Black,0,9);
+    //colorSquare(remote,CRGB::Black,0,9);
 }
 
 void killRemote(){
@@ -93,18 +93,19 @@ void killRemote(){
 void setCurrentTrainNext(){
 
     if (activeTrain < 2) return;
+    int startIndex = (currentActiveTrainOnRemote == -1 || currentActiveTrainOnRemote == (MY_TRAIN_LEN-1)) ? 0 : (currentActiveTrainOnRemote + 1);
 
-    int startIndex = currentActiveTrainOnRemote = -1 || currentActiveTrainOnRemote== (MY_TRAIN_LEN-1) ? 0 : currentActiveTrainOnRemote;
-
-    for (int i = currentActiveTrainOnRemote; i < MY_TRAIN_LEN; i++) {
+    for (int i = startIndex; i < MY_TRAIN_LEN; i++) {
+       
       if (myTrains[i].hubState == 1){
           currentActiveTrainOnRemote = i;
-          colorSquare(myTrains[i].square,CRGB::Purple,0,1);
-          _print("currentActiveTrainOnRemote");
-          Serial.println(currentActiveTrainOnRemote);
-          return;
+          restoreLed(2);
+          //colorSquare(myTrains[i].square,CRGB::White,2,3);          
+          return;        
       }       
     }        
+
+    
     
 }
 
@@ -112,16 +113,27 @@ void setCurrentTrainPrev(){
 
     if (activeTrain < 2) return;
 
-    int startIndex = currentActiveTrainOnRemote = -1 || currentActiveTrainOnRemote == 0 ? (MY_TRAIN_LEN-1) : currentActiveTrainOnRemote;
-
-    for (int i = currentActiveTrainOnRemote; i > -1; i--) {
+    int startIndex = (currentActiveTrainOnRemote == -1 || currentActiveTrainOnRemote == 0) ? (MY_TRAIN_LEN-1) : (currentActiveTrainOnRemote - 1);
+       
+    for (int i = startIndex; i > -1; i--) {
+      
       if (myTrains[i].hubState == 1){
           currentActiveTrainOnRemote = i;
-          colorSquare(myTrains[i].square,CRGB::Purple,0,1);
-          _print("currentActiveTrainOnRemote");
-          Serial.println(currentActiveTrainOnRemote);
-          return;
+          restoreLed(2);
+          //colorSquare(myTrains[i].square,CRGB::White,2,3);                    
+          return;      
       }       
-    }   
+    }       
+}
 
+void restoreLed(int num){   
+   // 0 = connected, 1= color, 2= selected, 3=battery
+   
+   for (int i = 0; i < MY_TRAIN_LEN; i++) {
+    uint32_t color = CRGB::Black;
+    if (num==0) color = myTrains[i].hubState == 1 ? maincolour[i] : CRGB::Black;
+    if (num==2) color = currentActiveTrainOnRemote == i ? CRGB::White : maincolour[i];
+    if (num==3) color = myTrains[i].batteryLevel > 10 ? maincolour[i] : CRGB::Purple;        
+    colorSquare(myTrains[i].square,color,num,num+1);        
+  }
 }
