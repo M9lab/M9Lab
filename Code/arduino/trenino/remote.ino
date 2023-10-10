@@ -3,12 +3,12 @@ void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
 	Lpf2Hub *myRemote = (Lpf2Hub *)hub;  
 	if (deviceType == DeviceType::REMOTE_CONTROL_BUTTON){    
 		ButtonState buttonState = myRemote->parseRemoteButton(pData);     
-		remoteColorToLed((byte)buttonState,(byte)portNumber);       
+		remoteColorButtonController((byte)buttonState,(byte)portNumber);       
   }
   
 }
 
-void remoteColorToLed( byte buttonState, byte portNumber){
+void remoteColorButtonController( byte buttonState, byte portNumber){
 
   if (!myRemote.isConnected()) return;  
    

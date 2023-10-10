@@ -26,42 +26,45 @@ void scanHub( int idTrain) {
   Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
  
   // read battery and update and update addr
-  if (myTrain->isConnected()) {     
-     //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-  }else{  
+  if (! myTrain->isConnected()) {           
     refreshLed(0);
     if (!myTrain->isConnecting()){
-
-      if (myTrains[idTrain].hubAddress != ""){
-        int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
-        if (idTrainC == idTrain){
-          myTrain->init(myTrains[idTrain].hubAddress.c_str(),3);  
-        }else{
-          myTrain->init(3);
-        }   
-      }else{
-          myTrain->init(3);
-      }
-       
+      myTrain->init();       
     }
   }
   
 
   if (myTrain->isConnecting()) {
+    
+    if (myTrain->getHubType() == HubType::POWERED_UP_REMOTE) return;
+    if (myTrain->connectHub()){
+      
+    }else{
+      
+    }
 
-    myTrain->connectHub();
+    
     if (myTrain->isConnected()) {
+      
+      int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
+      if (idTrainC != idTrain || idTrainC == -1){
+        idTrain = idTrainC;
+      }else{
+        myTrains[idTrain].hubAddress = myHub->getHubAddress().toString().c_str();
+        delay(200);
+        myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
+      //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
+      }
         
-      myTrains[idTrain].hubAddress = myHub->getHubAddress().toString().c_str();
+      myTrain->setLedColor(PURPLE);      
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
       Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);
-           
+
+      
       // activate Property Update
-      myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);
-      delay(200);
-      myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-      myTrain->setLedColor(PURPLE);
+      
+      
       
     } else {
       Serial.println("Failed to connect with hub n " + idTrain);
@@ -73,6 +76,7 @@ void scanHub( int idTrain) {
 
 void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pData) {
 
+  Serial.println("hubButtonCallback");
   Lpf2Hub *myHub = (Lpf2Hub *)hub;
   int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());
   if (idTrain == -1) return;
