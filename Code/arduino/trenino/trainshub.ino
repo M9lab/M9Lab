@@ -35,12 +35,12 @@ void scanHub( int idTrain) {
       if (myTrains[idTrain].hubAddress != ""){
         int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
         if (idTrainC == idTrain){
-          myTrain->init(myTrains[idTrain].hubAddress.c_str());  
+          myTrain->init(myTrains[idTrain].hubAddress.c_str(),3);  
         }else{
-          myTrain->init();
+          myTrain->init(3);
         }   
       }else{
-          myTrain->init();
+          myTrain->init(3);
       }
        
     }
