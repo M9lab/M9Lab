@@ -139,7 +139,6 @@ void checkRemoteIntervalisExpired(){
   }
 }
 
-
 void checkIntervalisExpired(int idTrain ) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;

@@ -11,7 +11,6 @@ void fullColor(uint32_t color) {
 
 void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
 
-
   for (int num = numfrom; num < numto; num++) {      
     //leds[XYTable[num]] = color;
     leds[square[num]] = color;    
@@ -35,20 +34,19 @@ void osCopyChar (int myCharIndex, uint32_t color){
 }
 
 void initDisplay(){
-   // scritta ACOL (facoltativa) 
-   
+
+   // scritta ACOL (facoltativa)    
    for (int num = 0; num < TOTNUM_COLORS; num++) {
 	   osCopyChar(num,maincolour[num]);
      //fullColor(maincolour[num]);
      //osCopyChar(num, CRGB::White);
-	   delay(500);	   
+	   delay(300);	   
    }
    
    fullColor(CRGB::Black);	   
    delay(1000);
 
    /* fine */
-   
    for (int num = 0; num < TOTNUM_COLORS; num++) {	   
 	   colorSquare(allsquares[num],maincolour[num],1,4);	   	      
    }   

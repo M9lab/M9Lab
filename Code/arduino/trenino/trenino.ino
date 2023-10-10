@@ -119,25 +119,25 @@ byte sensorAcceptedColors[MY_TILE_COLOR_LEN] = { (byte)Color::YELLOW, (byte)Colo
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel -  ledColor - square
 Train myTrains[MY_TRAIN_LEN] = {
-    { &myTrainHub_TA, "Red",     "", initialTrainSpeed , 0, 0, -1, 0, 100,  RED , squareA}
-  , { &myTrainHub_TB, "Yellow" , "", initialTrainSpeed , 0, 0, -1, 0, 100,  YELLOW , squareB}
-  , { &myTrainHub_TC, "Blue" ,   "", initialTrainSpeed , 0, 0, -1, 0, 100,  BLUE ,squareC}
-  , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN ,squareD}
+    { &myTrainHub_TA, "Red",     "", initialTrainSpeed , 0, 0, -1, 0, 100,  RED,    squareA}
+  , { &myTrainHub_TB, "Yellow" , "", initialTrainSpeed , 0, 0, -1, 0, 100,  YELLOW, squareB}
+  , { &myTrainHub_TC, "Blue" ,   "", initialTrainSpeed , 0, 0, -1, 0, 100,  BLUE,   squareC}
+  , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN,  squareD}
   
 };
 
 /* end trains */
 
 
-
 void setup() {
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(20);
-  delay(1000);
+ 
   Serial.begin(115200);  
     
-  init();
-
+  // led 
+  initDisplay();
+   delay(1000);
   printLegenda(); 
 
   // test remote(tutti treni collegati)
@@ -149,23 +149,15 @@ void loop() {
 
   readFromSerial();
   while (Serial.available() == 0) {      
+
     // remote controller    
 	  scanRemoteController();
     checkRemoteIntervalisExpired();
-    scanAllTrains();
 
+    // trains
+    scanAllTrains();
   }
 
-}
-
-void init(){
-
-   // led 
-   initDisplay();
-
-   //remote
-   //scanRemoteController();
-  
 }
 
 // only for test
