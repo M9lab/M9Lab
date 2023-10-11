@@ -43,7 +43,7 @@ void printLegenda() {
   Serial.println("verboseoff = show less status messages");
 
   Serial.println("");
-  Serial.println("-----Remote commands:-----");
+  Serial.println("-----Remote commands (simulate):-----");
   Serial.println("+ = select next Train");
   Serial.println("- = select prev Train");  
 
@@ -65,6 +65,7 @@ void systemReset() {
     myTrains[idTrain].speed = initialTrainSpeed;
     myTrains[idTrain].lastcolor = 0;
     myTrains[idTrain].colorPreviousMillis = 0;
+    myTrains[idTrain].trainState = 0;
   }  
 }
 
@@ -89,7 +90,7 @@ void panic() {
 
 void systemStatus() {
 
-  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|");
+  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|hubAddress");
   Serial.println("------------------------------------------------");
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
@@ -99,6 +100,7 @@ void systemStatus() {
     _print_withspaces(String(myTrains[idTrain].hubState),"hubState");    
     _print_withspaces(String(myTrains[idTrain].trainState),"trainState");    
     _print_withspaces(String(myTrains[idTrain].speed),"speed");
+    _print_withspaces(String(myTrains[idTrain].hubAddress),"hubAddress");
 
     Serial.println("");
   }
@@ -115,7 +117,6 @@ void _print_withspaces(String inputS, String lengthS){
   Serial.print("|");  
 
 }
-
 
 void _print(String text) {
   if (isVerbose) Serial.print(text);

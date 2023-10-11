@@ -1,4 +1,3 @@
-
 void scanAllTrains(){
 
   activeTrain = 0;
@@ -20,7 +19,69 @@ void scanAllTrains(){
   }
 }
 
+void trainIsNotConnected(int idTrain){    
+    myTrains[idTrain].hubState = -1;
+    myTrains[idTrain].trainState = 0;	
+    refreshLed(0);
+}
+
+void trainIsConnected(int idTrain){     
+  myTrains[idTrain].hubState = 0;
+  myTrains[idTrain].trainState = 0;
+  refreshLed(0);  
+}
+
 void scanHub( int idTrain) {
+
+  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+  Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
+
+  
+  if (!myTrain->isConnected()){
+    int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
+    if (idTrainC == idTrain){
+      myTrain->init(myTrains[idTrain].hubAddress.c_str());  
+    }else{
+      myTrain->init();
+    }       
+		trainIsNotConnected(idTrain);	
+  }
+
+  if (myTrain->isConnecting()){
+    if (myTrain->getHubType() == HubType::POWERED_UP_HUB )
+    {
+      //This is the right device
+      if (!myTrain->connectHub()){
+        Serial.println("Failed to connect with hub n #" + myTrains[idTrain].hubColor);
+      }else{
+        trainIsConnected(idTrain);
+        myTrains[idTrain].hubAddress = myHub->getHubAddress().toString().c_str();
+        myTrain->setLedColor(PURPLE);
+      }
+    }
+  }
+
+  if (myTrain->isConnected() && myTrains[idTrain].hubState==-1){
+    
+    Serial.print("Now connected with hub " + myTrains[idTrain].hubColor + " -> ");
+    Serial.println(myHub->getHubAddress().toString().c_str());
+
+    delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost
+    // both activations are needed to get status updates
+    // activate Property Update
+    
+    myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);    
+    /*
+    myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);    
+    */
+    trainIsConnected(idTrain);
+    
+  }
+
+}
+
+
+void scanHub_old( int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
