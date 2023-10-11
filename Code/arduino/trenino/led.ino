@@ -11,8 +11,7 @@ void fullColor(uint32_t color) {
 
 void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
 
-  for (int num = numfrom; num < numto; num++) {      
-    //leds[XYTable[num]] = color;
+  for (int num = numfrom; num < numto; num++) {          
     leds[square[num]] = color;    
     //if (numto==9) delay(100);    
   }
@@ -58,7 +57,14 @@ void refreshLed(int num){
    
    for (int i = 0; i < MY_TRAIN_LEN; i++) {
     uint32_t color = CRGB::Black;
-    if (num==0) color = myTrains[i].hubState == 1 ? maincolour[i] : CRGB::Black;
+    if (num==0){
+      if (myTrains[i].hubState == -1) color = CRGB::Black;
+      if (myTrains[i].hubState == 0){
+        color = myTrains[i].hubAddress == "" ? CRGB::White : CRGB::Purple;        
+      }
+      
+      if (myTrains[i].hubState == 1) color = maincolour[i];      
+    }
     if (num==2) color = currentActiveTrainOnRemote == i ? CRGB::White : maincolour[i];
     if (num==3) color = myTrains[i].batteryLevel > 10 ? maincolour[i] : CRGB::Purple;        
     colorSquare(myTrains[i].square,color,num,num+1);        

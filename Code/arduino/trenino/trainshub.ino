@@ -3,14 +3,16 @@ void scanAllTrains(){
   activeTrain = 0;
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
     //checkIntervalisExpired(i);
-    if (! myTrains[i].hubobj->isConnected()) {
+    //if (! myTrains[i].hubobj->isConnected()) {
+    if (myTrains[i].hubState == -1) {
 
       //colorSquare(allsquares[i],maincolour[i],1,4);	
       //myTrains[i].hubAddress = "";
-      myTrains[i].hubState = -1;
-      myTrains[i].trainState = 0;
+      //myTrains[i].hubState = -1;
+      //myTrains[i].trainState = 0;
       
-      scanHub(i);
+      scanHub_old(i);
+      return;
       
     } else{
       if (myTrains[i].hubState == 1) activeTrain++;
@@ -38,17 +40,21 @@ void scanHub( int idTrain) {
 
   
   if (!myTrain->isConnected()){
+    //trainIsNotConnected(idTrain);  
     int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
-    if (idTrainC == idTrain){
+    if (idTrainC == idTrain && myTrains[idTrain].hubAddress != ""){
+      Serial.print(myTrains[idTrain].hubAddress.c_str());
+      Serial.println(" scan");
       myTrain->init(myTrains[idTrain].hubAddress.c_str());  
     }else{
-      myTrain->init();
+      Serial.println("normal scan");
+      myTrain->init(3);
     }       
-		trainIsNotConnected(idTrain);	
+		
   }
 
   if (myTrain->isConnecting()){
-    if (myTrain->getHubType() == HubType::POWERED_UP_HUB )
+    if (myTrain->getHubType() != HubType::POWERED_UP_REMOTE )
     {
       //This is the right device
       if (!myTrain->connectHub()){
@@ -84,7 +90,7 @@ void scanHub( int idTrain) {
 void scanHub_old( int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-  Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
+  //Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
  
   // read battery and update and update addr
   if (! myTrain->isConnected()) {           
@@ -98,37 +104,23 @@ void scanHub_old( int idTrain) {
   if (myTrain->isConnecting()) {
     
     if (myTrain->getHubType() == HubType::POWERED_UP_REMOTE) return;
-    if (myTrain->connectHub()){
-      
-    }else{
-      
-    }
-
-    
+    myTrain->connectHub();    
     if (myTrain->isConnected()) {
-      
-      int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
-      if (idTrainC != idTrain || idTrainC == -1){
-        idTrain = idTrainC;
-      }else{
-        myTrains[idTrain].hubAddress = myHub->getHubAddress().toString().c_str();
-        delay(200);
-        myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
-      //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-      }
-        
-      myTrain->setLedColor(PURPLE);      
+      myTrain->setLedColor(PURPLE);                        
+      String hb = myTrain->getHubAddress().toString().c_str();
+      int idTrainC = getHubIdByAddress(hb);          
+      if (idTrainC != -1)idTrain = idTrainC;        
+           
+      myTrains[idTrain].hubAddress = hb;
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
-      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);
-
-      
+      delay(200);      
       // activate Property Update
+      myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
+      //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);        
+      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);      
       
-      
-      
-    } else {
-      Serial.println("Failed to connect with hub n " + idTrain);
+                 
     }
     
   }
@@ -137,7 +129,7 @@ void scanHub_old( int idTrain) {
 
 void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pData) {
 
-  Serial.println("hubButtonCallback");
+  //Serial.println("hubButtonCallback");
   Lpf2Hub *myHub = (Lpf2Hub *)hub;
   int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());
   if (idTrain == -1) return;
@@ -214,8 +206,7 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
       Serial.println(LegoinoCommon::ColorStringFromColor(color).c_str()); 
 
 	    Serial.print("Distance: ");
-	    Serial.println(distance, DEC);	                  
-    
+	    Serial.println(distance, DEC);	                      
       myHub->setLedColor((Color)color);
     
       // set hub LED color to detected color of sensor and set motor speed dependent on color

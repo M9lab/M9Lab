@@ -137,7 +137,7 @@ void setup() {
     
   // led 
   initDisplay();
-   delay(1000);
+  delay(1000);
   printLegenda(); 
 
   // test remote(tutti treni collegati)

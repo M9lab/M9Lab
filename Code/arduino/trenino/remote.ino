@@ -30,8 +30,7 @@ void remoteColorButtonController( byte buttonState, byte portNumber){
    if (portNumber == 1 && buttonState == 127){
       killRemote();
    }
-   
-  
+     
 }
 
 void scanRemoteController(){
@@ -45,14 +44,10 @@ void scanRemoteController(){
     if (myRemote.getHubType() == HubType::POWERED_UP_REMOTE)
     {
       //This is the right device
-      if (!myRemote.connectHub())
-      {
+      if (!myRemote.connectHub()){
         Serial.println("Unable to connect to hub");
-      }
-      else
-      {
-        remoteIsConnected();
-      }
+      }      
+      
     }
   }
 
