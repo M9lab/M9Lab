@@ -13,13 +13,13 @@ void remoteColorButtonController( byte buttonState, byte portNumber){
   if (!myRemote.isConnected()) return;  
    
    if (portNumber == 0 && buttonState == 1){
-      //increaseCurrentTrainSpeed();
+      increaseCurrentTrainSpeed();
    }
    if (portNumber == 0 && buttonState == 255){
-      //decreaseCurrentTrainSpeed();
+      decreaseCurrentTrainSpeed();
    }
    if (portNumber == 0 && buttonState == 127){
-      //stopCurrentTrain();
+      stopTrain(currentActiveTrainOnRemote);
    }
    if (portNumber == 1 && buttonState == 1){
       setCurrentTrainNext();
@@ -34,6 +34,8 @@ void remoteColorButtonController( byte buttonState, byte portNumber){
 }
 
 void scanRemoteController(){
+  
+  if(isRemoteInitialized) checkRemoteIntervalisExpired();
 
   if (!myRemote.isConnected()){
     myRemote.init();

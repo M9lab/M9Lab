@@ -3,6 +3,7 @@ void scanAllTrains(){
   activeTrain = 0;
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
     //checkIntervalisExpired(i);
+    //checkInvertIntervalisExpired(i);
     //if (! myTrains[i].hubobj->isConnected()) {
     if (myTrains[i].hubState == -1) {
 
@@ -11,7 +12,7 @@ void scanAllTrains(){
       //myTrains[i].hubState = -1;
       //myTrains[i].trainState = 0;
       
-      scanHub_old(i);
+      scanHub(i);
       return;
       
     } else{
@@ -21,76 +22,10 @@ void scanAllTrains(){
   }
 }
 
-void trainIsNotConnected(int idTrain){    
-    myTrains[idTrain].hubState = -1;
-    myTrains[idTrain].trainState = 0;	
-    refreshLed(0);
-}
-
-void trainIsConnected(int idTrain){     
-  myTrains[idTrain].hubState = 0;
-  myTrains[idTrain].trainState = 0;
-  refreshLed(0);  
-}
 
 void scanHub( int idTrain) {
 
-  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-  Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
-
-  
-  if (!myTrain->isConnected()){
-    //trainIsNotConnected(idTrain);  
-    int idTrainC = getHubIdByAddress(myTrains[idTrain].hubAddress);  
-    if (idTrainC == idTrain && myTrains[idTrain].hubAddress != ""){
-      Serial.print(myTrains[idTrain].hubAddress.c_str());
-      Serial.println(" scan");
-      myTrain->init(myTrains[idTrain].hubAddress.c_str());  
-    }else{
-      Serial.println("normal scan");
-      myTrain->init(3);
-    }       
-		
-  }
-
-  if (myTrain->isConnecting()){
-    if (myTrain->getHubType() != HubType::POWERED_UP_REMOTE )
-    {
-      //This is the right device
-      if (!myTrain->connectHub()){
-        Serial.println("Failed to connect with hub n #" + myTrains[idTrain].hubColor);
-      }else{
-        trainIsConnected(idTrain);
-        myTrains[idTrain].hubAddress = myHub->getHubAddress().toString().c_str();
-        myTrain->setLedColor(PURPLE);
-      }
-    }
-  }
-
-  if (myTrain->isConnected() && myTrains[idTrain].hubState==-1){
-    
-    Serial.print("Now connected with hub " + myTrains[idTrain].hubColor + " -> ");
-    Serial.println(myHub->getHubAddress().toString().c_str());
-
-    delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost
-    // both activations are needed to get status updates
-    // activate Property Update
-    
-    myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);    
-    /*
-    myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);    
-    */
-    trainIsConnected(idTrain);
-    
-  }
-
-}
-
-
-void scanHub_old( int idTrain) {
-
-  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-  //Lpf2Hub *myHub = (Lpf2Hub *)myTrains[idTrain].hubobj;
+  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;  
  
   // read battery and update and update addr
   if (! myTrain->isConnected()) {           
@@ -100,7 +35,6 @@ void scanHub_old( int idTrain) {
     }
   }
   
-
   if (myTrain->isConnecting()) {
     
     if (myTrain->getHubType() == HubType::POWERED_UP_REMOTE) return;
@@ -110,7 +44,7 @@ void scanHub_old( int idTrain) {
       String hb = myTrain->getHubAddress().toString().c_str();
       int idTrainC = getHubIdByAddress(hb);          
       if (idTrainC != -1)idTrain = idTrainC;        
-           
+      refreshLed(0);     
       myTrains[idTrain].hubAddress = hb;
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
@@ -118,8 +52,7 @@ void scanHub_old( int idTrain) {
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
       //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);        
-      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);      
-      
+      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);            
                  
     }
     
@@ -133,10 +66,8 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
   Lpf2Hub *myHub = (Lpf2Hub *)hub;
   int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());
   if (idTrain == -1) return;
-  
-  
-  if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){
     
+  if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){    
     myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);      
     Serial.println("Train " + myTrains[idTrain].hubAddress + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
   }  
@@ -146,9 +77,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
     ButtonState buttonState = myHub->parseHubButton(pData);  
     if (buttonState == ButtonState::PRESSED)
     {
-      // auto start ???
-      //myHub->setBasicMotorSpeed(portA, 15);
-
+      
       switch (myTrains[idTrain].hubState) {
 
         case 0: //ready -> active
@@ -159,12 +88,16 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
           activeTrain++;
           byte portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
           if (portForDevice != 255) {
-            // activate hub button to receive updates
+            
+            // activate color distance sensor
             //myHub->activatePortDevice(portB, colorDistanceSensorCallback);
-            //delay(200);
+            
           }
           refreshLed(0);
           myHub->setLedColor(myTrains[idTrain].ledColor);
+
+          // autostart -> go train ?
+          if(isRemoteInitialized) stopAndDoTrain(idTrain, false);
 
         }
         break;
@@ -210,10 +143,12 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
       myHub->setLedColor((Color)color);
     
       // set hub LED color to detected color of sensor and set motor speed dependent on color
-      // stop | invert | kill -> sensorAcceptedColors
+      // Color Tile map for trains --> 0- YELLOW stop | 1- GREEN stopandinvert | 2-RED kill | 3- BLUE stopandgo |  4- WHITE invert
       //if (color == sensorAcceptedColors[0]) stopTrain(idTrain); 
       //else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
       //else if (color == sensorAcceptedColors[2]) killTrain(idTrain);     
+      //else if (color == sensorAcceptedColors[3]) stopAndDoTrain(idTrain, false);     
+      //else if (color == sensorAcceptedColors[4]) invertTrain(idTrain, false);     
 
   }
 }

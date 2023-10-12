@@ -34,6 +34,8 @@ void osCopyChar (int myCharIndex, uint32_t color){
 
 void initDisplay(){
 
+    // scritta trenino ??
+
    // scritta ACOL (facoltativa)    
    for (int num = 0; num < TOTNUM_COLORS; num++) {
 	   osCopyChar(num,maincolour[num]);

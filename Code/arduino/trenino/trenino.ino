@@ -89,11 +89,11 @@ byte portB = (byte)PoweredUpHubPort::B;
 
 int activeTrain = 0;
 int currentActiveTrainOnRemote = -1;
-int colorInterval = 35000; //how much wait before start after train is waiting for a action (go or invert)
-int beforeStartInterval = 5000; //how much wait before start the train
+int colorInterval = 30000; //how much wait before start after train is waiting for a action (go or invert)
+int invertInterval = 2000; //how much wait before start after train is waiting for direct invert
 
 // default trains speed
-int initialTrainSpeed = 25;
+int initialTrainSpeed = 20;
 int speedIncreaseStep = 10;
 
 // Trains structure
@@ -109,20 +109,21 @@ typedef struct {
   int batteryLevel;  
   Color ledColor;
   int* square;
+  unsigned long invertPreviousMillis;
 } Train;
 
 
 // Color Tile map for trains --> 1- YELLOW stop | 2- GREEN invert | 3-RED kill | 4- BLUE stopandgo |  5- WHITE stopandinvert
 byte sensorAcceptedColors[MY_TILE_COLOR_LEN] = { (byte)Color::YELLOW, (byte)Color::GREEN, (byte)Color::RED, (byte) Color::BLUE, (byte)Color::WHITE };
-// other color not used: (byte)Color::BLUE, (byte)Color::WHITE
+
 
 // Trains Maps
-// hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel -  ledColor - square
+// hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel -  ledColor - square - invertPreviousMillis
 Train myTrains[MY_TRAIN_LEN] = {
-    { &myTrainHub_TA, "Red",     "", initialTrainSpeed , 0, 0, -1, 0, 100,  RED,    squareA}
-  , { &myTrainHub_TB, "Yellow" , "", initialTrainSpeed , 0, 0, -1, 0, 100,  YELLOW, squareB}
-  , { &myTrainHub_TC, "Blue" ,   "", initialTrainSpeed , 0, 0, -1, 0, 100,  BLUE,   squareC}
-  , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN,  squareD}
+    { &myTrainHub_TA, "Red",     "", initialTrainSpeed , 0, 0, -1, 0, 100,  RED,    squareA, 0}
+  , { &myTrainHub_TB, "Yellow" , "", initialTrainSpeed , 0, 0, -1, 0, 100,  YELLOW, squareB, 0}
+  , { &myTrainHub_TC, "Blue" ,   "", initialTrainSpeed , 0, 0, -1, 0, 100,  BLUE,   squareC, 0}
+  , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN,  squareD, 0}
   
 };
 
@@ -140,8 +141,6 @@ void setup() {
   delay(1000);
   printLegenda(); 
 
-  // test remote(tutti treni collegati)
-  //testRemote();
   
 }
 
@@ -151,35 +150,10 @@ void loop() {
   while (Serial.available() == 0) {      
 
     // remote controller    
-	  scanRemoteController();
-    checkRemoteIntervalisExpired();
+	  scanRemoteController();    
 
     // trains
     scanAllTrains();
   }
-
-}
-
-// only for test
-void testRemote(){
-
-  delay(3000);
-  activeTrain = 0;
-  for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    
-      myTrains[i].hubState = 1;
-      colorSquare(myTrains[i].square,maincolour[i],0,1);    
-      activeTrain++;
-      
-  }
-  
-
-  /*    
-  colorSquare(squareB,CRGB::Black,0,1);
-  colorSquare(squareC,CRGB::Black,0,1);
-  colorSquare(squareD,CRGB::Black,0,1);    
-  delay(3000);
-  colorSquare(squareA,CRGB::Red,0,1); 
-  */ 
 
 }

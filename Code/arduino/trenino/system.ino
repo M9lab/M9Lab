@@ -1,5 +1,3 @@
-
-
 void readFromSerial() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
@@ -65,6 +63,7 @@ void systemReset() {
     myTrains[idTrain].speed = initialTrainSpeed;
     myTrains[idTrain].lastcolor = 0;
     myTrains[idTrain].colorPreviousMillis = 0;
+    myTrains[idTrain].invertPreviousMillis = 0;
     myTrains[idTrain].trainState = 0;
   }  
 }
@@ -151,6 +150,20 @@ void checkIntervalisExpired(int idTrain ) {
   }
 
 }
+
+void checkInvertIntervalisExpired(int idTrain ) {
+
+  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+
+  if (millis() - myTrains[idTrain].invertPreviousMillis > invertInterval && myTrains[idTrain].colorPreviousMillis > 0) {
+    myTrains[idTrain].trainState = myTrains[idTrain].speed;
+    myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
+    myTrains[idTrain].invertPreviousMillis = 0;
+  }
+
+}
+
+
 
 bool checkIfSensorColorIsAccepted(byte inputColor) {
   for (int i = 0; i < MY_TILE_COLOR_LEN; i++) {
