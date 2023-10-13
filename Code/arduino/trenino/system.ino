@@ -25,7 +25,7 @@ void readFromSerial() {
 void printLegenda() {
 
   // print command lists
-  Serial.println("*** M9Lab - TrainIno v." + ver + " ***");
+  Serial.println("*** M9Lab - TrenIno v." + ver + " ***");
   Serial.println("_________________________________________________");
   
   Serial.println("");
@@ -65,15 +65,14 @@ void systemReset() {
     myTrains[idTrain].colorPreviousMillis = 0;
     myTrains[idTrain].invertPreviousMillis = 0;
     myTrains[idTrain].trainState = 0;
+    myTrains[idTrain].connectAttempt = 0;
   }  
 }
 
 void panic() {
     
   systemReset();
-  for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-
-    myTrains[idTrain].trainState = 0;
+  for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {    
     myTrains[idTrain].hubState = -1;    
     // shutDown Hub train
     killTrain(idTrain);

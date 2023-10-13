@@ -23,7 +23,7 @@ void osCopyChar (int myCharIndex, uint32_t color){
   for (int i=0; i<5; i++)
     for (int j=0; j<5; j++)
     {
-      uint32_t typex = (bitRead(chargen[myCharIndex][i], j) == 0x00) ? CRGB::Black : color;
+      uint32_t typex = (bitRead(acol[myCharIndex][i], j) == 0x00) ? CRGB::Black : color;
       int pos = (i*5)+j;
       //leds[pos] = typex;
       leds[XYTable[pos]] = typex;      
@@ -62,7 +62,7 @@ void refreshLed(int num){
     if (num==0){
       if (myTrains[i].hubState == -1) color = CRGB::Black;
       if (myTrains[i].hubState == 0){
-        color = myTrains[i].hubAddress == "" ? CRGB::White : CRGB::Purple;        
+        color = myTrains[i].connectAttempt == 0 ? CRGB::White : CRGB::Purple;        
       }
       
       if (myTrains[i].hubState == 1) color = maincolour[i];      

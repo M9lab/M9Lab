@@ -48,6 +48,7 @@ void scanHub( int idTrain) {
       myTrains[idTrain].hubAddress = hb;
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
+      myTrains[idTrain].connectAttempt = myTrains[idTrain].connectAttempt + 1;
       delay(200);      
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        

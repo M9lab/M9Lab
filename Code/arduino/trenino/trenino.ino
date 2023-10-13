@@ -1,8 +1,14 @@
 /*
-TrainIno
+TrenIno
+
+TODO:
+1) controllare collegamenti e scollegamenti
+2) velocità negativa (to check)
+3) led color (bug) (to check)
+4) panic button on click led (to check)
+5) check distance/color
 
 Matrix
-
 ---------
 A(r)|B(y)
 ----+----
@@ -10,7 +16,7 @@ D(b)|C(g)
 ----^----
    usb
 
-
+Pixel index
 0,   1,   2,   3,   4,
 5,   6,   7,   8,   9,
 10,  11,  12,  13,  14,
@@ -23,6 +29,9 @@ D(b)|C(g)
 // Global
 String ver = "1.0.1";
 bool isVerbose = true;
+
+/* M5 Atom*/
+#include "M5Atom.h"
 
 /* led part */
 #include <FastLED.h>
@@ -37,12 +46,21 @@ int squareD[] = {20,21,16,15};
 int* allsquares[4] = {squareA,squareB,squareC,squareD};
 int remote[] =  {2,7,12,17,22,10,11,13,14};
 
-
-byte chargen[][5] = {
+byte acol[][5] = {
   {0x1E, 0x05, 0x05, 0x05, 0x1E},  // A
   {0x0E, 0x11, 0x11, 0x11, 0x11},  // C
   {0x0E, 0x11, 0x11, 0x11, 0x0E},  // O
   {0x1F, 0x10, 0x10, 0x10, 0x10},  // L
+};
+
+byte trenino[][5] = {
+  {0x01, 0x01, 0x1F, 0x01, 0x01},  // T
+  {0x1F, 0x02, 0x01, 0x01, 0x02},  // r
+  {0x0E, 0x15, 0x15, 0x15, 0x16},  // e
+  {0x1F, 0x01, 0x01, 0x01, 0x1E},  // n
+  {0x1F, 0x00, 0x00, 0x00, 0x00},  // I
+  {0x1F, 0x01, 0x01, 0x01, 0x1E},  // n
+  {0x0E, 0x11, 0x11, 0x11, 0x0E},  // o 
 };
 
 
@@ -74,6 +92,7 @@ unsigned long remoteactivityMillis = 0;
 int remoteInterval = 20000;
 
 /* end remote */
+
 
 /* trains */
 
@@ -110,6 +129,7 @@ typedef struct {
   Color ledColor;
   int* square;
   unsigned long invertPreviousMillis;
+  int connectAttempt;
 } Train;
 
 
@@ -120,10 +140,10 @@ byte sensorAcceptedColors[MY_TILE_COLOR_LEN] = { (byte)Color::YELLOW, (byte)Colo
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel -  ledColor - square - invertPreviousMillis
 Train myTrains[MY_TRAIN_LEN] = {
-    { &myTrainHub_TA, "Red",     "", initialTrainSpeed , 0, 0, -1, 0, 100,  RED,    squareA, 0}
-  , { &myTrainHub_TB, "Yellow" , "", initialTrainSpeed , 0, 0, -1, 0, 100,  YELLOW, squareB, 0}
-  , { &myTrainHub_TC, "Blue" ,   "", initialTrainSpeed , 0, 0, -1, 0, 100,  BLUE,   squareC, 0}
-  , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN,  squareD, 0}
+    { &myTrainHub_TA, "Red",     "", initialTrainSpeed , 0, 0, -1, 0, 100,  RED,    squareA, 0, 0}
+  , { &myTrainHub_TB, "Yellow" , "", initialTrainSpeed , 0, 0, -1, 0, 100,  YELLOW, squareB, 0, 0}
+  , { &myTrainHub_TC, "Blue" ,   "", initialTrainSpeed , 0, 0, -1, 0, 100,  BLUE,   squareC, 0, 0}
+  , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN,  squareD, 0, 0}
   
 };
 
@@ -131,6 +151,10 @@ Train myTrains[MY_TRAIN_LEN] = {
 
 
 void setup() {
+
+  M5.begin(true, false, true);
+  delay(10);
+
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(20);
  
@@ -140,11 +164,18 @@ void setup() {
   initDisplay();
   delay(1000);
   printLegenda(); 
-
   
 }
 
 void loop() {
+
+// presso on M5 user button
+  if(M5.Btn.isPressed()){
+    fullColor(CRGB::Red);
+    panic();
+  } 
+  
+  //if(M5.Btn.pressedFor(2000)) Serial.println("pressedFor");  
 
   readFromSerial();
   while (Serial.available() == 0) {      
@@ -155,5 +186,8 @@ void loop() {
     // trains
     scanAllTrains();
   }
+
+  delay(50);
+  M5.update();
 
 }
