@@ -8,11 +8,11 @@ void scanAllTrains(){
     if (myTrains[i].hubState == -1) {
 
       //colorSquare(allsquares[i],maincolour[i],1,4);	
-      //myTrains[i].hubAddress = "";
+      if (resetAddress) myTrains[i].hubAddress = "";
       //myTrains[i].hubState = -1;
       //myTrains[i].trainState = 0;
       
-      scanHub(i);
+      scanHub(i, "");
       return;
       
     } else{
@@ -23,7 +23,7 @@ void scanAllTrains(){
 }
 
 
-void scanHub( int idTrain) {
+void scanHub( int idTrain, String hubA) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;  
  
@@ -31,7 +31,13 @@ void scanHub( int idTrain) {
   if (! myTrain->isConnected()) {           
     refreshLed(0);
     if (!myTrain->isConnecting()){
-      myTrain->init();       
+      if (myTrains[idTrain].hubAddress != ""){
+        Serial.println("Now reconnected with hub -> "  + myTrains[idTrain].hubAddress);            
+        myTrain->init(myTrains[idTrain].hubAddress.c_str());         
+      }else{
+        myTrain->init();       
+      }
+      
     }
   }
   
@@ -42,18 +48,20 @@ void scanHub( int idTrain) {
     if (myTrain->isConnected()) {
       myTrain->setLedColor(PURPLE);                        
       String hb = myTrain->getHubAddress().toString().c_str();
-      int idTrainC = getHubIdByAddress(hb);          
-      if (idTrainC != -1)idTrain = idTrainC;        
-      refreshLed(0);     
+      //int idTrainC = getHubIdByAddress(hb);                            
       myTrains[idTrain].hubAddress = hb;
-      myTrains[idTrain].hubState = 0;
-      myTrains[idTrain].trainState = 0;
-      myTrains[idTrain].connectAttempt = myTrains[idTrain].connectAttempt + 1;
+      Serial.println("Now connected with hub -> "  + hb);            
       delay(200);      
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
       //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);        
-      Serial.println("Now connected with hub -> "  + myTrains[idTrain].hubAddress);            
+            
+      refreshLed(0);           
+      myTrains[idTrain].hubState = 0;
+      myTrains[idTrain].trainState = 0;
+      myTrains[idTrain].connectAttempt = myTrains[idTrain].connectAttempt + 1;
+      
+      
                  
     }
     
@@ -108,6 +116,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
           myHub->shutDownHub();
           Serial.println(myTrains[idTrain].hubAddress + " is now disconnected");                      
           myTrains[idTrain].hubState = -1;            
+          if (resetAddress)myTrains[idTrain].hubAddress = "";
           refreshLed(0);                  
         }
         break;

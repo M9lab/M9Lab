@@ -88,8 +88,8 @@ void panic() {
 
 void systemStatus() {
 
-  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|hubAddress");
-  Serial.println("------------------------------------------------------------------");
+  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|hubAddress|attempt");
+  Serial.println("--------------------------------------------------------------------------");
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
     
@@ -98,12 +98,13 @@ void systemStatus() {
     _print_withspaces(String(myTrains[idTrain].hubState),"hubState");    
     _print_withspaces(String(myTrains[idTrain].trainState),"trainState");    
     _print_withspaces(String(myTrains[idTrain].speed),"speed");
-    _print_withspaces(String(myTrains[idTrain].hubAddress),"hubAddress-------");
+    _print_withspaces(String(myTrains[idTrain].hubAddress),"hubAddressSSSSS");
+    _print_withspaces(String(myTrains[idTrain].connectAttempt),"attempt");
 
     Serial.println("");
   }
 
-  Serial.println("------------------------------------------------------------------");
+  Serial.println("--------------------------------------------------------------------------");
 
 }
 

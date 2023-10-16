@@ -2,10 +2,9 @@
 TrenIno
 
 TODO:
-1) controllare collegamenti e scollegamenti
+1) controllare collegamenti e scollegamenti (no reassign ok)
 2) velocità negativa (to check)
-3) led color (bug) (to check)
-4) panic button on click led (to check)
+4) panic button on click led (to check) (NO)
 5) check distance/color
 
 Matrix
@@ -146,6 +145,8 @@ Train myTrains[MY_TRAIN_LEN] = {
   , { &myTrainHub_TD, "Green",   "", initialTrainSpeed , 0, 0, -1, 0, 100,  GREEN,  squareD, 0, 0}
   
 };
+
+bool resetAddress = true;
 
 /* end trains */
 
