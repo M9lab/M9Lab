@@ -15,7 +15,9 @@ void scanAllTrains(){
       //myTrains[i].hubState = -1;
       //myTrains[i].trainState = 0;
       
-      scanHub(i, "");      
+      scanHub(i, "");  
+
+      if (resetAddress) return;
       
     } else{
       if (myTrains[i].hubState == 1) activeTrain++;
