@@ -146,7 +146,7 @@ Train myTrains[MY_TRAIN_LEN] = {
   
 };
 
-bool resetAddress = true;
+bool resetAddress = false;
 
 /* end trains */
 
@@ -170,13 +170,20 @@ void setup() {
 
 void loop() {
 
-// presso on M5 user button
+  // press on M5 user button
+  /*
   if(M5.Btn.isPressed()){
+    
+  } 
+  */
+  M5.update(); 
+  if(M5.Btn.pressedFor(2000)){
+    Serial.println("pressedFor"); 
     fullColor(CRGB::Red);
     panic();
   } 
+  delay(20);
   
-  //if(M5.Btn.pressedFor(2000)) Serial.println("pressedFor");  
 
   readFromSerial();
   while (Serial.available() == 0) {      
@@ -188,7 +195,6 @@ void loop() {
     scanAllTrains();
   }
 
-  delay(50);
-  M5.update();
+
 
 }

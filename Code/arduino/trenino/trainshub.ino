@@ -7,13 +7,15 @@ void scanAllTrains(){
     //if (! myTrains[i].hubobj->isConnected()) {
     if (myTrains[i].hubState == -1) {
 
-      //colorSquare(allsquares[i],maincolour[i],1,4);	
+      Serial.print("Train n ");
+      Serial.println(i);
       if (resetAddress) myTrains[i].hubAddress = "";
+
+      //colorSquare(allsquares[i],maincolour[i],1,4);	
       //myTrains[i].hubState = -1;
       //myTrains[i].trainState = 0;
       
-      scanHub(i, "");
-      return;
+      scanHub(i, "");      
       
     } else{
       if (myTrains[i].hubState == 1) activeTrain++;
@@ -48,20 +50,26 @@ void scanHub( int idTrain, String hubA) {
     if (myTrain->isConnected()) {
       myTrain->setLedColor(PURPLE);                        
       String hb = myTrain->getHubAddress().toString().c_str();
-      //int idTrainC = getHubIdByAddress(hb);                            
+      int idTrainC = getHubIdByAddress(hb);   
+      if (!resetAddress && idTrainC>-1){
+        delay(200);   
+        Lpf2Hub *myTrain2 = myTrains[idTrainC].hubobj;  
+        myTrain2->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback); 
+        idTrain = idTrainC;
+        //myTrain2->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);       
+      }else{
+        delay(200);      
+        // activate Property Update
+        myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
+        //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);   
+      }
+
       myTrains[idTrain].hubAddress = hb;
-      Serial.println("Now connected with hub -> "  + hb);            
-      delay(200);      
-      // activate Property Update
-      myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);        
-      //myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);        
-            
+      Serial.println("Now connected with hub -> "  + hb);                                   
       refreshLed(0);           
       myTrains[idTrain].hubState = 0;
       myTrains[idTrain].trainState = 0;
-      myTrains[idTrain].connectAttempt = myTrains[idTrain].connectAttempt + 1;
-      
-      
+      myTrains[idTrain].connectAttempt = myTrains[idTrain].connectAttempt + 1;            
                  
     }
     
