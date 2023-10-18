@@ -60,7 +60,7 @@ void refreshLed(int num){
    for (int i = 0; i < MY_TRAIN_LEN; i++) {
     uint32_t color = CRGB::Black;
     if (num==0){
-      if (myTrains[i].hubState == -1) color = CRGB::Black;
+      //if (myTrains[i].hubState == -1) color = CRGB::Black;
       if (myTrains[i].hubState == 0){
         color = myTrains[i].connectAttempt == 1 ? CRGB::White : CRGB::Purple;        
       }

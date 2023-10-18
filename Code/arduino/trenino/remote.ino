@@ -11,6 +11,9 @@ void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
 void remoteColorButtonController( byte buttonState, byte portNumber){
 
   if (!myRemote.isConnected()) return;  
+
+    //Serial.println(portNumber);
+    //Serial.println(buttonState);
    
    if (portNumber == 0 && buttonState == 1){
       increaseCurrentTrainSpeed();
@@ -76,7 +79,7 @@ void remoteIsConnected(){
 void remoteIsNotConnected(){    
     isRemoteInitialized = false;    
     currentActiveTrainOnRemote = -1;
-    refreshLed(2);  
+    //refreshLed(2);  
     colorSquare(remote,CRGB::Black,0,9);    
 }
 
@@ -87,51 +90,39 @@ void killRemote(){
 
 void setCurrentTrainNext(){
 
-    if (activeTrain < 1) return;
-    int startIndex = (currentActiveTrainOnRemote == -1 || currentActiveTrainOnRemote == (MY_TRAIN_LEN-1)) ? 0 : (currentActiveTrainOnRemote + 1);
+    if (getActiveTrain() < 1) return;    
 
-    for (int i = startIndex; i < MY_TRAIN_LEN; i++) {
-       
-      if (myTrains[i].hubState == 1){
-          currentActiveTrainOnRemote = i;
+    currentActiveTrainOnRemote++;    
+    Serial.println(currentActiveTrainOnRemote);
+
+    if (currentActiveTrainOnRemote == (MY_TRAIN_LEN)) currentActiveTrainOnRemote = 0;
+     if (myTrains[currentActiveTrainOnRemote].hubState == 1){          
           myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
-          refreshLed(2);   
-          saveInterval(remoteactivityMillis);             
-          return;        
-      }
+          //refreshLed(2);    
+          saveInterval(remoteactivityMillis);                    
+          return;      
+      }else{
+        setCurrentTrainNext();
+      }   
 
-      if(i == (MY_TRAIN_LEN-1) && myTrains[MY_TRAIN_LEN-1].hubState != 1){
-        currentActiveTrainOnRemote = 0;
-        myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
-        refreshLed(2);   
-        saveInterval(remoteactivityMillis); 
-      }       
-
-    }        
 
 }
 
 void setCurrentTrainPrev(){
 
-    if (activeTrain < 1) return;
+    if (getActiveTrain() < 1) return;
 
-    int startIndex = (currentActiveTrainOnRemote == -1 || currentActiveTrainOnRemote == 0) ? (MY_TRAIN_LEN-1) : (currentActiveTrainOnRemote - 1);
-       
-    for (int i = startIndex; i > -1; i--) {
-      
-      if (myTrains[i].hubState == 1){
-          currentActiveTrainOnRemote = i;
+    currentActiveTrainOnRemote--;    
+    Serial.println(currentActiveTrainOnRemote);
+
+    if (currentActiveTrainOnRemote == -1) currentActiveTrainOnRemote = MY_TRAIN_LEN-1;
+     if (myTrains[currentActiveTrainOnRemote].hubState == 1){          
           myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
-          refreshLed(2);    
+          //refreshLed(2);    
           saveInterval(remoteactivityMillis);                    
           return;      
+      }else{
+        setCurrentTrainPrev();
       }   
-
-      if(i == (0) && myTrains[0].hubState != 1){
-        currentActiveTrainOnRemote = 3;
-        myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
-        refreshLed(2);   
-        saveInterval(remoteactivityMillis); 
-      }    
-    }       
+ 
 }

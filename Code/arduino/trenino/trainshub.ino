@@ -1,14 +1,14 @@
 void scanAllTrains(){
 
-  activeTrain = 0;
+  //activeTrain = 0;
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
     //checkIntervalisExpired(i);
     //checkInvertIntervalisExpired(i);
     //if (! myTrains[i].hubobj->isConnected()) {
     if (myTrains[i].hubState == -1) {
 
-      Serial.print("Train n ");
-      Serial.println(i);
+      //Serial.print("Train n ");
+      //Serial.println(i);
       if (resetAddress) myTrains[i].hubAddress = "";
 
       //colorSquare(allsquares[i],maincolour[i],1,4);	
@@ -20,7 +20,7 @@ void scanAllTrains(){
       if (resetAddress) return;
       
     } else{
-      if (myTrains[i].hubState == 1) activeTrain++;
+      //if (myTrains[i].hubState == 1) activeTrain++;
     }     
     
   }
@@ -125,7 +125,8 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
         {                    
           myHub->shutDownHub();
           Serial.println(myTrains[idTrain].hubAddress + " is now disconnected");                      
-          myTrains[idTrain].hubState = -1;            
+          myTrains[idTrain].hubState = -1;          
+          activeTrain--;  
           if (resetAddress)myTrains[idTrain].hubAddress = "";
           refreshLed(0);                  
         }
@@ -178,4 +179,14 @@ int getHubIdByAddress(String address) {
     if (myTrains[i].hubAddress == address) return i;
   }
   return -1;
+}
+
+int getActiveTrain() {
+
+  int ac = 0;
+
+  for (int i = 0; i < MY_TRAIN_LEN; i++) {
+    if (myTrains[i].hubState == 1) ac++;
+  }
+  return ac;
 }

@@ -3,9 +3,8 @@ TrenIno
 
 TODO:
 1) controllare collegamenti e scollegamenti (no reassign ok)
-2) velocità negativa (to check)
-4) panic button on click led (to check) (NO)
 5) check distance/color
+2) bug remote selector led
 
 Matrix
 ---------
@@ -152,9 +151,10 @@ bool resetAddress = false;
 
 
 void setup() {
-
-  M5.begin(true, false, true);
+  
+  M5.begin();
   delay(10);
+  
 
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(20);
@@ -165,26 +165,14 @@ void setup() {
   initDisplay();
   delay(1000);
   printLegenda(); 
+
+    // test remote(tutti treni collegati)
+  testRemote();
   
 }
 
 void loop() {
-
-  // press on M5 user button
-  /*
-  if(M5.Btn.isPressed()){
-    
-  } 
-  */
-  M5.update(); 
-  if(M5.Btn.pressedFor(2000)){
-    Serial.println("pressedFor"); 
-    fullColor(CRGB::Red);
-    panic();
-  } 
-  delay(20);
   
-
   readFromSerial();
   while (Serial.available() == 0) {      
 
@@ -193,8 +181,32 @@ void loop() {
 
     // trains
     scanAllTrains();
+
+    if (M5.Btn.pressedFor(2000)) {    //If the button is pressed for more than 2 seconds
+      Serial.println("pressedFor"); 
+      fullColor(CRGB::Red);
+      panic();
+      delay(3000);
+      initDisplay();
+    } 
+
+    // delay(50);
+    M5.update();
+
   }
+   
+}
 
+void testRemote(){
 
-
+  delay(3000);
+  activeTrain = 0;
+  for (int i = 0; i < MY_TRAIN_LEN; i++) {
+      if (i==1 || i==2 || i==3){
+        myTrains[i].hubState = 1;
+        colorSquare(myTrains[i].square,maincolour[i],0,1);    
+        activeTrain++;
+      }            
+  }
+  
 }
