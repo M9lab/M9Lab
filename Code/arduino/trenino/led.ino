@@ -62,15 +62,12 @@ void initDisplay(){
 
 
 
-   // scritta ACOL (facoltativa)    
-   /*
+   // scritta ACOL (facoltativa)       
    for (int num = 0; num < TOTNUM_COLORS; num++) {
-	   osCopyChar(num,maincolour[num],acol);
+	   osCopyChar(num,CRGB::White,acol,maincolour[num]);
 
 	   delay(300);	   
-   }
-   */
-   
+   }      
    fullColor(CRGB::Black);	   
    delay(1000);
 
