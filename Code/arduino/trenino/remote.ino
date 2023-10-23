@@ -63,6 +63,7 @@ void scanRemoteController(){
     // both activations are needed to get status updates
     myRemote.activatePortDevice(portLeft, remoteCallback);
     myRemote.activatePortDevice(portRight, remoteCallback);
+    //myTrain2->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback); 
     remoteIsConnected();
   }
 
@@ -98,7 +99,7 @@ void setCurrentTrainNext(){
     if (currentActiveTrainOnRemote == (MY_TRAIN_LEN)) currentActiveTrainOnRemote = 0;
      if (myTrains[currentActiveTrainOnRemote].hubState == 1){          
           myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
-          //refreshLed(2);    
+          refreshLed(2);    
           saveInterval(remoteactivityMillis);                    
           return;      
       }else{
@@ -118,7 +119,7 @@ void setCurrentTrainPrev(){
     if (currentActiveTrainOnRemote == -1) currentActiveTrainOnRemote = MY_TRAIN_LEN-1;
      if (myTrains[currentActiveTrainOnRemote].hubState == 1){          
           myRemote.setLedColor(myTrains[currentActiveTrainOnRemote].ledColor);
-          //refreshLed(2);    
+          refreshLed(2);    
           saveInterval(remoteactivityMillis);                    
           return;      
       }else{

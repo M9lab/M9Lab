@@ -19,11 +19,11 @@ void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
 
 }
 
-void osCopyChar (int myCharIndex, uint32_t color){    
+void osCopyChar (int myCharIndex, uint32_t color, byte arraytext[][5]){    
   for (int i=0; i<5; i++)
     for (int j=0; j<5; j++)
     {
-      uint32_t typex = (bitRead(acol[myCharIndex][i], j) == 0x00) ? CRGB::Black : color;
+      uint32_t typex = (bitRead(arraytext[myCharIndex][i], j) == 0x00) ? CRGB::Black : color;
       int pos = (i*5)+j;
       //leds[pos] = typex;
       leds[XYTable[pos]] = typex;      
@@ -35,14 +35,40 @@ void osCopyChar (int myCharIndex, uint32_t color){
 void initDisplay(){
 
     // scritta trenino ??
+    for (int num = 0; num < 7; num++) {
+      int cnum = num < 4 ? num : num - 4;
+      osCopyChar(num,maincolour[cnum],trenino);
+      delay(300);	 
+    }
+    fullColor(CRGB::Black);	
+    delay(1000);
+
+    // by
+    for (int num = 0; num < 1; num++) {      
+      osCopyChar(num,CRGB::Red,by);
+      delay(300);	 
+    }
+    fullColor(CRGB::Black);	
+    delay(1000);
+
+    // M9lab
+    for (int num = 0; num < 5; num++) {      
+      osCopyChar(num,CRGB::Teal,M9Lab);
+      delay(300);	 
+    }
+    fullColor(CRGB::Black);	
+    delay(1000);    
+
+
 
    // scritta ACOL (facoltativa)    
+   /*
    for (int num = 0; num < TOTNUM_COLORS; num++) {
-	   osCopyChar(num,maincolour[num]);
-     //fullColor(maincolour[num]);
-     //osCopyChar(num, CRGB::White);
+	   osCopyChar(num,maincolour[num],acol);
+
 	   delay(300);	   
    }
+   */
    
    fullColor(CRGB::Black);	   
    delay(1000);
