@@ -35,6 +35,15 @@ void osCopyChar (int myCharIndex, uint32_t color, byte arraytext[][5], uint32_t 
 
 void initDisplay(){
 
+
+    // M9lab
+    for (int num = 0; num < 2; num++) {      
+      osCopyChar(num,CRGB::Yellow,M9Lab,CRGB::Teal);
+      delay(2000);   
+    }
+    fullColor(CRGB::Black); 
+    delay(500);  
+    
     // scritta trenino ??
     for (int num = 0; num < 7; num++) {
       int cnum = num < 4 ? num : num - 4;
@@ -44,24 +53,18 @@ void initDisplay(){
     fullColor(CRGB::Black);	
     delay(1000);
 
-    // by
-    for (int num = 0; num < 1; num++) {      
+    // by    
+    /*
+    for (int num = 0; num < 2; num++) {      
       osCopyChar(num,CRGB::Red,by,CRGB::Black);
-      delay(300);	 
+      delay(1000);	 
     }
     fullColor(CRGB::Black);	
     delay(1000);
-
-    // M9lab
-    for (int num = 0; num < 5; num++) {      
-      osCopyChar(num,CRGB::Yellow,M9Lab,CRGB::Teal);
-      delay(300);	 
-    }
-    fullColor(CRGB::Black);	
-    delay(1000);    
+    */
 
 
-
+  /*
    // scritta ACOL (facoltativa)       
    for (int num = 0; num < TOTNUM_COLORS; num++) {
 	   osCopyChar(num,CRGB::White,acol,maincolour[num]);
@@ -70,6 +73,7 @@ void initDisplay(){
    }      
    fullColor(CRGB::Black);	   
    delay(1000);
+   */
 
    /* fine */
    for (int num = 0; num < TOTNUM_COLORS; num++) {	   

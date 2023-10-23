@@ -133,9 +133,11 @@ void saveInterval(unsigned long &previousMillis) {
 void checkRemoteIntervalisExpired(){    
 
   if (millis() - remoteactivityMillis > remoteInterval && remoteactivityMillis > 0) {
-      myRemote.setLedColor(PURPLE);      
-      currentActiveTrainOnRemote = -1;
-      refreshLed(2);
+      restoreRemoteStatus();
+  }
+
+  if (millis() - remoteactivityMillis > 1000 && remoteactivityMillis > 0) {
+    refreshLed(2);
   }
 }
 

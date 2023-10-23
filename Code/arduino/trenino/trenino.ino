@@ -42,7 +42,7 @@ int squareB[] = {4,3,8,9};
 int squareC[] = {24,23,18,19};
 int squareD[] = {20,21,16,15};
 int* allsquares[4] = {squareA,squareB,squareC,squareD};
-int remote[] =  {2,7,12,17,22,10,11,13,14};
+int remote[] =  {12,2,7,17,22,10,11,13,14};
 
 byte acol[][5] = {
   {0x1E, 0x05, 0x05, 0x05, 0x1E},  // A
