@@ -12,8 +12,7 @@ void fullColor(uint32_t color) {
 void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
 
   for (int num = numfrom; num < numto; num++) {          
-    leds[square[num]] = color;    
-    //if (numto==9) delay(100);    
+    leds[square[num]] = color;          
   }
   FastLED.show();
 
@@ -35,10 +34,9 @@ void osCopyChar (int myCharIndex, uint32_t color, byte arraytext[][5], uint32_t 
 
 void initDisplay(){
 
-
     // M9lab
     for (int num = 0; num < 2; num++) {      
-      osCopyChar(num,CRGB::Yellow,M9Lab,CRGB::Teal);
+      osCopyChar(num,CRGB::Yellow,M9Lab,CRGB::Black);
       delay(2000);   
     }
     fullColor(CRGB::Black); 
@@ -77,7 +75,8 @@ void initDisplay(){
 
    /* fine */
    for (int num = 0; num < TOTNUM_COLORS; num++) {	   
-	   colorSquare(allsquares[num],maincolour[num],1,4);	   	      
+	   colorSquare(allsquares[num],maincolour[num],1,4);	  
+     delay(300); 	      
    }   
 
 }

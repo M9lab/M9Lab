@@ -11,9 +11,6 @@ void remoteCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
 void remoteColorButtonController( byte buttonState, byte portNumber){
 
   if (!myRemote.isConnected()) return;  
-
-    //Serial.println(portNumber);
-    //Serial.println(buttonState);
    
    if (portNumber == 0 && buttonState == 1){
       increaseCurrentTrainSpeed();
@@ -79,13 +76,9 @@ void scanRemoteController(){
 
 void remoteButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pData) {
 
-  if (hubProperty == HubPropertyReference::BUTTON)
-  {
+  if (hubProperty == HubPropertyReference::BUTTON){
     ButtonState buttonState = myRemote.parseHubButton(pData);  
-    if (buttonState == ButtonState::PRESSED){
-        killRemote();       
-    }    
-  
+    if (buttonState == ButtonState::PRESSED) killRemote();                   
   }
   
 }
@@ -106,7 +99,7 @@ void remoteIsNotConnected(){
 }
 
 void killRemote(){
-  //remoteIsNotConnected();    
+  remoteIsNotConnected();    
   myRemote.shutDownHub();
 }
 
@@ -126,7 +119,6 @@ void setCurrentTrainNext(){
       }else{
         setCurrentTrainNext();
       }   
-
 
 }
 

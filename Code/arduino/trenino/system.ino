@@ -73,6 +73,8 @@ void panic() {
     
   systemReset();
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {    
+
+    killTrain(idTrain);
     myTrains[idTrain].hubState = -1;    
     // shutDown Hub train
     killTrain(idTrain);
@@ -81,9 +83,11 @@ void panic() {
   activeTrain = 0;
 
   //shutDown remote
-  if(myRemote.isConnected()) myRemote.shutDownHub();
-  isRemoteInitialized = false; 
-  
+  if(myRemote.isConnected()){
+    myRemote.shutDownHub();
+    remoteIsNotConnected();  
+  } 
+    
 }
 
 void systemStatus() {
