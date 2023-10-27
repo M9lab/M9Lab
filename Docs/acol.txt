@@ -22,3 +22,72 @@ Se l'idea puo' interessare ne sarei felice altrimenti salto la fase 2 e via.
 
 Ci aggiorniamo.
 
+
+
+A) What does he do?
+
+This component offers 2 quite important advantages:
+1) allows you to control up to 4 trains (speed and stop) at the same time with a single Lego remote control.
+2) adding a color sensor on the train (port B) transforms it into a "Duplo" train, therefore it is able to associate train behaviors based on the colored tiles that are positioned on the tracks (stop, change direction, wait at station)
+
+
+
+A) Che cosa fa?
+Questo componente offre 2 vantaggi abbastanza importanti:
+1) permette di controllare con un unico telecomando Lego fino a 4 treni (velocità e stop) conteporaneamente.
+2) aggiungendo un sensore di colore sul treno lo trasforma in un treno "duplo", quindi è in grado di associare dei comportamenti del treno in base ai tile che si posizionano sui binari (stop, fermata, inversione marcia)
+
+B) Come Funziona?
+Il componente hardware è un ATOM Matrix ESP32, programmato da M9Lab utilizzando la libreria Legoino di Cornelius Munz. (https://github.com/corneliusmunz/legoino)
+
+C) A chi è indirizzato?
+Questo componente è indirizzato agli AFOL per migliorare la gestione dei diorami ferroviari più complessi.
+Oltre ad "animare" i diorami introducendo le funzioni di fermate, stop ed altro. E' possibile controllare più treni (o treni che montano due motori).
+Ideale anche per animare il classico trenino di natale sotto all'albero.
+
+
+C) Iniziamo
+Ci basterà semplicemente collegare il sistema TrenIno ad una presa USB attiva, una volta collegato il sistema si inizializzerà mostrando prima la scritta di benvenuto e poi i 4 slot colorati pronti per collegare i treni.
+
+
+D) Come collegare i treni
+Per collegare i treni basterà semplicemente accenderli premendo il tasto presente sull'hub. 
+Alla prima pressione il treno si collegherà al sistema, la luce dell'hub diventera bianca (o viola se si sta ricollegando) e la stessa cosa succederà sul display del sistema nel led in alto in corrispondenza al colore.
+Il primo colore disponibile verrà assegnato al treno in base a quest'ordine:
+Rosso (A), Giallo (B), Blu (C) e Verde (D)
+Una volta collegato, si consiglia di posizionare un mattoncino del colore corrispondente sul treno in modo da non confondersi successivamente.
+Ad una seconda pressione del tasto il treno passerà nello stato "attivo", sul display il colore diventerà quello dello slot di appartenenza e da ora sarà possibile controllarlo con il telecomando e se montato un sensore di distanza/colore farlo agire in base ai tile posizionati sul tracciato.
+Una terza pressione del tasto spegnerà e scollegarà il treno dal sistema.
+
+
+E) Collegare il telecomando
+Per iniziare si consiglia di ruotare il controller di destra di 90 gradi. (vedi foto)
+Premendo il tasto verde centrale il telecomando si collegherà in automatico al sistema TrenIno e quindi il led centrale diventarà bianco (vedi foto), mentre premendo nuovamente il tasto verdo il telecomando si scollegherà dal sistema spegnendosi.
+Una volta collegato il telecomando useremo il controller destro premendo i tasto "+" e "-" per selezionare uno dei treni precedentemente collegati, mentre premendo il tasto rosso si uscirà dalla modalita selezione treno.
+Quando selezioneremo uno dei treni il led del telecomando si illuminerà del colore del treno in modo da farci capire su quale treno andremo ad agire.
+Useremo invece il controller sinistro per cambiare la velocità del treno selezionato in precedenza premendo i tasto "+" e "-" o fermarlo premendo il tasto rosso.
+
+F) Panic button
+
+
+
+Train Status Led
+Off: not connected
+White: connected but not active
+Purple: reconnected
+Colored: active and ready
+
+Selection Led
+Colored: not selected
+White: selected
+
+Remote Led
+Off: not connected
+White: connected
+
+Battery Level
+Colored: > 10%
+Purple: < 10%
+
+
+

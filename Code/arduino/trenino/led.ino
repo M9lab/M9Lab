@@ -37,7 +37,7 @@ void initDisplay(){
     // M9lab
     for (int num = 0; num < 2; num++) {      
       osCopyChar(num,CRGB::Yellow,M9Lab,CRGB::Black);
-      delay(2000);   
+      delay(1000);   
     }
     fullColor(CRGB::Black); 
     delay(500);  
@@ -89,7 +89,7 @@ void refreshLed(int num){
     if (num==0){
       //if (myTrains[i].hubState == -1) color = CRGB::Black;
       if (myTrains[i].hubState == 0){
-        color = myTrains[i].connectAttempt == 1 ? CRGB::White : CRGB::Purple;        
+        color = myTrains[i].connectAttempt == 0 ? CRGB::White : CRGB::Purple;        
       }
       
       if (myTrains[i].hubState == 1) color = maincolour[i];      
