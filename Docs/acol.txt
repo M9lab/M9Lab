@@ -90,4 +90,27 @@ Colored: > 10%
 Purple: < 10%
 
 
+Control current train speed
++ : increase speed
+- : decrease speed
+Red: stop train
+
+Select current train
++ : next train
+- : prev train
+Red: exit selection mode
+
+Connect/Disconnect Remote 
+
+Current Selection:
+Off: not connected
+Purple: connected
+Colored: current selection
+
+
+
+
+
+
+
 
