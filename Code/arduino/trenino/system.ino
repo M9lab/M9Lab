@@ -102,7 +102,8 @@ void systemStatus() {
     _print_withspaces(String(myTrains[idTrain].hubState),"hubState");    
     _print_withspaces(String(myTrains[idTrain].trainState),"trainState");    
     _print_withspaces(String(myTrains[idTrain].speed),"speed");
-    _print_withspaces(String(myTrains[idTrain].hubAddress),"hubAddressSSSSS");
+    String addr = myTrains[idTrain].hubAddress != "" ? myTrains[idTrain].hubAddress : "-";
+    //_print_withspaces(String(addr),"hubAddressSSSSS");
     _print_withspaces(String(myTrains[idTrain].connectAttempt),"attempt");
 
     Serial.println("");
