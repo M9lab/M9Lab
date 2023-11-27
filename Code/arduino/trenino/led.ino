@@ -101,12 +101,13 @@ void refreshLed(int num){
    for (int i = 0; i < MY_TRAIN_LEN; i++) {
     uint32_t color = CRGB::Black;
     if (num==0){
-      //if (myTrains[i].hubState == -1) color = CRGB::Black;
-      if (myTrains[i].hubState == 0){
-        color = myTrains[i].connectAttempt == 0 ? CRGB::White : CRGB::Purple;        
+      
+      if (myTrains[i].hubState == 0){        
+        color = myTrains[i].connectAttempt == 1 ? CRGB::White : CRGB::Purple;        
       }
       
       if (myTrains[i].hubState == 1) color = maincolour[i];      
+      
     }
     if (num==2) color = currentActiveTrainOnRemote == i ? CRGB::White : maincolour[i];
     if (num==3) color = myTrains[i].batteryLevel > 10 ? maincolour[i] : CRGB::Purple;        

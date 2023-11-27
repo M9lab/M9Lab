@@ -110,7 +110,7 @@ void increaseCurrentTrainSpeed(){
   myTrains[currentActiveTrainOnRemote].speed = addspeed;
    
   Lpf2Hub *myTrain = myTrains[currentActiveTrainOnRemote].hubobj;
-  //myTrain->setBasicMotorSpeed(portA, myTrains[currentActiveTrainOnRemote].speed);   
+  myTrain->setBasicMotorSpeed(portA, myTrains[currentActiveTrainOnRemote].speed);   
   _println("Train: " + myTrains[currentActiveTrainOnRemote].hubColor + " speed now is " + myTrains[currentActiveTrainOnRemote].speed); 
 
 }
@@ -124,7 +124,7 @@ void decreaseCurrentTrainSpeed(){
   myTrains[currentActiveTrainOnRemote].speed = addspeed;
   
   Lpf2Hub *myTrain = myTrains[currentActiveTrainOnRemote].hubobj;
-   //myTrain->setBasicMotorSpeed(portA, myTrains[currentActiveTrainOnRemote].speed);
+   myTrain->setBasicMotorSpeed(portA, myTrains[currentActiveTrainOnRemote].speed);
   _println("Train: " + myTrains[currentActiveTrainOnRemote].hubColor + " speed now is " + myTrains[currentActiveTrainOnRemote].speed); 
 
 }

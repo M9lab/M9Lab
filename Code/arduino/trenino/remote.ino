@@ -93,8 +93,7 @@ void remoteIsConnected(){
 
 void remoteIsNotConnected(){    
     isRemoteInitialized = false;    
-    currentActiveTrainOnRemote = -1;
-    //refreshLed(2);  
+    currentActiveTrainOnRemote = -1;    
     colorSquare(remote,CRGB::Black,0,1);    
 }
 

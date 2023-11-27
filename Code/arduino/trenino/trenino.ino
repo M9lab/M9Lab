@@ -2,7 +2,6 @@
 TrenIno
 
 TODO:
-1) controllare collegamenti e scollegamenti reni (no reassign ok)
 5) check distance/color
 
 Matrix
@@ -157,7 +156,7 @@ Train myTrains[MY_TRAIN_LEN] = {
   
 };
 
-bool resetAddress = false;
+//bool resetAddress = false;
 
 /* end trains */
 
@@ -177,9 +176,6 @@ void setup() {
   initDisplay();
   delay(1000);
   printLegenda(); 
-
-    // test remote(tutti treni collegati)
-  //testRemote();
   
 }
 
@@ -207,23 +203,4 @@ void loop() {
 
   }
    
-}
-
-void testRemote(){
-
-  delay(3000);
-  activeTrain = 0;
-  for (int i = 0; i < MY_TRAIN_LEN; i++) {
-      if (i==1 || i==3){
-        myTrains[i].hubState = 1;
-        colorSquare(myTrains[i].square,maincolour[i],0,1);    
-        activeTrain++;
-      }        
-
-      if(i==2) {
-        myTrains[i].hubState = 0;
-        refreshLed(0);
-      }
-  }
-  
 }

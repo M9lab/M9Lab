@@ -141,7 +141,7 @@ void checkRemoteIntervalisExpired(){
       restoreRemoteStatus();
   }
 
-  if (millis() - remoteactivityMillis > 1000 && remoteactivityMillis > 0) {
+  if (millis() - remoteactivityMillis > 500 && remoteactivityMillis > 0) {
     refreshLed(2);
   }
 }
