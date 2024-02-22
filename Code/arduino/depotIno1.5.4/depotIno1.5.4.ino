@@ -83,6 +83,7 @@ int switchInterval = 350;
 int switchVelocity = 35;
 int switchBatteryLevel = 100;
 String switchControllerAddress = "90:84:2b:51:ba:b0";
+int trainBatteryLevelLimit = 10;
 
 // global flags
 bool isAutoEnabled = false;
