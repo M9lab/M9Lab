@@ -6,12 +6,15 @@
 // DepotIno - 2022 Code by Stefx
 
 /* note
-1) set max device (default=3) in NimBLE-Arduino/src/nimconfig.h #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS X
+1) set max device (default=3) in C:\Users\stefano.ferrara\Documents\Arduino\libraries\NimBLE-Arduino\src\nimconfig.h #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS X
 2) install cp210x library on linux
 	apt list linux-modules-extra-5.8.0-38-generic
 	dpkg -L linux-modules-extra-5.8.0-38-generic | grep cp210x
 	sudo modprobe cp210x
 */
+
+//TEST: crash on start if trains is no connected
+//TEST: set speed depends by battery level
 
 
 // version
@@ -88,6 +91,7 @@ int trainBatteryLevelLimit = 10;
 // global flags
 bool isAutoEnabled = false;
 bool isVerbose = true;
+bool autoSpeedEnabled = false;
 
 // Trains structure
 typedef struct {
@@ -147,8 +151,6 @@ byte portLeft = (byte)PoweredUpRemoteHubPort::LEFT;
 byte portRight = (byte)PoweredUpRemoteHubPort::RIGHT;
 String remoteAddress = "04:ee:03:b9:d8:19";
 bool isRemoteActive = false;
-//DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
-
 
 /* lights */
 unsigned long currentMillis_lights  = 0; 
@@ -174,10 +176,12 @@ void readFromSerial() {
     else if (command == "off") systemOff();
     else if (command == "help") printLegenda();
     else if (command == "status") systemStatus();
-    else if (command == "verboseon") verboseOn();
-    else if (command == "verboseoff") verboseOff();
+    else if (command == "autospeedon") autospeedOn();
+    else if (command == "autospeedoff") autospeedOff();
     else if (command == "sron") setRemoteOn();
     else if (command == "sroff") setRemoteOff();
+    else if (command == "verboseon") verboseOn();
+    else if (command == "verboseoff") verboseOff();
 
     // switches
     else if (command == "swa0") setSwitch(&mySwitchControlleres[0], 0);

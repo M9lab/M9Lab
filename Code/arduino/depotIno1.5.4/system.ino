@@ -14,12 +14,14 @@ void printLegenda() {
   Serial.println("reset = reset the system");
   Serial.println("sron = enable remote control");
   Serial.println("sroff = disable remote control");
+  Serial.println("verboseon = show more status messages");
+  Serial.println("verboseoff = show less status messages");
   
   Serial.println("");
   Serial.println("-----Log commands:-----");
   Serial.println("status = show system status");
-  Serial.println("verboseon = show more status messages");
-  Serial.println("verboseoff = show less status messages");
+  Serial.println("autospeedon = set speed depends battery level on");
+  Serial.println("autospeedoff = set speed depends battery level off");
 
   Serial.println("");
   Serial.println("-----Switches commands:-----");
@@ -71,6 +73,14 @@ void verboseOff() {
   isVerbose = false;
 }
 
+void autospeedOn() {
+  autoSpeedEnabled = true;
+}
+
+void autospeedOff() {
+  autoSpeedEnabled = false;
+}
+
 void systemOn() {
   if (!mySwitchController.isConnected()) {
     _println("Cannot find the Switch Controller");
@@ -78,7 +88,6 @@ void systemOn() {
     _println("Automatic mode is active");
     isAutoEnabled = true;
   }
-
 }
 
 void systemOff() {
@@ -147,6 +156,9 @@ void systemStatus() {
 
   Serial.print("Automatic mode on: ");
   Serial.println(isAutoEnabled);
+
+  Serial.print("Automatic speed on: ");
+  Serial.println(autoSpeedEnabled);  
 
 }
 

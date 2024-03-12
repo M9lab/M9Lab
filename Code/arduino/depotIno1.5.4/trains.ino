@@ -91,14 +91,16 @@ void startTrain(int idTrain) {
 
   mySwitchController.setLedColor(myTrains[idTrain].ledColor);
 
-  //TEST: set speed depends by battery level
-  float newspeed = (int) ((100*myTrains[idTrain].speed) / myTrains[idTrain].batteryLevel);
-  Serial.println("speed");
-  Serial.println(myTrains[idTrain].speed);
-  Serial.println("newspeed");
-  Serial.println(newspeed);
-  //myTrains[idTrain].speed = newspeed;  
-
+  if (autoSpeedEnabled){
+    //TEST: set speed depends by battery level
+    float newspeed = (int) ((100*myTrains[idTrain].speed) / myTrains[idTrain].batteryLevel);
+    Serial.println("speed:");
+    Serial.println(myTrains[idTrain].speed);
+    Serial.println("newspeed:");
+    Serial.println(newspeed);
+    myTrains[idTrain].speed = newspeed;  
+  }
+  
   delayBlinkLights(pPortA);
   
   if (myTrains[idTrain].speed < 0) myTrains[idTrain].speed = -1 * myTrains[idTrain].speed;
