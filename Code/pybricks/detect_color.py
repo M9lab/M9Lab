@@ -11,23 +11,52 @@ print("Battery voltage: " + str(cityHub.battery.voltage()))
 train = DCMotor(Port.A)
 sensor = ColorDistanceSensor(Port.B)
 
+# config (default)
+my_colors = (Color.RED,Color.GREEN,Color.YELLOW,Color.WHITE,Color.BLUE,Color.NONE)
+sensor.detectable_colors(my_colors)
+
+# Save your colors.
+speed = 45
+stop_time = 20000
+ignore_sensor_time = 3000
+
 
 # Now we use the function we just created above.
 while True:
 
-    # Here you can make your train/vehicle stop.
-    if (sensor.color()==Color.RED):
-	cityHub.on(Color.RED)
+	cityHub.on(sensor.color());
+
+    # (stop)
+    if (sensor.color()==Color.RED):	
 	train.dc(0)
 
-    # Here you can make your train/vehicle go forward.
-    if (sensor.color()==Color.GREEN):
-	cityHub.on(Color.GREEN);
-	train.dc(30)
+    # (start)
+    if (sensor.color()==Color.GREEN):	
+	train.dc(speed)
 	
-	# Here you can make your train/vehicle go backward.	
-    if (sensor.color()==Color.WHITE):
-	cityHub.on(Color.WHITE);
-	train.dc(-1 * train.dc())	
+	# (invert)
+    if (sensor.color()==Color.WHITE):	
+	train.dc(-1 * speed)	
+	# ignore time
+	wait(ignore_sensor_time)
 	
-	#wait(1000)
+	# (stop and go)
+    if (sensor.color()==Color.BLUE):
+	train.dc(0)	
+	wait(stop_time)
+	train.dc(speed)		
+	
+	# (stop and invert)
+    if (sensor.color()==Color.YELLOW):	
+	train.dc(0)	
+	wait(stop_time)
+	train.dc(-1 * speed)	
+	# ignore time
+	wait(ignore_sensor_time)
+
+	else:
+	# If the sensor sees nothing	
+	cityHub.light.off()
+	wait(10)	
+	
+wait(100)	
