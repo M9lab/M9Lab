@@ -24,39 +24,42 @@ ignore_sensor_time = 3000
 # Now we use the function we just created above.
 while True:
 
-	cityHub.on(sensor.color());
+	cityHub.light.on(sensor.color())
+	print(sensor.color())
 
-    # (stop)
-    if (sensor.color()==Color.RED):	
-	train.dc(0)
+	# (stop)
+	if(sensor.color() == Color.RED:	
+		train.dc(0)
 
-    # (start)
-    if (sensor.color()==Color.GREEN):	
-	train.dc(speed)
-	
+	# (start)
+	if sensor.color() == Color.WHITE:	
+		train.dc(speed)
+
 	# (invert)
-    if (sensor.color()==Color.WHITE):	
-	train.dc(-1 * speed)	
-	# ignore time
-	wait(ignore_sensor_time)
-	
+	if sensor.color() == Color.GREEN:	
+		speed = (-1 * speed)	
+		train.dc(speed)	
+		# ignore time
+		wait(ignore_sensor_time)
+
 	# (stop and go)
-    if (sensor.color()==Color.BLUE):
-	train.dc(0)	
-	wait(stop_time)
-	train.dc(speed)		
-	
+	if(sensor.color() == Color.BLUE:
+		train.dc(0)	
+		wait(stop_time)
+		train.dc(speed)		
+
 	# (stop and invert)
-    if (sensor.color()==Color.YELLOW):	
-	train.dc(0)	
-	wait(stop_time)
-	train.dc(-1 * speed)	
-	# ignore time
-	wait(ignore_sensor_time)
+	if sensor.color() == Color.YELLOW:	
+		train.dc(0)	
+		wait(stop_time)
+		speed = (-1 * speed)	
+		train.dc(speed)	
+		# ignore time
+		wait(ignore_sensor_time)
 
 	else:
 	# If the sensor sees nothing	
-	cityHub.light.off()
-	wait(10)	
+		cityHub.light.off()
+		wait(10)	
 	
-wait(100)	
+wait(10)	
