@@ -13,8 +13,17 @@ print("Battery voltage: " + str(cityHub.battery.voltage()))
 train = DCMotor(Port.A)
 sensor = ColorDistanceSensor(Port.B)
 
+
+#Color.WHITE = Color(h=359, s=97, v=39)
+#Color.RED = Color(h=359, s=97, v=39)
+#Color.YELLOW = Color(h=359, s=97, v=39)
+#Color.GREEN = Color(h=359, s=97, v=39)
+#Color.BLUE = Color(h=359, s=97, v=39)
+
 # config (default)
 my_colors = (Color.WHITE,Color.NONE)
+
+# comment to read alla colours
 sensor.detectable_colors(my_colors)
 
 # Save your colors.
