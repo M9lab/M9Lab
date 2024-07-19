@@ -14,11 +14,11 @@ train = DCMotor(Port.A)
 sensor = ColorDistanceSensor(Port.B)
 
 
-#Color.WHITE = Color(h=359, s=97, v=39)
-#Color.RED = Color(h=359, s=97, v=39)
-#Color.YELLOW = Color(h=359, s=97, v=39)
-#Color.GREEN = Color(h=359, s=97, v=39)
-#Color.BLUE = Color(h=359, s=97, v=39)
+Color.WHITE = Color(h=78, s=5, v=92)
+Color.RED = Color(h=357, s=97, v=75)
+Color.YELLOW = Color(h=52, s=96, v=94)
+Color.GREEN = Color(h=195, s=91, v=48)
+Color.BLUE = Color(h=220, s=97, v=70)
 
 # config (default)
 my_colors = (Color.WHITE,Color.NONE)
