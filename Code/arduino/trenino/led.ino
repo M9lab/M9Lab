@@ -1,35 +1,23 @@
 /* led */
 void fullColor(uint32_t color) {
-
-  for (int num = 0; num < NUM_LEDS; num++) {
-    leds[num] = color;
-    //leds[XYTable[num]] = color;
-    FastLED.show();
-  }
-
+  fill_solid(leds, NUM_LEDS, color);
+  FastLED.show();
 }
 
-void colorSquare(int square[] ,uint32_t color, int numfrom , int numto) {
-
+void colorSquare(int square[], uint32_t color, int numfrom, int numto) {
   for (int num = numfrom; num < numto; num++) {          
     leds[square[num]] = color;          
   }
   FastLED.show();
-
 }
 
-void osCopyChar (int myCharIndex, uint32_t color, byte arraytext[][5], uint32_t bgcolor){   
-
-  for (int i=0; i<5; i++)
-    for (int j=0; j<5; j++)
-    {
-      uint32_t typex = (bitRead(arraytext[myCharIndex][i], j) == 0x00) ? bgcolor : color;
-      int pos = (i*5)+j;
-      //leds[pos] = typex;
-      leds[XYTable[pos]] = typex;      
-      FastLED.show(); 
+void osCopyChar(int myCharIndex, uint32_t color, byte arraytext[][5], uint32_t bgcolor) {   
+  for (int i=0; i<5; i++) {
+    for (int j=0; j<5; j++) {
+      leds[XYTable[(i*5)+j]] = (bitRead(arraytext[myCharIndex][i], j) == 0x00) ? bgcolor : color;
     }
-    
+  }
+  FastLED.show();
 }
 
 void initDisplay(){
