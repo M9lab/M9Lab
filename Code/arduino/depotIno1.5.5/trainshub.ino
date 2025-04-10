@@ -3,42 +3,40 @@ void scanHub( int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
-  //battery update
-  /*
-  if (myTrain->isConnected()) {
-     myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-  }
-  */
+   
+  if (!myTrain->isConnected() && !myTrain->isConnecting()){
+     myTrain->init(myTrains[idTrain].hubAddress.c_str());
+     delay(200);
+  }else{
+    
+    if (myTrain->isConnecting()) {
 
-  if (!myTrain->isConnected() && !myTrain->isConnecting()) myTrain->init(myTrains[idTrain].hubAddress.c_str());
-
-  if (myTrain->isConnecting()) {
-
-    myTrain->connectHub();
-    if (myTrain->isConnected()) {
-      delay(200);
-      Serial.println("Now connected with hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
-
-      // set the name
-      /*
-      char hubName[myTrains[idTrain].hubColor.length() + 1];
-      myTrains[idTrain].hubColor.toCharArray(hubName, myTrains[idTrain].hubColor.length() + 1);
-      myTrain->setHubName(hubName);
-      */
-      
-      myTrains[idTrain].trainState = 0;
-      myTrains[idTrain].hubState = 0;
-
-      // activate Property Update
-      myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);      
-      myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
-      
-      myTrain->setLedColor(PURPLE);
-      
-    } else {
-      Serial.println("Failed to connect with hub " +  myTrains[idTrain].hubColor);
-    }
-
+      myTrain->connectHub();
+      if (myTrain->isConnected()) {
+        delay(200);
+        Serial.println("Now connected with hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
+  
+        // set the name
+        /*
+        char hubName[myTrains[idTrain].hubColor.length() + 1];
+        myTrains[idTrain].hubColor.toCharArray(hubName, myTrains[idTrain].hubColor.length() + 1);
+        myTrain->setHubName(hubName);
+        */
+        
+        myTrains[idTrain].trainState = 0;
+        myTrains[idTrain].hubState = 0;
+  
+        // activate Property Update
+        myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);      
+        myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
+        
+        myTrain->setLedColor(PURPLE);
+        
+      } else {
+        Serial.println("Failed to connect with hub " +  myTrains[idTrain].hubColor);
+      }
+ 
+    }     
     
   }
 }

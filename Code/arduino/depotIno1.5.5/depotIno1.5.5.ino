@@ -13,9 +13,7 @@
 	sudo modprobe cp210x
 */
 
-//TEST: crash on start if trains is no connected
 //TEST: set speed depends by battery level
-
 
 // version
 String ver = "1.5.5.1";
