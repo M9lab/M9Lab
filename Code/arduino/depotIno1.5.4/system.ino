@@ -103,6 +103,7 @@ void systemReset() {
     myTrains[idTrain].speed = initialTrainSpeed;
     myTrains[idTrain].lastcolor = 0;
     myTrains[idTrain].colorPreviousMillis = 0;
+    myTrains[idTrain].exitcount = 0;
   }
   switchReset();
 }
@@ -132,8 +133,8 @@ void panic() {
 
 void systemStatus() {
 
-  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|");
-  Serial.println("------------------------------------------------");
+  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|out|");
+  Serial.println("----------------------------------------------------");
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
     
@@ -142,11 +143,12 @@ void systemStatus() {
     _print_withspaces(String(myTrains[idTrain].hubState),"hubState");    
     _print_withspaces(String(myTrains[idTrain].trainState),"trainState");    
     _print_withspaces(String(myTrains[idTrain].speed),"speed");
+    _print_withspaces(String(myTrains[idTrain].exitcount),"out");
 
     Serial.println("");
   }
 
-  Serial.println("------------------------------------------------");
+  Serial.println("----------------------------------------------------");
 
   Serial.print("Switch Battery Level: ");
   Serial.println(switchBatteryLevel);
@@ -201,6 +203,8 @@ bool checkIfSensorColorIsAccepted(byte inputColor) {
 void checkIntervalisExpired(int idTrain ) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
+
+  if (!myTrain->isConnected()) return;
 
   if (millis() - myTrains[idTrain].colorPreviousMillis > colorInterval && myTrains[idTrain].colorPreviousMillis > 0) {
     myTrains[idTrain].trainState = myTrains[idTrain].speed;

@@ -60,8 +60,6 @@ void stopAndDoTrain(int idTrain, bool invert) {
 
 void startTrain(int idTrain) {
 
-  systemStatus();
-
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()){
     _println("Train " + myTrains[idTrain].hubColor + " is disconnected");
@@ -107,6 +105,9 @@ void startTrain(int idTrain) {
   myTrains[idTrain].trainState = myTrains[idTrain].speed;
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
   _println("Train: " + myTrains[idTrain].hubColor + " Started!!!");    
+  myTrains[idTrain].exitcount++;
+
+  systemStatus();
 
 }
 
