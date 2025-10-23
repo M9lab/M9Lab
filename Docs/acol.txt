@@ -1,0 +1,116 @@
+Ciao Nicola, come va?
+ti scrivo per un idea relativa al gruppo ALB LEGO train - la Community ACOL dei treni LEGO.
+Cerco di spiegarmi, ma non è semplice, magari poi ti mando un video esplicativo.
+Sto realizzando un componente hardware dedicato alla gestione dei diorami ferroviari.
+Questo componente offre 2 vantaggi abbastanza importanti:
+1) permette di controllare con un unico telecomando Lego fino a 4 treni (velocità e stop) conteporaneamente.
+2) aggiungendo un sensore di colore sul treno lo trasforma in un treno "duplo", quindi è in grado di associare dei comportamenti del treno in base ai tile che si posizionano sui binari (stop, fermata, inversione marcia)
+Non so se hai mai visto un dei miei video (https://www.facebook.com/m9lab/videos/3382186552068015) giusto per rendere l'idea.
+
+Premessa:
+Questa "tecnica" dei colori l'ho già utilizzata per i miei diorami ma è sempre stata fatta ad hoc, ora vorrei renderla "globale" e cercare di commercializzarla, quindi sto facendo un refactoring del codice per renderla utilizzabile a tutti coloro che hanno un diorama ferroviario con più treni o anche semplicemente a chi vuole integrare un intelligenza al proprio diorama domestico.
+
+Alcuni chiarimenti:
+Fermo restando che il lavoro non è finito (ci vorrà ancora un mesetto, ed in genere non sono il tipo che vende la pelle dell'orso prima di averlo ucciso), avevo intenzione di muovermi in questo modo:
+Fase 1) cercare dei beta tester (4/5 utenti) per cercare di risolvere eventuali bug e quindi testare massivamente il componente.
+Fase 2) vendita in esclusiva agli utenti ACOL, qui entri in gioco tu, magari si puo' brandizzare il componente (e grande come un cubetto di ghiaccio) con adesivi acol o altro (brick esclusivi ecc ecc)
+Fase 3) vendita esterna al gruppo ACOL (non brandizzato)
+
+Per quanto riguarda i costi pensavo di renderli popolari (20€ per i beta tester e 50 per gli altri).
+Poi ovviamente se ne puo' parlare di questo e dei dettagli.
+Se l'idea puo' interessare ne sarei felice altrimenti salto la fase 2 e via.
+
+Ci aggiorniamo.
+
+
+
+A) What does he do?
+
+This component offers 2 quite important advantages:
+1) allows you to control up to 4 trains (speed and stop) at the same time with a single Lego remote control.
+2) adding a color sensor on the train (port B) transforms it into a "Duplo" train, therefore it is able to associate train behaviors based on the colored tiles that are positioned on the tracks (stop, change direction, wait at station)
+
+
+
+A) Che cosa fa?
+Questo componente offre 2 vantaggi abbastanza importanti:
+1) permette di controllare con un unico telecomando Lego fino a 4 treni (velocità e stop) conteporaneamente.
+2) aggiungendo un sensore di colore sul treno lo trasforma in un treno "duplo", quindi è in grado di associare dei comportamenti del treno in base ai tile che si posizionano sui binari (stop, fermata, inversione marcia)
+
+B) Come Funziona?
+Il componente hardware è un ATOM Matrix ESP32, programmato da M9Lab utilizzando la libreria Legoino di Cornelius Munz. (https://github.com/corneliusmunz/legoino)
+
+C) A chi è indirizzato?
+Questo componente è indirizzato agli AFOL per migliorare la gestione dei diorami ferroviari più complessi.
+Oltre ad "animare" i diorami introducendo le funzioni di fermate, stop ed altro. E' possibile controllare più treni (o treni che montano due motori).
+Ideale anche per animare il classico trenino di natale sotto all'albero.
+
+
+C) Iniziamo
+Ci basterà semplicemente collegare il sistema TrenIno ad una presa USB attiva, una volta collegato il sistema si inizializzerà mostrando prima la scritta di benvenuto e poi i 4 slot colorati pronti per collegare i treni.
+
+
+D) Come collegare i treni
+Per collegare i treni basterà semplicemente accenderli premendo il tasto presente sull'hub. 
+Alla prima pressione il treno si collegherà al sistema, la luce dell'hub diventera bianca (o viola se si sta ricollegando) e la stessa cosa succederà sul display del sistema nel led in alto in corrispondenza al colore.
+Il primo colore disponibile verrà assegnato al treno in base a quest'ordine:
+Rosso (A), Giallo (B), Blu (C) e Verde (D)
+Una volta collegato, si consiglia di posizionare un mattoncino del colore corrispondente sul treno in modo da non confondersi successivamente.
+Ad una seconda pressione del tasto il treno passerà nello stato "attivo", sul display il colore diventerà quello dello slot di appartenenza e da ora sarà possibile controllarlo con il telecomando e se montato un sensore di distanza/colore farlo agire in base ai tile posizionati sul tracciato.
+Una terza pressione del tasto spegnerà e scollegarà il treno dal sistema.
+
+
+E) Collegare il telecomando
+Per iniziare si consiglia di ruotare il controller di destra di 90 gradi. (vedi foto)
+Premendo il tasto verde centrale il telecomando si collegherà in automatico al sistema TrenIno e quindi il led centrale diventarà bianco (vedi foto), mentre premendo nuovamente il tasto verdo il telecomando si scollegherà dal sistema spegnendosi.
+Una volta collegato il telecomando useremo il controller destro premendo i tasto "+" e "-" per selezionare uno dei treni precedentemente collegati, mentre premendo il tasto rosso si uscirà dalla modalita selezione treno.
+Quando selezioneremo uno dei treni il led del telecomando si illuminerà del colore del treno in modo da farci capire su quale treno andremo ad agire.
+Useremo invece il controller sinistro per cambiare la velocità del treno selezionato in precedenza premendo i tasto "+" e "-" o fermarlo premendo il tasto rosso.
+
+F) Panic button
+
+
+
+Train Status Led
+Off: not connected
+White: connected but not active
+Purple: reconnected
+Colored: active and ready
+
+Selection Led
+Colored: not selected
+White: selected
+
+Remote Led
+Off: not connected
+White: connected
+
+Battery Level
+Colored: > 10%
+Purple: < 10%
+
+
+Control current train speed
++ : increase speed
+- : decrease speed
+Red: stop train
+
+Select current train
++ : next train
+- : prev train
+Red: exit selection mode
+
+Connect/Disconnect Remote 
+
+Current Selection:
+Off: not connected
+Purple: connected
+Colored: current selection
+
+
+
+
+
+
+
+
