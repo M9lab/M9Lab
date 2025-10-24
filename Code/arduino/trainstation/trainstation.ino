@@ -6,7 +6,8 @@
     ESP8266Audio: https://github.com/earlephilhower/ESP8266Audio
     Audio generato da: https://www.readspeaker.com/
 */
-// Versione script: 1.0.6
+// Versione script: 1.0.8
+// Board: Atom5
 // Novità: comando setinterval=X per impostare intervallo random in secondi (default 60s)
 
 #include <M5Atom.h>
@@ -20,7 +21,7 @@
 #include "AudioOutputI2S.h"
 
 // === SCRIPT VERSION ===
-String scriptVersion = "1.0.6";
+String scriptVersion = "1.0.8";
 
 // === CONFIG ===
 #define AUDIO_FILE "/riverloop.mp3"
@@ -37,7 +38,7 @@ AudioFileSourceID3 *id3;
 AudioOutputI2S *out;
 AudioGeneratorMP3 *mp3;
 
-float volume = 0.05;
+float volume = 0.02;
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -47,7 +48,7 @@ int sm_playList[30];
 bool sm_ready = false;
 
 // === RANDOM PLAY FLAG ===
-bool randomPlayFlag = false;
+bool randomPlayFlag = true;
 unsigned long lastRandomEvent = 0;
 unsigned long randomInterval = 60000; // ogni 60s evento casuale
 
@@ -84,20 +85,30 @@ void printTime() {
   sprintf(buffer, "%02d:%02d:%02d", hour(), minute(), second());
   Serial.println(buffer);
 }
+
+void clearSerialScreen() {
+  Serial.write(27); // ESC
+  Serial.print("[2J"); // Clear screen
+  Serial.write(27);
+  Serial.print("[H"); // Move cursor to home
+}
+
+
 void printHelp() {
+  clearSerialScreen();
   Serial.printf("\n📘 === LISTA COMANDI DISPONIBILI (v%s) ===\n", scriptVersion.c_str());
   Serial.printf("🕐 Ora corrente: %02d:%02d:%02d\n", hour(), minute(), second());
   Serial.println("  help           → Mostra questo elenco");
-  Serial.println("  play=XYZ       → Annuncio treno (X=1–7 tipo treno, Y=1–9 binario, Z=1 partenza / 2 arrivo)");
+  Serial.println("  playtrain=XYZ  → Annuncio treno (X=1–7 tipo treno, Y=1–9 binario, Z=1 partenza / 2 arrivo)");
   Serial.println("  playaudio=XXX  → Riproduce direttamente il file /0XXX.mp3 (test singolo)");
   Serial.println("  alert1         → Non indicare i personaggi");
   Serial.println("  alert2         → Vietato attraversare i binari");
   Serial.println("  alert3         → Vietato aprire le porte");
-  Serial.println("  alert4         → Allontanarsi dalla linea gialla");
+  Serial.println("  alert4         → Attenzione, Allontanarsi dalla linea gialla");
   Serial.println("  alert5         → Mettere like pagina M9Lab");
   Serial.println("  alert6         → Mettere like pagina M9Lab + link");
-  Serial.println("  alert7         → Benvenuti alla maker faire");
-  Serial.println("  alert8         → Treno in transito al binario (casuale 1–9) + 165.mp3");
+  Serial.println("  alert7         → Allontanarsi dalla linea Gialla");
+  Serial.println("  alert8         → Treno in transito al binario (casuale 1–9)");
   Serial.println("  alert9         → Si nascondono 5 personaggi");
   Serial.println("  alert10        → Benvenuti alla maker faire");
   Serial.println("  randomplay=X   → Attiva/disattiva modalità casuale (0=off,1=on)");
@@ -241,7 +252,7 @@ void loop() {
     lastCommandTime = millis();
 
     if (input.equalsIgnoreCase("help")) printHelp();
-    else if (input.startsWith("play=")) { executeAudioPlayList(input.substring(5)); playPlaylist(); }
+    else if (input.startsWith("playtrain=")) { executeAudioPlayList(input.substring(5)); playPlaylist(); }
     else if (input.startsWith("playaudio=")) playSingleFile(input.substring(10).toInt());
     else if (input.equalsIgnoreCase("alert1")) playSingleFile(191);
     else if (input.equalsIgnoreCase("alert2")) playSingleFile(171);
@@ -249,7 +260,7 @@ void loop() {
     else if (input.equalsIgnoreCase("alert4")) playSingleFile(151);
     else if (input.equalsIgnoreCase("alert5")) playSingleFile(176);
     else if (input.equalsIgnoreCase("alert6")) playSingleFile(177);
-    else if (input.equalsIgnoreCase("alert7")) playSingleFile(196);
+    else if (input.equalsIgnoreCase("alert7")) playSingleFile(165);
     else if (input.equalsIgnoreCase("alert8")) {
       int binario = random(1,10);
       Serial.printf("🚉 ALERT8 - treno in transito al binario %d\n", binario);
