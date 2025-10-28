@@ -72,7 +72,7 @@ unsigned long buttonPressStart = 0;
 unsigned long lastClickTime = 0;
 bool waitingForDoubleClick = false;
 #define DOUBLE_CLICK_TIMEOUT 700  // aumentato per maggiore precisione
-#define MAX_CLICK_DURATION 300    // massima durata click per doppio click
+#define MAX_CLICK_DURATION 350    // massima durata click per doppio click
 
 // === CALLBACKS ===
 void StatusCallback(void *cbData, int code, const char *string) {
