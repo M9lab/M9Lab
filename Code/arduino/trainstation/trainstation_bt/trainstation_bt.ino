@@ -158,7 +158,7 @@ void clearSerialScreen() {
 void printHelp(bool useBT=false){
   Stream *s = useBT ? (Stream*)&SerialBT : (Stream*)&Serial;
   s->printf("\n📘 === COMANDI (v%s) ===\n", scriptVersion);
-  s->print(F("🕐 Ora: "));
+  s->print(F("🕐 Orario attuale: "));
   printTime(*s);
   
   if (useBT) {
@@ -176,24 +176,24 @@ void printHelp(bool useBT=false){
     s->println(F("  (alert, playtrain, playaudio)"));
   } else {
     // Help completo per Serial
-    s->println(F("  help           → Mostra questo elenco"));
-    s->println(F("  playtrain=XYZ  → Annuncio treno"));
-    s->println(F("  playaudio=XXX  → Riproduce /0XXX.mp3"));    
-    s->println(F("  alert1         → Non indicare i personaggi"));
-    s->println(F("  alert2         → Vietato attraversare i binari")) ;
-    s->println(F("  alert3         → Vietato aprire le porte"));
-    s->println(F("  alert4         → Attenzione, Allontanarsi dalla linea gialla"));
-    s->println(F("  alert5         → Mettere like pagina M9Lab"));
-    s->println(F("  alert6         → Mettere like pagina M9Lab + link"));
-    s->println(F("  alert7         → Allontanarsi dalla linea Gialla"));
-    s->println(F("  alert8         → Treno in transito al binario (casuale 1–9)"));
-    s->println(F("  alert9         → Si nascondono 5 personaggi"));
-    s->println(F("  alert10        → Benvenuti alla maker faire"));
-    s->println(F("  randomplay=X   → Random on/off (0/1)"));
-    s->println(F("  setinterval=X  → Intervallo random (sec)"));
+    s->println(F("  help             → Mostra questo elenco"));
+    s->println(F("  playtrain=XYZ    → Annuncio treno"));
+    s->println(F("  playaudio=XXX    → Riproduce /0XXX.mp3"));    
+    s->println(F("  alert1           → Non indicare i personaggi"));
+    s->println(F("  alert2           → Vietato attraversare i binari")) ;
+    s->println(F("  alert3           → Vietato aprire le porte"));
+    s->println(F("  alert4           → Attenzione, Allontanarsi dalla linea gialla"));
+    s->println(F("  alert5           → Mettere like pagina M9Lab"));
+    s->println(F("  alert6           → Mettere like pagina M9Lab + link"));
+    s->println(F("  alert7           → Allontanarsi dalla linea Gialla"));
+    s->println(F("  alert8           → Treno in transito al binario (casuale 1–9)"));
+    s->println(F("  alert9           → Si nascondono 5 personaggi"));
+    s->println(F("  alert10          → Benvenuti alla maker faire"));
+    s->println(F("  randomplay=X     → Random on/off (0/1)"));
+    s->println(F("  setinterval=X    → Intervallo random (sec)"));
     s->println(F("  vol+/vol-/vol=XX → Controllo volume"));
-    s->println(F("  settime / gettime → Gestione orario"));
-    s->println(F("  ram            → Statistiche RAM"));
+    s->println(F("  settime/gettime  → Gestione orario"));
+    s->println(F("  ram              → Statistiche RAM"));
   }
   
   s->printf("  Random: %s (%.1fs)\n", randomPlayFlag ? "ON" : "OFF", randomInterval/1000.0);
@@ -817,11 +817,7 @@ void loop() {
     while (Serial.available()) Serial.read();
     
     if (idx > 0) {
-      // DEBUG
-      Serial.print(F("CMD RX: ["));
-      Serial.print(inputBuffer);
-      Serial.print(F("] len="));
-      Serial.println(idx);
+
       
       lastCommandTime = millis();
       processCommand(inputBuffer, false);
@@ -875,7 +871,7 @@ void loop() {
                       alertNum == 4 ? 151 :
                       alertNum == 5 ? 176 :
                       alertNum == 6 ? 177 :
-                      alertNum == 7 ? 196 :
+                      alertNum == 7 ? 165 :
                       alertNum == 9 ? 186 : 196;
         playSingleFile(fileNum);
       }
