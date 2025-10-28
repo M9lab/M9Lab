@@ -172,6 +172,7 @@ void printHelp(bool useBT=false){
     s->println(F("  randomplay=X   → Random on/off (0/1)"));
     s->println(F("  setinterval=X  → Intervallo random (sec)"));
     s->println(F("  ram            → Statistiche RAM"));
+    s->println(F("  togglebt       → Spegne BT e riattiva audio"));
     s->println(F("\n  NOTA: Comandi audio NON disponibili via BT"));
     s->println(F("  (alert, playtrain, playaudio)"));
   } else {
@@ -194,6 +195,7 @@ void printHelp(bool useBT=false){
     s->println(F("  vol+/vol-/vol=XX → Controllo volume"));
     s->println(F("  settime/gettime  → Gestione orario"));
     s->println(F("  ram              → Statistiche RAM"));
+    s->println(F("  togglebt         → Toggle Bluetooth"));
   }
   
   s->printf("  Random: %s (%.1fs)\n", randomPlayFlag ? "ON" : "OFF", randomInterval/1000.0);
@@ -716,6 +718,16 @@ void processCommand(char* cmd, bool fromBT=false) {
     s->println(F(")"));
     s->print(F("Heap size: "));
     s->println(ESP.getHeapSize());
+  }
+  else if (equalsIgnoreCase(cmd, "togglebt")) {
+    s->println(F("🔵 Toggle Bluetooth..."));
+    toggleBluetooth();
+    if (btEnabled) {
+      s->println(F("✅ BT ATTIVO - Audio fermato"));
+    } else {
+      s->println(F("✅ BT SPENTO - Audio riattivato"));
+      // Se chiamato da BT, questo sarà l'ultimo messaggio prima che BT si spenga
+    }
   }
   else {
     Serial.print(F("DEBUG: Comando non riconosciuto: ["));
