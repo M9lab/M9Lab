@@ -68,6 +68,12 @@ unsigned long randomInterval = 60000; // ogni 60s evento casuale
 unsigned long lastButtonPress = 0;
 unsigned long buttonPressStart = 0;
 
+// === DOUBLE CLICK ===
+unsigned long lastClickTime = 0;
+bool waitingForDoubleClick = false;
+#define DOUBLE_CLICK_TIMEOUT 700  // aumentato per maggiore precisione
+#define MAX_CLICK_DURATION 300    // massima durata click per doppio click
+
 // === CALLBACKS ===
 void StatusCallback(void *cbData, int code, const char *string) {
   (void)cbData; (void)code; (void)string;
@@ -664,9 +670,12 @@ void processCommand(char* cmd, bool fromBT=false) {
         int binario = random(1,10);
         Serial.print(F("ALERT8 - binario "));
         Serial.println(binario);
-        playSingleFile(161);
-        playSingleFile(binario);
-        playSingleFile(165);
+        // Usa sistema playlist esistente
+        sm_totalFile = 0;
+        addToPlayList(161);
+        addToPlayList(binario);
+        addToPlayList(165);
+        playPlaylist();
       }
       else if (equalsIgnoreCase(cmd, "alert9")) playSingleFile(186);
       else if (equalsIgnoreCase(cmd, "alert10")) playSingleFile(196);
@@ -790,28 +799,67 @@ void setup() {
 void loop() {
   M5.update();
 
-  // GESTIONE BOTTONE: pressione breve = ALERT1, pressione lunga (3s) = Toggle BT
+  // GESTIONE BOTTONE: pressione breve = ALERT1, doppio click = ALERT9, pressione lunga (3s) = Toggle BT
   if (M5.Btn.wasPressed()) {
     buttonPressStart = millis();
   }
   
   if (M5.Btn.wasReleased()) {
     unsigned long pressDuration = millis() - buttonPressStart;
+    unsigned long now = millis();
     
     if (pressDuration >= 3000) {
       // Pressione lunga: Toggle Bluetooth
       Serial.println(F("Long press detected"));
       toggleBluetooth();
       // LED gestito in toggleBluetooth()
+      waitingForDoubleClick = false; // Reset doppio click
+      lastClickTime = 0;
       
-    } else if (pressDuration >= 100 && millis() - lastButtonPress > 500 && !btEnabled) {
-      // Pressione breve: ALERT1 (solo se BT spento)
-      lastButtonPress = millis();
-      Serial.println(F("Bottone -> ALERT1"));
-      playSingleFile(191);
-    } else if (pressDuration >= 100 && btEnabled) {
+    } else if (pressDuration >= 50 && pressDuration <= MAX_CLICK_DURATION && !btEnabled) {
+      // Pressione breve: verifica doppio click
+      // Solo click rapidi (< MAX_CLICK_DURATION) contano per doppio click
+      
+      if (waitingForDoubleClick && (now - lastClickTime) < DOUBLE_CLICK_TIMEOUT) {
+        // DOPPIO CLICK rilevato -> ALERT9
+        Serial.println(F("✓✓ Doppio click -> ALERT9"));
+        playSingleFile(186);
+        waitingForDoubleClick = false;
+        lastClickTime = 0;
+        lastButtonPress = now;
+      } else {
+        // Primo click: aspetta per vedere se arriva il secondo
+        Serial.println(F("✓ Click 1/2..."));
+        waitingForDoubleClick = true;
+        lastClickTime = now;
+        lastButtonPress = now;
+      }
+      
+    } else if (pressDuration > MAX_CLICK_DURATION && pressDuration < 3000 && !btEnabled) {
+      // Click troppo lungo per doppio click ma non long press
+      // Trattalo come click singolo immediato se non stiamo aspettando un secondo click
+      if (!waitingForDoubleClick) {
+        Serial.println(F("Click singolo (lungo) -> ALERT1"));
+        playSingleFile(191);
+        lastButtonPress = millis();
+      }
+      waitingForDoubleClick = false;
+      lastClickTime = 0;
+      
+    } else if (btEnabled) {
       Serial.println(F("Audio disabilitato (BT attivo)"));
+      waitingForDoubleClick = false;
+      lastClickTime = 0;
     }
+  }
+  
+  // Gestione timeout click singolo (controllo NON in playlist per essere reattivo)
+  if (waitingForDoubleClick && !playingPlaylist && (millis() - lastClickTime) > DOUBLE_CLICK_TIMEOUT) {
+    // Timeout scaduto, era un click singolo -> ALERT1
+    Serial.println(F("✓ Click singolo (timeout) -> ALERT1"));
+    playSingleFile(191);
+    waitingForDoubleClick = false;
+    lastClickTime = 0;
   }
 
   // LETTURA SERIALE (USB)
@@ -873,9 +921,12 @@ void loop() {
         int binario = random(1,10);
         Serial.print(F("bin"));
         Serial.println(binario);
-        playSingleFile(161);
-        playSingleFile(binario);
-        playSingleFile(165);
+        // Usa sistema playlist esistente
+        sm_totalFile = 0;
+        addToPlayList(161);
+        addToPlayList(binario);
+        addToPlayList(165);
+        playPlaylist();
       } else {
         int fileNum = alertNum == 1 ? 191 :
                       alertNum == 2 ? 171 :
