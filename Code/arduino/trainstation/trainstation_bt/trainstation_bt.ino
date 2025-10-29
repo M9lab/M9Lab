@@ -6,9 +6,10 @@
     ESP8266Audio: https://github.com/earlephilhower/ESP8266Audio
     Audio generato da: https://www.readspeaker.com/
 */
-// Versione script: 1.1.0 - BT SOLO CONFIGURAZIONE
+// Versione script: 1.3.0 - NTP + DST AUTO
 // Board: Atom Lite + SPK
-// Novità: BT per configurazione (vol, time, random) - Audio da USB/Button
+// Novità: Ora legale automatica + comando scanwifi + NTP all'avvio
+// BT per configurazione (vol, time, random) - Audio da USB/Button
 // LED BLU quando BT attivo, Audio/Riverloop fermati
 
 #include <M5Atom.h>
@@ -23,7 +24,7 @@
 #include "AudioOutputI2S.h"
 
 // === SCRIPT VERSION ===
-const char scriptVersion[] = "1.1.0-CONFIG";
+const char scriptVersion[] = "1.3.0-DST";
 
 // === CONFIG ===
 #define AUDIO_FILE "/riverloop.mp3"
@@ -34,13 +35,86 @@ const char scriptVersion[] = "1.1.0-CONFIG";
 #define I2S_LRCL 21
 #define I2S_DOUT 25
 
+// === NTP CONFIG ===
+const char* ntpServer = "0.it.pool.ntp.org";
+const char* wifiSSID = "StefxMobile";
+const char* wifiPWD = "qwerty123456";
+const long gmtOffset_sec = 3600;        // UTC+1 per Italia
+
+// === DAYLIGHT SAVING TIME (ORA LEGALE) ===
+// Calcola se siamo in ora legale (ultima domenica marzo-ottobre)
+// UE: ultima dom marzo 02:00 → ultima dom ottobre 03:00
+int getDaylightOffset() {
+  int m = month();
+  int d = day();
+  int h = hour();
+  int dow = weekday();  // 1=domenica, 2=lunedì...7=sabato
+  
+  // Gen-Feb: ora solare
+  if (m < 3) return 0;
+  
+  // Apr-Set: sempre ora legale
+  if (m > 3 && m < 10) return 3600;
+  
+  // Nov-Dic: ora solare
+  if (m > 10) return 0;
+  
+  // Marzo: ultima domenica alle 02:00 inizia ora legale
+  if (m == 3) {
+    // L'ultima domenica di marzo è sempre >= 25
+    if (d < 25) return 0;
+    // Trova quale domenica del mese siamo
+    // Se siamo domenica e >= 25, controlliamo se c'è un'altra domenica dopo
+    if (dow == 1) {  // Oggi è domenica
+      if (d + 7 > 31) {  // Non c'è un'altra domenica dopo
+        return (h >= 2) ? 3600 : 0;  // Ultima domenica, cambia alle 02:00
+      } else {
+        return 0;  // C'è ancora un'altra domenica
+      }
+    }
+    // Non siamo domenica, controlliamo se l'ultima domenica è passata
+    // Giorni fino alla prossima domenica
+    int daysToSunday = (7 - dow + 1) % 7;
+    if (daysToSunday == 0) daysToSunday = 7;
+    int nextSunday = d + daysToSunday;
+    if (nextSunday > 31) {
+      return 3600;  // L'ultima domenica è già passata
+    }
+    return 0;  // L'ultima domenica non è ancora arrivata
+  }
+  
+  // Ottobre: ultima domenica alle 03:00 finisce ora legale
+  if (m == 10) {
+    // L'ultima domenica di ottobre è sempre >= 25
+    if (d < 25) return 3600;
+    // Se siamo domenica e >= 25
+    if (dow == 1) {  // Oggi è domenica
+      if (d + 7 > 31) {  // Non c'è un'altra domenica dopo = ultima domenica
+        return (h < 3) ? 3600 : 0;  // Cambia alle 03:00
+      } else {
+        return 3600;  // C'è ancora un'altra domenica
+      }
+    }
+    // Non siamo domenica
+    int daysToSunday = (7 - dow + 1) % 7;
+    if (daysToSunday == 0) daysToSunday = 7;
+    int nextSunday = d + daysToSunday;
+    if (nextSunday > 31) {
+      return 0;  // L'ultima domenica è già passata = ora solare
+    }
+    return 3600;  // L'ultima domenica non è ancora arrivata = ora legale
+  }
+  
+  return 0;
+}
+
 // === AUDIO GLOBALS ===
 AudioFileSourceSD *file = nullptr;
 AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.02;
+float volume = 0.01;
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -159,6 +233,163 @@ void clearSerialScreen() {
   Serial.print(F("[H"));
 }
 
+// === WIFI SCAN ===
+void scanWiFi(Stream *s = &Serial) {
+  s->println(F("🔍 Scansione reti WiFi (2.4GHz)..."));
+  
+  // Attiva WiFi se spento
+  bool wifiWasOff = (WiFi.getMode() == WIFI_OFF);
+  if (wifiWasOff) {
+    WiFi.mode(WIFI_STA);
+    delay(500);
+  }
+  
+  int n = WiFi.scanNetworks();
+  
+  if (n < 0) {
+    s->print(F("❌ Errore scan: "));
+    s->println(n);
+  } else if (n == 0) {
+    s->println(F("⚠️  Nessuna rete trovata!"));
+  } else {
+    s->print(F("Trovate "));
+    s->print(n);
+    s->println(F(" reti:"));
+    
+    for (int i = 0; i < n && i < 20; i++) {
+      String ssid = WiFi.SSID(i);
+      s->print(F("  "));
+      s->print(i + 1);
+      s->print(F(": \""));
+      s->print(ssid);
+      s->print(F("\" ("));
+      s->print(WiFi.RSSI(i));
+      s->print(F("dBm) Ch"));
+      s->print(WiFi.channel(i));
+      
+      // Verifica se è il nostro SSID configurato
+      if (ssid.equals(wifiSSID)) {
+        s->print(F(" ← Configurato"));
+      }
+      s->println();
+    }
+  }
+  
+  WiFi.scanDelete();
+  
+  // Rispegni WiFi se era spento prima
+  if (wifiWasOff) {
+    WiFi.mode(WIFI_OFF);
+  }
+}
+
+// === NTP SYNC ===
+bool syncTimeWithNTP(Stream *s = &Serial) {
+  s->println(F("🌐 Sincronizzazione NTP..."));
+  
+  // Reset completo WiFi
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  delay(500);  // Pausa più lunga per reset completo
+  
+  // Attiva WiFi
+  WiFi.mode(WIFI_STA);
+  delay(500);
+  
+  s->print(F("MAC: "));
+  s->println(WiFi.macAddress());
+  s->print(F("Connessione a: "));
+  s->println(wifiSSID);
+  WiFi.begin(wifiSSID, wifiPWD);
+  
+  s->print(F("Connessione"));
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 40) {  // aumentato a 40 = 20 secondi
+    delay(500);
+    s->print(".");
+    attempts++;
+    
+    // Debug stato ogni 5 tentativi
+    if (attempts % 5 == 0) {
+      s->print(F(" ["));
+      s->print(WiFi.status());
+      s->print(F("]"));
+    }
+    yield();
+  }
+  
+  if (WiFi.status() != WL_CONNECTED) {
+    s->println(F(" FALLITO!"));
+    s->print(F("❌ WiFi status: "));
+    s->println(WiFi.status());
+    s->println(F("   0=IDLE, 1=NO_SSID, 3=CONNECTED, 4=CONNECT_FAILED, 6=DISCONNECTED"));
+    
+    if (WiFi.status() == 4) {
+      s->println(F("   Password errata o sicurezza non compatibile"));
+    } else if (WiFi.status() == 1) {
+      s->println(F("   SSID non raggiungibile (verifica lista sopra)"));
+    }
+    
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    return false;
+  }
+  
+  s->println(F(" OK!"));
+  s->print(F("IP: "));
+  s->println(WiFi.localIP());
+  
+  // Configura e sincronizza NTP (senza DST, lo aggiungeremo dopo)
+  s->println(F("Sincronizzo con NTP..."));
+  configTime(gmtOffset_sec, 0, ntpServer);  // Prima sincronizza senza DST
+  
+  // Attendi sincronizzazione (max 10 secondi)
+  int ntpAttempts = 0;
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo) && ntpAttempts < 20) {
+    delay(500);
+    s->print(".");
+    ntpAttempts++;
+    yield();
+  }
+  
+  if (ntpAttempts >= 20) {
+    s->println(F(" TIMEOUT!"));
+    s->println(F("❌ Impossibile sincronizzare con NTP"));
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
+    return false;
+  }
+  
+  s->println(F(" OK!"));
+  
+  // Aggiorna TimeLib con l'orario sincronizzato (UTC+1)
+  setTime(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec,
+          timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
+  
+  // Calcola offset ora legale in base alla data
+  int dstOffset = getDaylightOffset();
+  
+  // Applica l'offset DST se necessario
+  if (dstOffset == 3600) {
+    adjustTime(3600);  // Aggiungi 1 ora se in ora legale
+  }
+  
+  s->print(F("✅ Orario aggiornato: "));
+  printTime(*s);
+  s->printf("   %02d/%02d/%04d", day(), month(), year());
+  s->print(F(" ("));
+  s->print(dstOffset == 3600 ? F("Ora legale +1h") : F("Ora solare"));
+  s->println(F(")"));
+  
+  // Disconnetti WiFi per risparmiare RAM
+  WiFi.disconnect();
+  WiFi.mode(WIFI_OFF);
+  s->println(F("WiFi disattivato (RAM risparmiata)"));
+  
+  return true;
+}
+
 
 
 void printHelp(bool useBT=false){
@@ -173,8 +404,10 @@ void printHelp(bool useBT=false){
     s->println(F("  help           → Questo elenco"));
     s->println(F("  vol+ / vol-    → Volume +/- 10%"));
     s->println(F("  vol=XX         → Imposta volume (0–100)"));
-    s->println(F("  settime=H M S  → Imposta orario"));
+    s->println(F("  settime=H M S  → Imposta orario manuale"));
+    s->println(F("  settime=ntp    → Sincronizza con NTP WiFi"));
     s->println(F("  gettime        → Mostra orario"));
+    s->println(F("  scanwifi       → Scansiona reti WiFi"));
     s->println(F("  randomplay=X   → Random on/off (0/1)"));
     s->println(F("  setinterval=X  → Intervallo random (sec)"));
     s->println(F("  ram            → Statistiche RAM"));
@@ -199,7 +432,10 @@ void printHelp(bool useBT=false){
     s->println(F("  randomplay=X     → Random on/off (0/1)"));
     s->println(F("  setinterval=X    → Intervallo random (sec)"));
     s->println(F("  vol+/vol-/vol=XX → Controllo volume"));
-    s->println(F("  settime/gettime  → Gestione orario"));
+    s->println(F("  settime=H M S    → Imposta orario manuale"));
+    s->println(F("  settime=ntp      → Sincronizza con NTP WiFi"));
+    s->println(F("  gettime          → Mostra orario"));
+    s->println(F("  scanwifi         → Scansiona reti WiFi"));
     s->println(F("  ram              → Statistiche RAM"));
     s->println(F("  togglebt         → Toggle Bluetooth"));
   }
@@ -708,16 +944,27 @@ void processCommand(char* cmd, bool fromBT=false) {
     printTime(*s);
   }
   else if (startsWith(cmd, "settime=")) {
-    int h, m, sec;
-    if (sscanf(cmd + 8, "%d %d %d", &h, &m, &sec) == 3) {
-      setTime(h,m,sec,1,1,1970);
-      s->print(F("Orario aggiornato: "));
-      printTime(*s);
+    if (equalsIgnoreCase(cmd + 8, "ntp")) {
+      // Sincronizza con NTP
+      syncTimeWithNTP(s);
+    } else {
+      // Imposta orario manuale
+      int h, m, sec;
+      if (sscanf(cmd + 8, "%d %d %d", &h, &m, &sec) == 3) {
+        setTime(h,m,sec,1,1,1970);
+        s->print(F("Orario aggiornato: "));
+        printTime(*s);
+      } else {
+        s->println(F("Formato non valido. Usa: settime=H M S oppure settime=ntp"));
+      }
     }
   }
   else if (equalsIgnoreCase(cmd, "gettime")) {
     s->print(F("Ora corrente: "));
     printTime(*s);
+  }
+  else if (equalsIgnoreCase(cmd, "scanwifi")) {
+    scanWiFi(s);
   }
   else if (equalsIgnoreCase(cmd, "ram")) {
     s->print(F("RAM libera: "));
@@ -748,8 +995,6 @@ void processCommand(char* cmd, bool fromBT=false) {
 
 // === SETUP ===
 void setup() {
-  // OTTIMIZZAZIONE CRITICA: Disabilita WiFi per liberare RAM
-  WiFi.mode(WIFI_OFF);
   // BT disabilitato all'avvio, si attiva con bottone lungo
   
   M5.begin(true, false, true);
@@ -789,6 +1034,15 @@ void setup() {
   
   Serial.print(F("RAM disponibile: "));
   Serial.println(ESP.getFreeHeap());
+  
+  // === SINCRONIZZAZIONE NTP ALL'AVVIO ===
+  Serial.println(F("\n--- Sincronizzazione orario ---"));
+  if (!syncTimeWithNTP(&Serial)) {
+    Serial.println(F("⚠️  Sincronizzazione fallita, uso orario di default"));
+    Serial.println(F("   Puoi sincronizzare manualmente con: settime=ntp"));
+  }
+  Serial.println(F("---\n"));
+  
   Serial.println(F("Premi 3sec per BT"));
   
   printHelp();
