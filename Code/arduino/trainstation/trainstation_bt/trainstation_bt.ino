@@ -117,7 +117,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 90;
+float volume = 0.95; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -473,6 +473,8 @@ void executeAudioPlayList(const char* command) {
   int sm_track = command[1] - '0';
   int sm_action = command[2] - '0';
 
+
+
   sm_totalFile = 0;
   memset(sm_playList, 0, sizeof(sm_playList));
 
@@ -480,13 +482,36 @@ void executeAudioPlayList(const char* command) {
   addToPlayList(121);
 
   switch (sm_train) {
-    case 1: addToPlayList(201); addToPlayList(65); addToPlayList(100); addToPlayList(100); addToPlayList(1); break;
-    case 2: addToPlayList(202); addToPlayList(45); addToPlayList(61); break;
-    case 3: addToPlayList(203); addToPlayList(45); addToPlayList(59); break;
-    case 4: addToPlayList(204); addToPlayList(35); addToPlayList(100); addToPlayList(100); addToPlayList(4); break;
-    case 5: addToPlayList(205); addToPlayList(23); addToPlayList(55); break;
-    case 6: addToPlayList(206); addToPlayList(60); addToPlayList(44); break;
-    case 7: addToPlayList(207); addToPlayList(55); addToPlayList(21); break;
+    case 1:
+      addToPlayList(201);
+      addToPlayList(65);
+      addToPlayList(100);
+      addToPlayList(100);
+      addToPlayList(1);
+      break;
+
+    case 4:
+      addToPlayList(204);
+      addToPlayList(35);
+      addToPlayList(100);
+      addToPlayList(100);
+      addToPlayList(4);
+      break;
+
+    // Per tutti gli altri casi: 2, 3, 5, 6, 7
+    case 2:
+    case 3:
+    case 5:
+    case 6:
+    case 7: {
+      int base = 200 + sm_train;  // genera 202, 203, 205, 206, 207
+      int rnd1 = random(11, 61);  // 11–60 inclusi
+      int rnd2 = random(11, 61);
+      addToPlayList(base);
+      addToPlayList(rnd1);
+      addToPlayList(rnd2);
+      break;
+    }
   }
 
   addToPlayList(140);
@@ -1165,7 +1190,7 @@ void processCommand(char* cmd, bool fromBT=false) {
 // === SETUP ===
 void setup() {
   // BT disabilitato all'avvio, si attiva con bottone lungo
-  
+    
   M5.begin(true, false, true);
   SPI.begin(SCK, MISO, MOSI, -1);
   Serial.begin(115200);
@@ -1198,8 +1223,7 @@ void setup() {
   mp3->begin(id3, out);
   Serial.println(F("MP3 OK"));
 
-  setTime(12, 0, 0, 1, 1, 1970);
-  randomSeed(analogRead(0));
+  setTime(12, 0, 0, 1, 1, 1970);  
   
   Serial.print(F("RAM disponibile: "));
   Serial.println(ESP.getFreeHeap());
@@ -1216,6 +1240,9 @@ void setup() {
   
   printHelp();
   startRiverLoop();
+
+   // RANDOM seed robusto: micros() 
+  randomSeed(micros());
 }
 
 // === LOOP ===
