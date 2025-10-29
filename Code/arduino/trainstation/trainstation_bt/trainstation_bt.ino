@@ -114,7 +114,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.01;
+float volume = 90;
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
