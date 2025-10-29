@@ -6,9 +6,9 @@
     ESP8266Audio: https://github.com/earlephilhower/ESP8266Audio
     Audio generato da: https://www.readspeaker.com/
 */
-// Versione script: 1.3.0 - NTP + DST AUTO
+// Versione script: 1.4.0 - METEO + NTP + DST
 // Board: Atom Lite + SPK
-// Novità: Ora legale automatica + comando scanwifi + NTP all'avvio
+// Novità: Annunci meteo Trieste (Open-Meteo API) + ora legale auto + NTP
 // BT per configurazione (vol, time, random) - Audio da USB/Button
 // LED BLU quando BT attivo, Audio/Riverloop fermati
 
@@ -18,13 +18,16 @@
 #include <SPI.h>
 #include <TimeLib.h>
 #include <BluetoothSerial.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include "AudioFileSourceSD.h"
 #include "AudioFileSourceID3.h"
 #include "AudioGeneratorMP3.h"
 #include "AudioOutputI2S.h"
 
+
 // === SCRIPT VERSION ===
-const char scriptVersion[] = "1.3.0-DST";
+const char scriptVersion[] = "1.4.0-METEO";
 
 // === CONFIG ===
 #define AUDIO_FILE "/riverloop.mp3"
@@ -114,7 +117,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 90;
+float volume = 0.2;
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -429,6 +432,7 @@ void printHelp(bool useBT=false){
     s->println(F("  alert8           → Treno in transito al binario (casuale 1–9)"));
     s->println(F("  alert9           → Si nascondono 5 personaggi"));
     s->println(F("  alert10          → Benvenuti alla maker faire"));
+    s->println(F("  meteo            → Annuncio meteo Trieste"));
     s->println(F("  randomplay=X     → Random on/off (0/1)"));
     s->println(F("  setinterval=X    → Intervallo random (sec)"));
     s->println(F("  vol+/vol-/vol=XX → Controllo volume"));
@@ -603,6 +607,163 @@ void playSingleFile(int num) {
   
   // Riavvia riverloop
   startRiverLoop();
+}
+
+// === METEO TRIESTE ===
+bool getMeteoTrieste(float &temp, int &weatherCode) {
+  Serial.println(F("🌤️ Recupero meteo da Open-Meteo per Trieste..."));
+  
+  // Attiva WiFi se spento
+  bool wifiWasOff = (WiFi.getMode() == WIFI_OFF);
+  if (wifiWasOff) {
+    WiFi.mode(WIFI_STA);
+    delay(500);
+  }
+  
+  // Connetti WiFi se non già connesso
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print(F("Connessione WiFi..."));
+    WiFi.begin(wifiSSID, wifiPWD);
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts++;
+      yield();
+    }
+    
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println(F(" FALLITO!"));
+      if (wifiWasOff) WiFi.mode(WIFI_OFF);
+      return false;
+    }
+    Serial.println(F(" OK"));
+  }
+  
+  // Chiamata API Open-Meteo
+  String url = "http://api.open-meteo.com/v1/forecast?latitude=45.65&longitude=13.77&current_weather=true";
+  HTTPClient http;
+  http.begin(url);
+  http.setTimeout(10000); // 10 secondi timeout
+  
+  int httpCode = http.GET();
+  bool success = false;
+  
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+    
+    // Parse JSON
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, payload);
+    
+    if (!error) {
+      JsonObject weather = doc["current_weather"];
+      
+      if (!weather.isNull()) {
+        temp = weather["temperature"];
+        weatherCode = weather["weathercode"];
+        
+        Serial.printf("✅ Meteo: %.1f°C, code=%d\n", temp, weatherCode);
+        success = true;
+      } else {
+        Serial.println(F("❌ Dati meteo non trovati nel JSON"));
+      }
+    } else {
+      Serial.print(F("❌ Errore parsing JSON: "));
+      Serial.println(error.c_str());
+    }
+  } else {
+    Serial.printf("❌ HTTP error: %d\n", httpCode);
+  }
+  
+  http.end();
+  
+  // Rispegni WiFi se era spento prima
+  if (wifiWasOff) {
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
+    Serial.println(F("WiFi disattivato"));
+  }
+  
+  return success;
+}
+
+int getWeatherAudioCode(int weatherCode) {
+  // Mappa weatherCode di Open-Meteo agli audio
+  // Codici Open-Meteo: https://open-meteo.com/en/docs
+  switch (weatherCode) {
+    case 0: return 311; // cielo sereno
+    case 1: case 2: case 3: return 312; // parzialmente nuvoloso
+    case 45: case 48: return 314; // nebbia
+    case 51: case 53: case 55: // drizzle
+    case 61: case 63: case 65: // pioggia
+    case 80: case 81: case 82: return 313; // pioggia
+    case 95: case 96: case 99: return 315; // temporale
+    default: return 316; // condizioni variabili
+  }
+}
+
+void playMeteoAnnouncement() {
+  // NON riprodurre audio se BT è attivo
+  if (btEnabled) {
+    Serial.println(F("Audio disabilitato in BT mode"));
+    return;
+  }
+  
+  Serial.println(F("🌡️ Annuncio meteo Trieste"));
+  
+  // Recupera dati meteo
+  float temp;
+  int weatherCode;
+  
+  if (!getMeteoTrieste(temp, weatherCode)) {
+    Serial.println(F("❌ Impossibile recuperare meteo"));
+    return;
+  }
+  
+  // Costruisci playlist annuncio
+  sm_totalFile = 0;
+  
+  // Saluto in base all'ora
+  int h = hour();
+  if (h >= 0 && h < 12) addToPlayList(301);       // Buongiorno
+  else if (h >= 12 && h < 17) addToPlayList(302); // Buonpomeriggio
+  else addToPlayList(303);                         // Buonasera
+  
+  addToPlayList(304); // "a tutti da Trieste, sono le ore"
+  
+  // Ora attuale
+  addToPlayList(hour());
+  addToPlayList(135); // "e"
+  addToPlayList(convertIntTo2DigitString(minute()));
+  
+  addToPlayList(305); // "in questo momento ci sono"
+  
+  // Temperatura (arrotonda a intero)
+  int tempInt = (int)round(temp);
+  if (tempInt < 0) {
+    // Temperatura negativa - gestione opzionale
+    tempInt = abs(tempInt);
+  }
+  
+  // Converti temperatura in audio
+  if (tempInt < 10) {
+    addToPlayList(tempInt + 100); // 0-9 -> 100-109
+  } else {
+    addToPlayList(tempInt); // 10-99 direttamente
+  }
+  
+  addToPlayList(306); // "gradi"
+  
+  addToPlayList(307); // "e le condizioni del meteo indicano"
+  
+  // Condizione meteo
+  int audioCode = getWeatherAudioCode(weatherCode);
+  addToPlayList(audioCode);
+  
+  // Riproduci
+  Serial.printf("🎤 Playlist meteo: %d file\n", sm_totalFile);
+  playPlaylist();
 }
 
 void playPlaylist() {
@@ -917,6 +1078,14 @@ void processCommand(char* cmd, bool fromBT=false) {
       else if (equalsIgnoreCase(cmd, "alert10")) playSingleFile(196);
     }
   }
+  else if (equalsIgnoreCase(cmd, "meteo")) {
+    if (fromBT) {
+      s->println(F("Comando audio non disponibile via BT"));
+      s->println(F("Usa BT solo per configurazione"));
+    } else {
+      playMeteoAnnouncement();
+    }
+  }
   else if (startsWith(cmd, "randomplay=")) {
     int val = atoi(cmd + 11);
     randomPlayFlag = (val != 0);
@@ -1163,7 +1332,7 @@ void loop() {
   // === MODALITÀ RANDOM === (solo se BT spento)
   if (randomPlayFlag && !btEnabled && !playingPlaylist && millis() - lastRandomEvent > randomInterval) {
     lastRandomEvent = millis();
-    int tipo = random(2);
+    int tipo = random(3); // 0=alert, 1=treno, 2=meteo
     
     if (tipo == 0) {
       // Alert random
@@ -1192,7 +1361,7 @@ void loop() {
                       alertNum == 9 ? 186 : 196;
         playSingleFile(fileNum);
       }
-    } else {
+    } else if (tipo == 1) {
       // Annuncio treno random
       int train = random(1, 8);
       int binario = random(1, 10);
@@ -1206,6 +1375,10 @@ void loop() {
       
       executeAudioPlayList(cmd);
       playPlaylist();
+    } else {
+      // Annuncio meteo random
+      Serial.println(F("RND-METEO"));
+      playMeteoAnnouncement();
     }
   }
 
