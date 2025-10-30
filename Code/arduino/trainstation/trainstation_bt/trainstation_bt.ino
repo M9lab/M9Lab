@@ -741,12 +741,21 @@ void playMeteoAnnouncement() {
   
   Serial.println(F("🌡️ Annuncio meteo Trieste"));
   
+  // FERMA RIVERLOOP prima di caricare dati (evita glitch durante WiFi)
+  if (mp3 && mp3->isRunning()) {
+    Serial.println(F("Fermo riverloop per caricamento meteo..."));
+    mp3->stop();
+    delay(100);
+  }
+  
   // Recupera dati meteo
   float temp;
   int weatherCode;
   
   if (!getMeteoTrieste(temp, weatherCode)) {
     Serial.println(F("❌ Impossibile recuperare meteo"));
+    // Riavvia riverloop anche in caso di errore
+    startRiverLoop();
     return;
   }
   
