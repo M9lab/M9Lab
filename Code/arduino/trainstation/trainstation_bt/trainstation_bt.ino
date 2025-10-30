@@ -6,11 +6,11 @@
     ESP8266Audio: https://github.com/earlephilhower/ESP8266Audio
     Audio generato da: https://www.readspeaker.com/
 */
-// Versione script: 1.4.0 - METEO + NTP + DST
+// Versione script: 1.5.0 - TRIPLO CLICK
 // Board: Atom Lite + SPK
-// Novità: Annunci meteo Trieste (Open-Meteo API) + ora legale auto + NTP
-// BT per configurazione (vol, time, random) - Audio da USB/Button
-// LED BLU quando BT attivo, Audio/Riverloop fermati
+// Novità: Multi-click migliorato (1x, 2x, 3x)
+// Pattern bottone: 1x=Alert1, 2x=Alert9, 3x=Meteo, Long=BT toggle
+// Random play include: alert, treni, meteo
 
 #include <M5Atom.h>
 #include <WiFi.h>
@@ -27,7 +27,7 @@
 
 
 // === SCRIPT VERSION ===
-const char scriptVersion[] = "1.4.0-METEO";
+const char scriptVersion[] = "1.5.0-MULTICLICK";
 
 // === CONFIG ===
 #define AUDIO_FILE "/riverloop.mp3"
@@ -117,7 +117,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.95; //(max 1 => 100)
+float volume = 0.80; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -145,11 +145,11 @@ unsigned long randomInterval = 60000; // ogni 60s evento casuale
 unsigned long lastButtonPress = 0;
 unsigned long buttonPressStart = 0;
 
-// === DOUBLE CLICK ===
+// === MULTI CLICK (doppio/triplo) ===
 unsigned long lastClickTime = 0;
-bool waitingForDoubleClick = false;
-#define DOUBLE_CLICK_TIMEOUT 700  // aumentato per maggiore precisione
-#define MAX_CLICK_DURATION 350    // massima durata click per doppio click
+int clickCount = 0;  // Conta i click
+#define MULTI_CLICK_TIMEOUT 800  // tempo per completare multi-click
+#define MAX_CLICK_DURATION 350    // massima durata click valido
 
 // === CALLBACKS ===
 void StatusCallback(void *cbData, int code, const char *string) {
@@ -453,7 +453,11 @@ void printHelp(bool useBT=false){
     s->println();
   }
   s->printf("  RAM: %d bytes\n", ESP.getFreeHeap());
-  s->println(F("  [Long press 3s = toggle BT]"));
+  s->println(F("\n  === PATTERN BOTTONE ==="));
+  s->println(F("  [1 click  = ALERT1]"));
+  s->println(F("  [2 click  = ALERT9]"));
+  s->println(F("  [3 click  = METEO]"));
+  s->println(F("  [3s press = Toggle BT]"));
   s->println(F("---\n"));
 }
 
@@ -1228,9 +1232,14 @@ void setup() {
   Serial.print(F("RAM disponibile: "));
   Serial.println(ESP.getFreeHeap());
   
-  // === SINCRONIZZAZIONE NTP ALL'AVVIO ===
-  Serial.println(F("\n--- Sincronizzazione orario ---"));
-  if (!syncTimeWithNTP(&Serial)) {
+  // === SINCRONIZZAZIONE NTP + METEO ALL'AVVIO ===
+  Serial.println(F("\n--- Sincronizzazione orario + Meteo ---"));
+  bool ntpSuccess = syncTimeWithNTP(&Serial);
+  if (ntpSuccess) {
+    Serial.println(F("✅ Orario sincronizzato, annuncio meteo..."));
+    delay(1000); // Pausa prima dell'annuncio
+    playMeteoAnnouncement(); // Conferma audio + meteo
+  } else {
     Serial.println(F("⚠️  Sincronizzazione fallita, uso orario di default"));
     Serial.println(F("   Puoi sincronizzare manualmente con: settime=ntp"));
   }
@@ -1249,7 +1258,7 @@ void setup() {
 void loop() {
   M5.update();
 
-  // GESTIONE BOTTONE: pressione breve = ALERT1, doppio click = ALERT9, pressione lunga (3s) = Toggle BT
+  // GESTIONE BOTTONE: 1x=ALERT1, 2x=ALERT9, 3x=METEO, Long(3s)=Toggle BT
   if (M5.Btn.wasPressed()) {
     buttonPressStart = millis();
   }
@@ -1262,53 +1271,54 @@ void loop() {
       // Pressione lunga: Toggle Bluetooth
       Serial.println(F("Long press detected"));
       toggleBluetooth();
-      // LED gestito in toggleBluetooth()
-      waitingForDoubleClick = false; // Reset doppio click
+      clickCount = 0;
       lastClickTime = 0;
       
     } else if (pressDuration >= 50 && pressDuration <= MAX_CLICK_DURATION && !btEnabled) {
-      // Pressione breve: verifica doppio click
-      // Solo click rapidi (< MAX_CLICK_DURATION) contano per doppio click
-      
-      if (waitingForDoubleClick && (now - lastClickTime) < DOUBLE_CLICK_TIMEOUT) {
-        // DOPPIO CLICK rilevato -> ALERT9
-        Serial.println(F("✓✓ Doppio click -> ALERT9"));
-        playSingleFile(186);
-        waitingForDoubleClick = false;
-        lastClickTime = 0;
-        lastButtonPress = now;
-      } else {
-        // Primo click: aspetta per vedere se arriva il secondo
-        Serial.println(F("✓ Click 1/2..."));
-        waitingForDoubleClick = true;
+      // Click valido: incrementa contatore
+      if (clickCount == 0 || (now - lastClickTime) < MULTI_CLICK_TIMEOUT) {
+        clickCount++;
         lastClickTime = now;
-        lastButtonPress = now;
+        Serial.print(F("✓ Click "));
+        Serial.print(clickCount);
+        Serial.println(F("..."));
+      } else {
+        // Timeout scaduto, ricomincia da 1
+        clickCount = 1;
+        lastClickTime = now;
+        Serial.println(F("✓ Click 1..."));
       }
       
     } else if (pressDuration > MAX_CLICK_DURATION && pressDuration < 3000 && !btEnabled) {
-      // Click troppo lungo per doppio click ma non long press
-      // Trattalo come click singolo immediato se non stiamo aspettando un secondo click
-      if (!waitingForDoubleClick) {
-        Serial.println(F("Click singolo (lungo) -> ALERT1"));
-        playSingleFile(191);
-        lastButtonPress = millis();
-      }
-      waitingForDoubleClick = false;
+      // Click lungo (non valido per multi-click) → ALERT1 immediato
+      Serial.println(F("Click singolo (lungo) -> ALERT1"));
+      playSingleFile(191);
+      clickCount = 0;
       lastClickTime = 0;
       
     } else if (btEnabled) {
       Serial.println(F("Audio disabilitato (BT attivo)"));
-      waitingForDoubleClick = false;
+      clickCount = 0;
       lastClickTime = 0;
     }
   }
   
-  // Gestione timeout click singolo (controllo NON in playlist per essere reattivo)
-  if (waitingForDoubleClick && !playingPlaylist && (millis() - lastClickTime) > DOUBLE_CLICK_TIMEOUT) {
-    // Timeout scaduto, era un click singolo -> ALERT1
-    Serial.println(F("✓ Click singolo (timeout) -> ALERT1"));
-    playSingleFile(191);
-    waitingForDoubleClick = false;
+  // Gestione timeout multi-click: esegui azione in base al numero di click
+  if (clickCount > 0 && !playingPlaylist && (millis() - lastClickTime) > MULTI_CLICK_TIMEOUT) {
+    if (clickCount == 1) {
+      // Click singolo → ALERT1
+      Serial.println(F("→ Click singolo → ALERT1"));
+      playSingleFile(191);
+    } else if (clickCount == 2) {
+      // Doppio click → ALERT9
+      Serial.println(F("→ Doppio click → ALERT9"));
+      playSingleFile(186);
+    } else if (clickCount >= 3) {
+      // Triplo click → METEO
+      Serial.println(F("→ Triplo click → METEO"));
+      playMeteoAnnouncement();
+    }
+    clickCount = 0;
     lastClickTime = 0;
   }
 
