@@ -1,5 +1,8 @@
+# Computer Vision e elaborazione immagini
 opencv-python==4.8.1.78
 Pillow==10.1.0
 numpy==1.26.2
+
+# Gestione configurazioni da file .env
 python-dotenv==1.0.0
 
