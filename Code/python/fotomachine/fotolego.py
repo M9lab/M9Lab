@@ -8,32 +8,44 @@ import urllib.request
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
+from dotenv import load_dotenv
 
-# ================= CONFIG =================
-PREVIEW_W, PREVIEW_H = 640, 480
-PHOTO_W, PHOTO_H = 1920, 1080
-COUNTDOWN_SECONDS = 3
-HAAR_FILE = "haarcascade_frontalface_default.xml"
+# ================= CARICAMENTO CONFIG DA .ENV =================
+load_dotenv()
+
+# Dimensioni
+PREVIEW_W = int(os.getenv("PREVIEW_W", 640))
+PREVIEW_H = int(os.getenv("PREVIEW_H", 480))
+PHOTO_W = int(os.getenv("PHOTO_W", 1920))
+PHOTO_H = int(os.getenv("PHOTO_H", 1080))
+COUNTDOWN_SECONDS = int(os.getenv("COUNTDOWN_SECONDS", 3))
+HAAR_FILE = os.getenv("HAAR_FILE", "haarcascade_frontalface_default.xml")
 
 # Cartelle input/output
-INPUT_DIR = "input_photos"
-OUTPUT_DIR = "output_photos"
+INPUT_DIR = os.getenv("INPUT_DIR", "input_photos")
+OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output_photos")
 
 # Variabile per testo evento
-EVENT_TEXT = "Benvenuti al LEGO Museum! #LEGOTrains"
+EVENT_TEXT = os.getenv("EVENT_TEXT", "Benvenuti al LEGO Museum! #LEGOTrains")
 
 # Finestra (poster) path
-WINDOW_TEMPLATE_PATH = "window.png"  # PNG della finestra per foto ospiti
-WINDOW_POS = (1000, 50)              # posizione della finestra sullo sfondo
-WINDOW_SIZE = (400, 300)             # dimensione della finestra
+WINDOW_TEMPLATE_PATH = os.getenv("WINDOW_TEMPLATE_PATH", "window.png")
+WINDOW_POS = (
+    int(os.getenv("WINDOW_POS_X", 1000)),
+    int(os.getenv("WINDOW_POS_Y", 50))
+)
+WINDOW_SIZE = (
+    int(os.getenv("WINDOW_SIZE_W", 400)),
+    int(os.getenv("WINDOW_SIZE_H", 300))
+)
 
 # Email config
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_USER = "infomezzaninelab@gmail.com"
-SMTP_PASSWORD = "etnz lfiw bhmp yili"  # qui la App Password generata
-EMAIL_SUBJECT = "La tua foto LEGO"
-EMAIL_HTML_BODY = "<h2>Grazie per aver partecipato!</h2><p>Ecco la tua foto LEGO dall'evento.</p>"
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+EMAIL_SUBJECT = os.getenv("EMAIL_SUBJECT", "La tua foto LEGO")
+EMAIL_HTML_BODY = os.getenv("EMAIL_HTML_BODY", "<h2>Grazie per aver partecipato!</h2><p>Ecco la tua foto LEGO dall'evento.</p>")
 
 # ================= GLOBAL =================
 MODE_PREVIEW = 0
