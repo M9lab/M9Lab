@@ -1,2 +1,4 @@
 infomezzaninelab@gmail.com
 Napoli1!
+
+https://replicate.com/stability-ai/stable-diffusion-img2img
