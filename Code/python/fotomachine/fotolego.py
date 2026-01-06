@@ -11,9 +11,23 @@ import smtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
 import re  # Per validazione email
+import platform  # Per rilevare sistema operativo
 
 # ================= CARICAMENTO CONFIG DA .ENV =================
-load_dotenv()
+# Carica il file .env corretto in base al sistema operativo
+system = platform.system()
+if system == "Linux":
+    # Raspberry Pi - usa .env.raspberry se esiste, altrimenti .env
+    if os.path.exists(".env.raspberry"):
+        load_dotenv(".env.raspberry")
+        print("⚙️ Caricato: .env.raspberry (Raspberry Pi)")
+    else:
+        load_dotenv()
+        print("⚙️ Caricato: .env (default)")
+else:
+    # Windows/Mac - usa .env standard
+    load_dotenv()
+    print("⚙️ Caricato: .env (Windows/Mac)")
 
 # Dimensioni - Preview LIVE 16:9, Preview RESULT 4:3 ridotto, Foto finale 4:3
 PREVIEW_LIVE_W = int(os.getenv("PREVIEW_LIVE_W", 1280))
@@ -99,13 +113,13 @@ EMAIL_HTML_BODY = os.getenv("EMAIL_HTML_BODY", EMAIL_HTML_BODY_DEFAULT)
 
 # ================= TESTI INTERFACCIA =================
 # Bottoni
-BTN_SHOOT_TEXT = os.getenv("BTN_SHOOT_TEXT", "SCATTA FOTO LEGO")
+BTN_SHOOT_TEXT = os.getenv("BTN_SHOOT_TEXT", "SCATTA UNA FOTO")
 BTN_CANCEL_TEXT = os.getenv("BTN_CANCEL_TEXT", "ANNULLA")
 BTN_SEND_TEXT = os.getenv("BTN_SEND_TEXT", "INVIA FOTO")
 BTN_EXIT_TEXT = os.getenv("BTN_EXIT_TEXT", "ESCI")
 
 # Status messages
-STATUS_READY = os.getenv("STATUS_READY", "Premi SCATTA FOTO LEGO o premi SPAZIO")
+STATUS_READY = os.getenv("STATUS_READY", "Premi SCATTA UNA FOTO (o premi SPAZIO o INVIO)")
 STATUS_ENTER_EMAIL = os.getenv("STATUS_ENTER_EMAIL", "Inserisci email e premi INVIO o TAB")
 STATUS_CAMERA_ERROR = os.getenv("STATUS_CAMERA_ERROR", "Errore fotocamera")
 STATUS_EMAIL_REQUIRED = os.getenv("STATUS_EMAIL_REQUIRED", "Inserisci un'email valida")
@@ -128,16 +142,53 @@ MODE_PREVIEW = 0
 MODE_RESULT = 1
 mode = MODE_PREVIEW
 current_photo_path = None
+captured_frame = None  # Frame catturato prima del flash
 inactivity_timer = None  # Timer per timeout automatico
 
 # ================= CREAZIONE CARTELLE =================
 os.makedirs(INPUT_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# ================= CONFIGURAZIONE UI ADATTIVA =================
+# Font sizes da .env (con fallback)
+FONT_SIZE_COUNTDOWN = int(os.getenv("FONT_SIZE_COUNTDOWN", 200))
+FONT_SIZE_STATUS = int(os.getenv("FONT_SIZE_STATUS", 24))
+FONT_SIZE_BUTTON_MAIN = int(os.getenv("FONT_SIZE_BUTTON_MAIN", 26))
+FONT_SIZE_BUTTON_SECONDARY = int(os.getenv("FONT_SIZE_BUTTON_SECONDARY", 20))
+FONT_SIZE_EMAIL_ENTRY = int(os.getenv("FONT_SIZE_EMAIL_ENTRY", 24))
+FONT_SIZE_EVENT_TEXT = int(os.getenv("FONT_SIZE_EVENT_TEXT", 60))
+
+# Padding da .env (con fallback)
+PADDING_FRAME = int(os.getenv("PADDING_FRAME", 20))
+PADDING_BUTTON = int(os.getenv("PADDING_BUTTON", 20))
+
+# Dimensioni UI engagement screen
+QR_CODE_SIZE = int(os.getenv("QR_CODE_SIZE", 350))
+FONT_SIZE_ENGAGEMENT_TITLE = int(os.getenv("FONT_SIZE_ENGAGEMENT_TITLE", 36))
+FONT_SIZE_ENGAGEMENT_TEXT = int(os.getenv("FONT_SIZE_ENGAGEMENT_TEXT", 28))
+FONT_SIZE_ENGAGEMENT_SOCIAL = int(os.getenv("FONT_SIZE_ENGAGEMENT_SOCIAL", 24))
+FONT_SIZE_ENGAGEMENT_THANKS = int(os.getenv("FONT_SIZE_ENGAGEMENT_THANKS", 20))
+
+# Font emoji - Linux usa Noto Color Emoji, Windows usa Segoe UI Emoji
+if system == "Linux":
+    EMOJI_FONT = "Noto Color Emoji"
+else:
+    EMOJI_FONT = "Segoe UI Emoji"
+
 # ================= WEBCAM =================
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+# Usa il backend corretto (system già definito sopra)
+if system == "Windows":
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    print("Sistema: Windows - Usando backend CAP_DSHOW")
+elif system == "Linux":
+    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+    print("Sistema: Linux - Usando backend CAP_V4L2")
+else:
+    cap = cv2.VideoCapture(0)  # Default per macOS e altri
+    print(f"Sistema: {system} - Usando backend default")
+
 if not cap.isOpened():
-    raise RuntimeError("Errore apertura fotocamera")
+    raise RuntimeError("Errore apertura fotocamera. Verifica che la fotocamera sia connessa e abilitata.")
 
 # Imposta risoluzione webcam alta per migliore qualità
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, WEBCAM_CAPTURE_W)
@@ -177,11 +228,14 @@ def update_preview():
             if hasattr(root, 'countdown_active') and root.countdown_active:
                 draw = ImageDraw.Draw(img)
                 text = str(root.countdown_number)
-                # Font grande per countdown
+                # Font grande per countdown (dimensione da .env)
                 try:
-                    font = ImageFont.truetype("arial.ttf", 200)
+                    font = ImageFont.truetype("arial.ttf", FONT_SIZE_COUNTDOWN)
                 except:
-                    font = ImageFont.load_default()
+                    try:
+                        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_COUNTDOWN)
+                    except:
+                        font = ImageFont.load_default()
                 
                 # Calcola posizione centrata
                 bbox = draw.textbbox((0, 0), text, font=font)
@@ -216,39 +270,56 @@ def countdown_step(sec):
         root.after(1000, lambda: countdown_step(sec - 1))
     else:
         root.countdown_active = False
-        # EFFETTO FLASH BIANCO
-        flash_effect()
+        # CATTURA IMMEDIATA + FLASH (ottimizzato per Raspberry)
+        capture_and_flash()
+
+def capture_and_flash():
+    """Cattura il frame SUBITO, poi mostra flash come effetto visivo"""
+    global captured_frame
+    
+    # PASSO 1: CATTURA IMMEDIATA del frame (prima del flash!)
+    # Su Raspberry, flush del buffer per ottenere frame fresco
+    for _ in range(3):  # Ridotto a 3 per essere più veloce
+        cap.read()
+    
+    ret, captured_frame = cap.read()
+    if not ret:
+        status_label.config(text=STATUS_CAMERA_ERROR, fg="#FFFFFF", bg="#E74C3C")
+        btn_shoot.config(state="normal")
+        return
+    
+    # PASSO 2: Mostra flash DOPO aver catturato (effetto visivo)
+    flash_effect()
 
 def flash_effect():
-    """Effetto flash bianco prima dello scatto"""
+    """Effetto flash bianco DOPO lo scatto (solo effetto visivo)"""
     # Crea overlay bianco a schermo intero
     flash_label = tk.Label(root, bg="white", borderwidth=0)
     flash_label.place(x=0, y=0, relwidth=1, relheight=1)
     
-    # Fade out del flash (più veloce = più realistico)
+    # Fade out del flash (veloce)
     def fade_flash(alpha=1.0):
         if alpha > 0:
             # Calcola colore che va da bianco a trasparente
             gray_val = int(255 * alpha)
             color = f'#{gray_val:02x}{gray_val:02x}{gray_val:02x}'
             flash_label.config(bg=color)
-            root.after(30, lambda: fade_flash(alpha - 0.2))
+            root.after(30, lambda: fade_flash(alpha - 0.25))  # Più veloce
         else:
             flash_label.place_forget()
             flash_label.destroy()
-            # Ora cattura la foto
-            capture_photo()
+            # Processa la foto già catturata
+            process_captured_photo()
     
-    # Inizia il fade out dopo un breve momento
-    root.after(50, lambda: fade_flash(1.0))
+    # Inizia il fade out immediatamente
+    root.after(10, lambda: fade_flash(1.0))
 
-def capture_photo():
-    global mode, current_photo_path
-    ret, frame = cap.read()
-    if not ret:
-        status_label.config(text=STATUS_CAMERA_ERROR, fg="#FFFFFF", bg="#E74C3C")
-        btn_shoot.config(state="normal")
-        return
+def process_captured_photo():
+    """Processa il frame già catturato (chiamato dopo il flash)"""
+    global mode, current_photo_path, captured_frame
+    
+    # Usa il frame già catturato
+    frame = captured_frame
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_path = os.path.join(INPUT_DIR, f"{ts}.png")
@@ -367,12 +438,15 @@ def capture_photo():
     # ================= TESTO EVENTO CON SFONDO =================
     draw = ImageDraw.Draw(final_image)
     try:
-        font = ImageFont.truetype("arialbd.ttf", 60)  # Arial Bold più grande
+        font = ImageFont.truetype("arialbd.ttf", FONT_SIZE_EVENT_TEXT)
     except:
         try:
-            font = ImageFont.truetype("arial.ttf", 60)
+            font = ImageFont.truetype("arial.ttf", FONT_SIZE_EVENT_TEXT)
         except:
-            font = ImageFont.load_default()
+            try:
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_EVENT_TEXT)
+            except:
+                font = ImageFont.load_default()
     
     # Calcola bounding box del testo (coordinate relative)
     bbox = draw.textbbox((0, 0), EVENT_TEXT, font=font)
@@ -439,23 +513,64 @@ def show_result(image_pil):
     preview_label.imgtk = imgtk
     preview_label.config(image=imgtk)
     
-    # Assicurati che i frame principali siano visibili
-    status_frame.pack(pady=10)
-    preview_frame.pack(expand=False, pady=10, padx=20)  # expand=False per non occupare tutto lo spazio
+    # IMPORTANTE: Rimuovi tutto prima di riorganizzare
+    status_frame.pack_forget()
+    preview_frame.pack_forget()
+    btn_frame.pack_forget()
+    entry_frame.pack_forget()
+    btn_send.pack_forget()
     
-    # Nascondi bottone scatta e mostra annulla
-    btn_frame.pack(pady=20)
-    btn_shoot.grid_forget()
-    btn_cancel.grid(row=0, column=0)
+    # Ordine corretto: FOTO → LABEL ISTRUZIONI → CAMPO EMAIL → BOTTONE
     
-    # Mostra campo email e bottone invio
+    # 1. Foto in alto
+    preview_frame.pack(expand=False, pady=PADDING_FRAME, padx=PADDING_FRAME)
+    
+    # 2. Label con istruzioni sopra il campo email
+    status_frame.pack(pady=(PADDING_FRAME, 0))  # Padding solo sopra
     status_label.config(text=STATUS_ENTER_EMAIL, fg="#FFFFFF", bg="#2C3E50")
-    entry_email.delete(0, tk.END)  # Pulisce email precedente
-    entry_frame.pack(pady=15)
-    entry_email.pack(padx=80, pady=15, ipady=16)  # Maggior padding left/right
-    btn_send.pack(pady=15)
     
-    # Focus automatico sul campo email per iniziare a scrivere
+    # 3. Campo email
+    entry_frame.pack(pady=(5, PADDING_FRAME))  # Poco padding sopra, normale sotto
+    entry_email.pack(padx=40, pady=PADDING_FRAME, ipady=8)
+    
+    # 4. Frame per bottoni INVIA e ANNULLA affiancati
+    btn_action_frame = tk.Frame(root, bg=UI_BG_COLOR)
+    btn_action_frame.pack(pady=PADDING_FRAME)
+    
+    # Salva riferimento per poterlo distruggere nel reset
+    root.btn_action_frame = btn_action_frame
+    
+    # Crea bottone INVIA FOTO a sinistra (principale)
+    btn_send_result = tk.Button(btn_action_frame, text=BTN_SEND_TEXT, 
+                                 font=("Arial", FONT_SIZE_BUTTON_MAIN, "bold"), 
+                                 bg="#2196F3", fg="white", 
+                                 activebackground="#1976D2", activeforeground="white",
+                                 width=20, height=1, pady=5,
+                                 command=send_email, 
+                                 relief=tk.FLAT, borderwidth=0, cursor="hand2")
+    btn_send_result.grid(row=0, column=0, padx=5)
+    
+    # Crea bottone ANNULLA a destra (secondario) - stessa altezza di INVIA
+    btn_cancel_result = tk.Button(btn_action_frame, text=BTN_CANCEL_TEXT, 
+                                   font=("Arial", FONT_SIZE_BUTTON_MAIN, "bold"),  # Stesso font di INVIA
+                                   bg="#757575", fg="white", 
+                                   activebackground="#616161", activeforeground="white",
+                                   width=20, height=1, pady=5,  # Stessa width di INVIA
+                                   command=reset_kiosk, 
+                                   relief=tk.FLAT, borderwidth=0, cursor="hand2")
+    btn_cancel_result.grid(row=0, column=1, padx=5)
+    
+    # Nascondi bottoni originali
+    btn_frame.pack_forget()
+    btn_cancel.grid_forget()
+    btn_send.pack_forget()
+    
+    # Resetta campo email con placeholder semplice
+    entry_email.delete(0, tk.END)
+    entry_email.config(fg="#999999", highlightbackground="#E0E0E0", highlightcolor="#4CAF50", highlightthickness=3)
+    entry_email.insert(0, EMAIL_PLACEHOLDER)
+    
+    # Focus automatico sul campo email per iniziare a scrivere (rimuove placeholder)
     root.after(100, lambda: entry_email.focus_set())
     # Avvia timer di 30 secondi per reset automatico
     start_inactivity_timer()
@@ -482,22 +597,22 @@ def show_engagement_screen():
     title_frame = tk.Frame(engagement_frame, bg=UI_BG_COLOR)
     title_frame.pack(pady=30)
     
-    emoji_success = tk.Label(title_frame, text="✅", font=("Segoe UI Emoji", 36), 
+    emoji_success = tk.Label(title_frame, text="✅", font=(EMOJI_FONT, FONT_SIZE_ENGAGEMENT_TITLE), 
                             fg="#FFFFFF", bg=UI_BG_COLOR)
     emoji_success.pack(side=tk.LEFT, padx=(0, 10))
     
     success_title = tk.Label(title_frame, 
                             text="Email inviata con successo!", 
-                            font=("Arial", 36, "bold"), 
+                            font=("Arial", FONT_SIZE_ENGAGEMENT_TITLE, "bold"), 
                             fg="#FFFFFF", bg=UI_BG_COLOR)
     success_title.pack(side=tk.LEFT)
     
-    # Carica e mostra QR code Facebook
+    # Carica e mostra QR code Facebook con dimensione da .env
     qr_code_path = "m9lab_facebook_qrcode.png"
     if os.path.exists(qr_code_path):
         try:
             qr_img = Image.open(qr_code_path)
-            qr_img = qr_img.resize((350, 350), Image.LANCZOS)
+            qr_img = qr_img.resize((QR_CODE_SIZE, QR_CODE_SIZE), Image.LANCZOS)
             qr_tk = ImageTk.PhotoImage(qr_img)
             qr_label = tk.Label(engagement_frame, image=qr_tk, bg=UI_BG_COLOR, 
                                borderwidth=6, relief=tk.SOLID, bd=6)
@@ -510,13 +625,13 @@ def show_engagement_screen():
     invite_frame = tk.Frame(engagement_frame, bg=UI_BG_COLOR)
     invite_frame.pack(pady=20)
     
-    emoji_phone = tk.Label(invite_frame, text="📱", font=("Segoe UI Emoji", 28), 
+    emoji_phone = tk.Label(invite_frame, text="📱", font=(EMOJI_FONT, FONT_SIZE_ENGAGEMENT_TEXT), 
                           fg=UI_TEXT_COLOR, bg=UI_BG_COLOR)
     emoji_phone.pack(side=tk.LEFT, padx=(0, 10))
     
     invite_text = tk.Label(invite_frame, 
                            text="Scannerizza il QR code\no seguici sui social!", 
-                           font=("Arial", 28, "bold"), 
+                           font=("Arial", FONT_SIZE_ENGAGEMENT_TEXT, "bold"), 
                            fg=UI_TEXT_COLOR, bg=UI_BG_COLOR,
                            justify=tk.LEFT)
     invite_text.pack(side=tk.LEFT)
@@ -525,24 +640,24 @@ def show_engagement_screen():
     social_frame_links = tk.Frame(engagement_frame, bg=UI_BG_COLOR)
     social_frame_links.pack(pady=15)
     
-    emoji_fb = tk.Label(social_frame_links, text="👍", font=("Segoe UI Emoji", 24), 
+    emoji_fb = tk.Label(social_frame_links, text="👍", font=(EMOJI_FONT, FONT_SIZE_ENGAGEMENT_SOCIAL), 
                        fg="#FFD700", bg=UI_BG_COLOR)
     emoji_fb.pack(side=tk.LEFT, padx=(0, 5))
     
     fb_text = tk.Label(social_frame_links, text="Facebook: M9Lab", 
-                      font=("Arial", 24), fg="#FFD700", bg=UI_BG_COLOR)
+                      font=("Arial", FONT_SIZE_ENGAGEMENT_SOCIAL), fg="#FFD700", bg=UI_BG_COLOR)
     fb_text.pack(side=tk.LEFT, padx=(0, 20))
     
     separator = tk.Label(social_frame_links, text="|", 
-                        font=("Arial", 24), fg="#FFD700", bg=UI_BG_COLOR)
+                        font=("Arial", FONT_SIZE_ENGAGEMENT_SOCIAL), fg="#FFD700", bg=UI_BG_COLOR)
     separator.pack(side=tk.LEFT, padx=10)
     
-    emoji_ig = tk.Label(social_frame_links, text="📸", font=("Segoe UI Emoji", 24), 
+    emoji_ig = tk.Label(social_frame_links, text="📸", font=(EMOJI_FONT, FONT_SIZE_ENGAGEMENT_SOCIAL), 
                        fg="#FFD700", bg=UI_BG_COLOR)
     emoji_ig.pack(side=tk.LEFT, padx=(0, 5))
     
     ig_text = tk.Label(social_frame_links, text="Instagram: @mezzaninelab", 
-                      font=("Arial", 24), fg="#FFD700", bg=UI_BG_COLOR)
+                      font=("Arial", FONT_SIZE_ENGAGEMENT_SOCIAL), fg="#FFD700", bg=UI_BG_COLOR)
     ig_text.pack(side=tk.LEFT)
     
     # Messaggio grazie (frame per allineamento emoji)
@@ -551,11 +666,11 @@ def show_engagement_screen():
     
     thanks_text = tk.Label(thanks_frame, 
                           text="Grazie per aver visitato il nostro stand!", 
-                          font=("Arial", 20), 
+                          font=("Arial", FONT_SIZE_ENGAGEMENT_THANKS), 
                           fg=UI_TEXT_COLOR, bg=UI_BG_COLOR)
     thanks_text.pack(side=tk.LEFT, padx=(0, 10))
     
-    emoji_rocket = tk.Label(thanks_frame, text="🚀", font=("Segoe UI Emoji", 20), 
+    emoji_rocket = tk.Label(thanks_frame, text="🚀", font=(EMOJI_FONT, FONT_SIZE_ENGAGEMENT_THANKS), 
                            fg=UI_TEXT_COLOR, bg=UI_BG_COLOR)
     emoji_rocket.pack(side=tk.LEFT)
     
@@ -565,7 +680,7 @@ def show_engagement_screen():
     
     btn_another = tk.Button(btn_frame_another, 
                             text="  SCATTA UN'ALTRA FOTO", 
-                            font=("Arial", 24, "bold"), 
+                            font=("Arial", FONT_SIZE_ENGAGEMENT_SOCIAL, "bold"), 
                             bg="#4CAF50", fg="white", 
                             activebackground="#45a049", activeforeground="white",
                             width=28, height=2,
@@ -616,15 +731,28 @@ def reset_kiosk():
     if hasattr(root, 'engagement_frame'):
         root.engagement_frame.pack_forget()
     
-    # Mostra elementi standard
-    status_frame.pack(pady=15)
-    preview_frame.pack(expand=True, pady=20, padx=20)
-    btn_frame.pack(pady=20)
-    
+    # Nascondi elementi email
     entry_frame.pack_forget()
     entry_email.pack_forget()
     btn_send.pack_forget()
     btn_cancel.grid_forget()
+    
+    # Distruggi frame bottoni dinamici se esiste (DOPO aver gestito gli altri elementi)
+    def destroy_action_frame():
+        if hasattr(root, 'btn_action_frame') and root.btn_action_frame:
+            try:
+                root.btn_action_frame.destroy()
+            except:
+                pass
+            root.btn_action_frame = None
+    
+    root.after(10, destroy_action_frame)
+    
+    # Mostra elementi standard (stesso ordine dell'avvio)
+    preview_frame.pack(expand=True, pady=PADDING_BUTTON, padx=PADDING_BUTTON)
+    status_frame.pack(pady=PADDING_FRAME)
+    btn_frame.pack(pady=PADDING_BUTTON)
+    
     btn_shoot.grid(row=0, column=0)
     status_label.config(text=STATUS_READY, fg="#FFFFFF", bg="#2C3E50")
     btn_shoot.config(state="normal")
@@ -679,8 +807,8 @@ def validate_email(email):
 def send_email():
     email_to = entry_email.get().strip()
     
-    # Controlla se l'email è vuota
-    if not email_to:
+    # Controlla se l'email è vuota o è ancora il placeholder
+    if not email_to or email_to == EMAIL_PLACEHOLDER:
         status_label.config(text=STATUS_EMAIL_REQUIRED, fg="#FFFFFF", bg="#E74C3C")
         entry_email.config(highlightbackground="#FF6B6B", highlightcolor="#FF6B6B", highlightthickness=2)
         return
@@ -730,8 +858,31 @@ def send_email():
 
 # ================= GUI =================
 root = tk.Tk()
+
+# Rimuovi la barra del titolo (title bar) su tutte le piattaforme
+root.overrideredirect(True)
+
+# Fullscreen robusto per tutte le piattaforme
 root.attributes("-fullscreen", True)
 root.configure(bg=UI_BG_COLOR)
+
+# Su Linux/Raspberry, forza fullscreen con geometry
+if system == "Linux":
+    try:
+        # Ottieni dimensioni schermo
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        root.geometry(f"{screen_width}x{screen_height}+0+0")
+        # Porta la finestra in primo piano
+        root.lift()
+        root.attributes('-topmost', True)
+        root.after_idle(root.attributes, '-topmost', False)
+        # Nascondi cursore per kiosk mode
+        root.config(cursor="none")
+        print(f"🖥️ Fullscreen: {screen_width}x{screen_height}")
+    except:
+        pass
+
 root.protocol("WM_DELETE_WINDOW", lambda: None)
 
 # Crea canvas per sfondo con pattern logo
@@ -785,21 +936,9 @@ def create_logo_pattern():
 # Applica pattern dopo che la finestra è visibile
 root.after(100, create_logo_pattern)
 
-# Frame per status label con sfondo per leggibilità (PRIMA)
-status_frame = tk.Frame(root, bg="#2C3E50", relief=tk.FLAT, borderwidth=0)
-status_frame.pack(pady=15)
-
-# Status label - Testo più grande e bold con sfondo scuro
-status_label = tk.Label(status_frame, text=STATUS_READY, 
-                        fg="#FFFFFF", bg="#2C3E50", 
-                        font=("Arial", 24, "bold"),
-                        borderwidth=0,
-                        padx=30, pady=12)
-status_label.pack()
-
-# Frame per preview con cornice (AL CENTRO)
+# Frame per preview con cornice (IN ALTO)
 preview_frame = tk.Frame(root, bg="#FFFFFF", bd=0, relief=tk.FLAT)
-preview_frame.pack(expand=True, pady=20, padx=20)
+preview_frame.pack(expand=True, pady=PADDING_BUTTON, padx=PADDING_BUTTON)
 
 # Cornice interna (bordo shadow)
 preview_inner_frame = tk.Frame(preview_frame, bg="#E0E0E0", bd=8, relief=tk.FLAT)
@@ -813,24 +952,38 @@ preview_label.pack()
 root.countdown_active = False
 root.countdown_number = 0
 
+# Frame per status label con sfondo (SOTTO LA PREVIEW)
+status_frame = tk.Frame(root, bg="#2C3E50", relief=tk.FLAT, borderwidth=0)
+status_frame.pack(pady=PADDING_FRAME)
+
+# Status label - Testo adattivo da .env
+status_label = tk.Label(status_frame, text=STATUS_READY, 
+                        fg="#FFFFFF", bg="#2C3E50", 
+                        font=("Arial", FONT_SIZE_STATUS, "bold"),
+                        borderwidth=0,
+                        padx=20, pady=8)
+status_label.pack()
+
 # Frame bottoni (IN BASSO)
 btn_frame = tk.Frame(root, bg=UI_BG_COLOR)
-btn_frame.pack(pady=20)
+btn_frame.pack(pady=PADDING_BUTTON)
 
-# Bottone SCATTA FOTO - Design flat moderno
-btn_shoot = tk.Button(btn_frame, text=BTN_SHOOT_TEXT, font=("Arial", 26, "bold"), 
+# Bottone SCATTA FOTO - Design flat moderno con dimensioni da .env (ridotto 10px)
+btn_shoot = tk.Button(btn_frame, text=BTN_SHOOT_TEXT, font=("Arial", FONT_SIZE_BUTTON_MAIN, "bold"), 
                       bg="#4CAF50", fg="white", 
                       activebackground="#45a049", activeforeground="white",
-                      width=20, height=2,
+                      width=20, height=1,  # Ridotto da 2 a 1
+                      pady=5,  # Aggiungo padding interno per compensare
                       relief=tk.FLAT, borderwidth=0,
                       cursor="hand2")
 btn_shoot.grid(row=0, column=0, padx=10)
 
-# Bottone ANNULLA - Design flat
-btn_cancel = tk.Button(btn_frame, text=BTN_CANCEL_TEXT, font=("Arial", 20), 
+# Bottone ANNULLA - Design flat con dimensioni da .env (ridotto come gli altri)
+btn_cancel = tk.Button(btn_frame, text=BTN_CANCEL_TEXT, font=("Arial", FONT_SIZE_BUTTON_SECONDARY), 
                         bg="#757575", fg="white", 
                         activebackground="#616161", activeforeground="white",
-                        width=15, height=2, 
+                        width=15, height=1,  # Ridotto da 2 a 1
+                        pady=5,  # Aggiungo padding interno per compensare
                         command=reset_kiosk, 
                         relief=tk.FLAT, borderwidth=0,
                         cursor="hand2")
@@ -887,26 +1040,47 @@ def on_email_activity(event):
     """Reset timer quando l'utente digita nel campo email"""
     reset_inactivity_timer()
 
-# Campo email - Design flat con padding interno
+# Campo email - Design flat con dimensioni da .env
 entry_frame = tk.Frame(root, bg=UI_BG_COLOR)
-entry_email = tk.Entry(entry_frame, font=("Arial", 24), width=28, 
+entry_email = tk.Entry(entry_frame, font=("Arial", FONT_SIZE_EMAIL_ENTRY), width=28, 
                        relief=tk.FLAT, borderwidth=0,
-                       bg="white", fg="#333333",
+                       bg="white", fg="#999999",  # Colore grigio per placeholder
                        insertbackground="#333333",
                        highlightthickness=3, 
                        highlightbackground="#E0E0E0", 
                        highlightcolor="#4CAF50")
+
+# Funzioni per gestire placeholder
+def add_placeholder(event=None):
+    """Mostra il placeholder quando il campo è vuoto"""
+    if entry_email.get() == "":
+        entry_email.config(fg="#999999")
+        entry_email.insert(0, EMAIL_PLACEHOLDER)
+
+def remove_placeholder(event=None):
+    """Rimuove il placeholder quando l'utente clicca o scrive"""
+    if entry_email.get() == EMAIL_PLACEHOLDER:
+        entry_email.delete(0, tk.END)
+        entry_email.config(fg="#333333")
+
+# Inizializza con placeholder
+entry_email.insert(0, EMAIL_PLACEHOLDER)
+
+# Bind eventi per placeholder
+entry_email.bind('<FocusIn>', remove_placeholder)
+entry_email.bind('<FocusOut>', add_placeholder)
 
 # Bind eventi per reset timer
 entry_email.bind('<KeyPress>', on_email_activity)
 entry_email.bind('<KeyRelease>', on_email_activity)
 entry_email.bind('<Button-1>', lambda e: reset_inactivity_timer())
 
-# Bottone INVIA FOTO - Design flat
-btn_send = tk.Button(root, text=BTN_SEND_TEXT, font=("Arial", 24, "bold"), 
+# Bottone INVIA FOTO - Design flat con dimensioni da .env (ridotto 10px)
+btn_send = tk.Button(root, text=BTN_SEND_TEXT, font=("Arial", FONT_SIZE_BUTTON_MAIN, "bold"), 
                      bg="#2196F3", fg="white", 
                      activebackground="#1976D2", activeforeground="white",
-                     width=25, height=2, 
+                     width=25, height=1,  # Ridotto da 2 a 1
+                     pady=5,  # Aggiungo padding interno per compensare
                      command=send_email, 
                      relief=tk.FLAT, borderwidth=0,
                      cursor="hand2")
@@ -925,12 +1099,19 @@ btn_exit = tk.Button(root, text=BTN_EXIT_TEXT, font=("Arial", 14, "bold"),
                      cursor="hand2")
 btn_exit.place(relx=0.98, rely=0.02, anchor="ne")
 
-# Imposta ordine di navigazione TAB
+# Imposta ordine di navigazione TAB - ESCI deve essere ultimo
 btn_shoot.configure(takefocus=True)
-btn_cancel.configure(takefocus=True)
 entry_email.configure(takefocus=True)
 btn_send.configure(takefocus=True)
+btn_cancel.configure(takefocus=True)
 btn_exit.configure(takefocus=True)
+
+# Forza l'ordine TAB corretto usando lift
+btn_shoot.lift()
+entry_email.lift()
+btn_send.lift()
+btn_cancel.lift()
+btn_exit.lift()  # Ultimo
 
 # Focus iniziale sul bottone scatta
 root.after(200, lambda: btn_shoot.focus_set())

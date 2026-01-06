@@ -4,6 +4,7 @@ output_photos/
 
 # Environment variables (sensitive data)
 .env
+.env.raspberry
 
 # Python
 __pycache__/
