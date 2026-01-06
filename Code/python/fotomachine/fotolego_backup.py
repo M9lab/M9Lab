@@ -15,11 +15,9 @@ import re  # Per validazione email
 # ================= CARICAMENTO CONFIG DA .ENV =================
 load_dotenv()
 
-# Dimensioni - Preview LIVE 16:9, Preview RESULT 4:3 ridotto, Foto finale 4:3
-PREVIEW_LIVE_W = int(os.getenv("PREVIEW_LIVE_W", 1280))
-PREVIEW_LIVE_H = int(os.getenv("PREVIEW_LIVE_H", 720))
-PREVIEW_RESULT_W = int(os.getenv("PREVIEW_RESULT_W", 800))  # Ridotto per lasciare spazio ai controlli
-PREVIEW_RESULT_H = int(os.getenv("PREVIEW_RESULT_H", 600))  # Ridotto per lasciare spazio ai controlli
+# Dimensioni (basate sullo sfondo 1366x1024 - formato 4:3)
+PREVIEW_W = int(os.getenv("PREVIEW_W", 1366))
+PREVIEW_H = int(os.getenv("PREVIEW_H", 1024))
 PHOTO_W = int(os.getenv("PHOTO_W", 1366))
 PHOTO_H = int(os.getenv("PHOTO_H", 1024))
 
@@ -139,38 +137,57 @@ cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 if not cap.isOpened():
     raise RuntimeError("Errore apertura fotocamera")
 
-# Imposta risoluzione webcam alta per migliore qualità
+# Imposta risoluzione webcam a 16:9 direttamente (no crop necessario)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, WEBCAM_CAPTURE_W)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, WEBCAM_CAPTURE_H)
 
 # Verifica risoluzione effettiva
 actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+webcam_ratio = actual_w / actual_h
 
-# Carica background per info
-if os.path.exists(WINDOW_TEMPLATE_PATH):
-    bg_temp = cv2.imread(WINDOW_TEMPLATE_PATH)
-    bg_h, bg_w = bg_temp.shape[:2]
-    print(f"Background: {bg_w}x{bg_h}")
+print(f"Webcam configurata: {actual_w}x{actual_h} (ratio {webcam_ratio:.2f})")
+
+# Calcola dimensioni preview 16:9 che stanno nello schermo
+# Manteniamo il ratio 16:9 della webcam per mostrare esattamente quello che verrà fotografato
+PREVIEW_RATIO = 16.0 / 9.0
+if PREVIEW_W / PREVIEW_H > PREVIEW_RATIO:
+    # Schermo più largo, limita per altezza
+    PREVIEW_DISPLAY_H = PREVIEW_H
+    PREVIEW_DISPLAY_W = int(PREVIEW_H * PREVIEW_RATIO)
 else:
-    print("Nessun background trovato")
+    # Schermo più alto, limita per larghezza
+    PREVIEW_DISPLAY_W = PREVIEW_W
+    PREVIEW_DISPLAY_H = int(PREVIEW_W / PREVIEW_RATIO)
 
-print(f"Webcam: {actual_w}x{actual_h}")
-print(f"Preview LIVE: {PREVIEW_LIVE_W}x{PREVIEW_LIVE_H} (16:9)")
-print(f"Preview RESULT: {PREVIEW_RESULT_W}x{PREVIEW_RESULT_H} (4:3)")
-print(f"Output finale: {PHOTO_W}x{PHOTO_H} (4:3)")
+print(f"Preview display: {PREVIEW_DISPLAY_W}x{PREVIEW_DISPLAY_H} (ratio {PREVIEW_DISPLAY_W/PREVIEW_DISPLAY_H:.2f})")
+print(f"Canvas finale: {PHOTO_W}x{PHOTO_H}")
 
 # ================= FUNZIONI =================
-def resize_no_crop(image, target_size):
-    """Ridimensiona l'immagine senza crop, mantenendo tutto visibile"""
+def resize_to_fit(image, target_size):
+    target_w, target_h = target_size
+    img_w, img_h = image.size
+    target_ratio = target_w / target_h
+    img_ratio = img_w / img_h
+
+    if img_ratio > target_ratio:
+        new_w = int(img_h * target_ratio)
+        offset = (img_w - new_w) // 2
+        image = image.crop((offset, 0, offset + new_w, img_h))
+    else:
+        new_h = int(img_w / target_ratio)
+        offset = (img_h - new_h) // 2
+        image = image.crop((0, offset, img_w, offset + new_h))
+
     return image.resize(target_size, Image.LANCZOS)
 
 def update_preview():
     if mode == MODE_PREVIEW:
         ret, frame = cap.read()
         if ret:
-            # Preview LIVE - Ridimensiona webcam 16:9 direttamente a 16:9 (no barre nere)
-            frame_resized = cv2.resize(frame, (PREVIEW_LIVE_W, PREVIEW_LIVE_H), interpolation=cv2.INTER_LINEAR)
+            # Nessun crop - usa direttamente il frame 16:9 dalla webcam
+            # Ridimensiona preview mantenendo 16:9
+            frame_resized = cv2.resize(frame, (PREVIEW_DISPLAY_W, PREVIEW_DISPLAY_H), interpolation=cv2.INTER_LINEAR)
             img = Image.fromarray(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB))
             
             # Disegna countdown sull'immagine se attivo
@@ -187,8 +204,8 @@ def update_preview():
                 bbox = draw.textbbox((0, 0), text, font=font)
                 text_w = bbox[2] - bbox[0]
                 text_h = bbox[3] - bbox[1]
-                x = (PREVIEW_LIVE_W - text_w) // 2
-                y = (PREVIEW_LIVE_H - text_h) // 2
+                x = (PREVIEW_DISPLAY_W - text_w) // 2
+                y = (PREVIEW_DISPLAY_H - text_h) // 2
                 
                 # Disegna outline nero per contrasto
                 outline_width = 8
@@ -254,7 +271,8 @@ def capture_photo():
     input_path = os.path.join(INPUT_DIR, f"{ts}.png")
     output_path = os.path.join(OUTPUT_DIR, f"{ts}.jpg")
 
-    # Salva foto originale senza crop
+    # ================= SALVA FOTO ORIGINALE 16:9 (NO CROP) =================
+    # La webcam è già configurata in 16:9, usiamo il frame completo
     cv2.imwrite(input_path, frame)
 
     # ================= COMPOSIZIONE CON GREEN SCREEN =================
@@ -374,8 +392,7 @@ def capture_photo():
         except:
             font = ImageFont.load_default()
     
-    # Calcola bounding box del testo (coordinate relative)
-    bbox = draw.textbbox((0, 0), EVENT_TEXT, font=font)
+    bbox = draw.textbbox((0,0), EVENT_TEXT, font=font)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     
@@ -385,17 +402,12 @@ def capture_photo():
     text_y = final_h - 120
     
     # Disegna rettangolo di sfondo semi-trasparente
-    # Padding uniforme che include anche l'outline width
-    outline_width = 3
-    padding_h = 25  # Padding orizzontale
-    padding_v = 20  # Padding verticale
-    
-    # Calcola rettangolo considerando anche l'outline
+    padding = 20
     bg_rect = [
-        text_x - padding_h - outline_width,
-        text_y - padding_v - outline_width + bbox[1],  # Aggiusta per offset baseline
-        text_x + text_w + padding_h + outline_width,
-        text_y + text_h + padding_v + outline_width + bbox[1]
+        text_x - padding,
+        text_y - padding,
+        text_x + text_w + padding,
+        text_y + text_h + padding
     ]
     
     # Crea layer semi-trasparente per sfondo
@@ -413,7 +425,8 @@ def capture_photo():
     # Ridisegna il draw object dopo la conversione
     draw = ImageDraw.Draw(final_image)
     
-    # Disegna outline nero per maggior contrasto (usa outline_width già definito sopra)
+    # Disegna outline nero per maggior contrasto
+    outline_width = 3
     for adj_x in range(-outline_width, outline_width+1):
         for adj_y in range(-outline_width, outline_width+1):
             if adj_x != 0 or adj_y != 0:
@@ -434,27 +447,31 @@ def show_result(image_pil):
     global mode
     mode = MODE_RESULT
     
-    # Mostra foto composta 4:3 nell'anteprima
-    imgtk = ImageTk.PhotoImage(image_pil.resize((PREVIEW_RESULT_W, PREVIEW_RESULT_H)))
+    # Mostra canvas finale 4:3 ridimensionato proporzionalmente per lo schermo
+    # Calcola dimensioni mantenendo aspect ratio 4:3 del canvas
+    canvas_ratio = image_pil.width / image_pil.height  # Dovrebbe essere 1600/1200 = 1.333 (4:3)
+    
+    if PREVIEW_W / PREVIEW_H > canvas_ratio:
+        # Schermo più largo del canvas, limita per altezza
+        display_h = PREVIEW_H
+        display_w = int(PREVIEW_H * canvas_ratio)
+    else:
+        # Schermo più alto del canvas, limita per larghezza
+        display_w = PREVIEW_W
+        display_h = int(PREVIEW_W / canvas_ratio)
+    
+    imgtk = ImageTk.PhotoImage(image_pil.resize((display_w, display_h), Image.LANCZOS))
     preview_label.imgtk = imgtk
     preview_label.config(image=imgtk)
     
-    # Assicurati che i frame principali siano visibili
-    status_frame.pack(pady=10)
-    preview_frame.pack(expand=False, pady=10, padx=20)  # expand=False per non occupare tutto lo spazio
-    
-    # Nascondi bottone scatta e mostra annulla
-    btn_frame.pack(pady=20)
+    status_label.config(text=STATUS_ENTER_EMAIL, fg="#FFFFFF", bg="#2C3E50")
+    instructions_label.pack_forget()  # Nascondi istruzioni tastiera in modalità risultato
     btn_shoot.grid_forget()
     btn_cancel.grid(row=0, column=0)
-    
-    # Mostra campo email e bottone invio
-    status_label.config(text=STATUS_ENTER_EMAIL, fg="#FFFFFF", bg="#2C3E50")
     entry_email.delete(0, tk.END)  # Pulisce email precedente
     entry_frame.pack(pady=15)
     entry_email.pack(padx=80, pady=15, ipady=16)  # Maggior padding left/right
     btn_send.pack(pady=15)
-    
     # Focus automatico sul campo email per iniziare a scrivere
     root.after(100, lambda: entry_email.focus_set())
     # Avvia timer di 30 secondi per reset automatico
@@ -472,6 +489,7 @@ def show_engagement_screen():
     btn_send.pack_forget()
     btn_cancel.grid_forget()
     status_frame.pack_forget()
+    instructions_label.pack_forget()  # Nascondi istruzioni
     btn_frame.pack_forget()
     
     # Crea frame engagement
@@ -618,6 +636,7 @@ def reset_kiosk():
     
     # Mostra elementi standard
     status_frame.pack(pady=15)
+    instructions_label.pack(pady=5)  # Mostra istruzioni tastiera
     preview_frame.pack(expand=True, pady=20, padx=20)
     btn_frame.pack(pady=20)
     
@@ -785,19 +804,7 @@ def create_logo_pattern():
 # Applica pattern dopo che la finestra è visibile
 root.after(100, create_logo_pattern)
 
-# Frame per status label con sfondo per leggibilità (PRIMA)
-status_frame = tk.Frame(root, bg="#2C3E50", relief=tk.FLAT, borderwidth=0)
-status_frame.pack(pady=15)
-
-# Status label - Testo più grande e bold con sfondo scuro
-status_label = tk.Label(status_frame, text=STATUS_READY, 
-                        fg="#FFFFFF", bg="#2C3E50", 
-                        font=("Arial", 24, "bold"),
-                        borderwidth=0,
-                        padx=30, pady=12)
-status_label.pack()
-
-# Frame per preview con cornice (AL CENTRO)
+# Frame per preview con cornice
 preview_frame = tk.Frame(root, bg="#FFFFFF", bd=0, relief=tk.FLAT)
 preview_frame.pack(expand=True, pady=20, padx=20)
 
@@ -813,7 +820,27 @@ preview_label.pack()
 root.countdown_active = False
 root.countdown_number = 0
 
-# Frame bottoni (IN BASSO)
+# Frame per status label con sfondo per leggibilità
+status_frame = tk.Frame(root, bg="#2C3E50", relief=tk.FLAT, borderwidth=0)
+status_frame.pack(pady=15)
+
+# Status label - Testo più grande e bold con sfondo scuro
+status_label = tk.Label(status_frame, text=STATUS_READY, 
+                        fg="#FFFFFF", bg="#2C3E50", 
+                        font=("Arial", 24, "bold"),
+                        borderwidth=0,
+                        padx=30, pady=12)
+status_label.pack()
+
+# Label istruzioni tastiera - sotto lo status
+instructions_label = tk.Label(root, 
+                             text="⌨️ Premi SPAZIO o INVIO per scattare  •  ESC per uscire", 
+                             fg=UI_ACCENT_COLOR, bg=UI_BG_COLOR,
+                             font=("Arial", 16, "italic"),
+                             borderwidth=0,
+                             padx=20, pady=8)
+instructions_label.pack(pady=5)
+
 btn_frame = tk.Frame(root, bg=UI_BG_COLOR)
 btn_frame.pack(pady=20)
 
@@ -823,8 +850,21 @@ btn_shoot = tk.Button(btn_frame, text=BTN_SHOOT_TEXT, font=("Arial", 26, "bold")
                       activebackground="#45a049", activeforeground="white",
                       width=20, height=2,
                       relief=tk.FLAT, borderwidth=0,
-                      cursor="hand2")
+                      cursor="hand2",
+                      command=lambda: start_countdown())
 btn_shoot.grid(row=0, column=0, padx=10)
+
+# Effetti hover per bottone SCATTA
+def on_shoot_enter(e):
+    if btn_shoot['state'] == 'normal':
+        btn_shoot['bg'] = "#45a049"  # Verde più scuro
+
+def on_shoot_leave(e):
+    if btn_shoot['state'] == 'normal':
+        btn_shoot['bg'] = "#4CAF50"  # Verde originale
+
+btn_shoot.bind("<Enter>", on_shoot_enter)
+btn_shoot.bind("<Leave>", on_shoot_leave)
 
 # Bottone ANNULLA - Design flat
 btn_cancel = tk.Button(btn_frame, text=BTN_CANCEL_TEXT, font=("Arial", 20), 
@@ -834,6 +874,16 @@ btn_cancel = tk.Button(btn_frame, text=BTN_CANCEL_TEXT, font=("Arial", 20),
                         command=reset_kiosk, 
                         relief=tk.FLAT, borderwidth=0,
                         cursor="hand2")
+
+# Effetti hover per bottone ANNULLA
+def on_cancel_enter(e):
+    btn_cancel['bg'] = "#616161"  # Grigio più scuro
+
+def on_cancel_leave(e):
+    btn_cancel['bg'] = "#757575"  # Grigio originale
+
+btn_cancel.bind("<Enter>", on_cancel_enter)
+btn_cancel.bind("<Leave>", on_cancel_leave)
 
 # ================= CONTROLLI DA TASTIERA =================
 def on_key_press(event):
@@ -911,6 +961,18 @@ btn_send = tk.Button(root, text=BTN_SEND_TEXT, font=("Arial", 24, "bold"),
                      relief=tk.FLAT, borderwidth=0,
                      cursor="hand2")
 
+# Effetti hover per bottone INVIA
+def on_send_enter(e):
+    if btn_send['state'] == 'normal':
+        btn_send['bg'] = "#1976D2"  # Blu più scuro
+
+def on_send_leave(e):
+    if btn_send['state'] == 'normal':
+        btn_send['bg'] = "#2196F3"  # Blu originale
+
+btn_send.bind("<Enter>", on_send_enter)
+btn_send.bind("<Leave>", on_send_leave)
+
 # Bind click su bottoni per reset timer
 btn_send.bind('<Button-1>', lambda e: reset_inactivity_timer())
 btn_cancel.bind('<Button-1>', lambda e: reset_inactivity_timer())
@@ -925,6 +987,16 @@ btn_exit = tk.Button(root, text=BTN_EXIT_TEXT, font=("Arial", 14, "bold"),
                      cursor="hand2")
 btn_exit.place(relx=0.98, rely=0.02, anchor="ne")
 
+# Effetti hover per bottone EXIT
+def on_exit_enter(e):
+    btn_exit['bg'] = "#C62828"  # Rosso più scuro
+
+def on_exit_leave(e):
+    btn_exit['bg'] = "#E53935"  # Rosso originale
+
+btn_exit.bind("<Enter>", on_exit_enter)
+btn_exit.bind("<Leave>", on_exit_leave)
+
 # Imposta ordine di navigazione TAB
 btn_shoot.configure(takefocus=True)
 btn_cancel.configure(takefocus=True)
@@ -936,6 +1008,6 @@ btn_exit.configure(takefocus=True)
 root.after(200, lambda: btn_shoot.focus_set())
 
 # ================= AVVIO =================
-btn_shoot.config(command=start_countdown)
+# Comando già assegnato al bottone nella creazione
 update_preview()
 root.mainloop()
