@@ -29,13 +29,13 @@ else:
     load_dotenv()
     print("⚙️ Caricato: .env (Windows/Mac)")
 
-# Dimensioni - Preview LIVE 16:9, Preview RESULT 4:3 ridotto, Foto finale 4:3
+# Dimensioni - Preview LIVE 16:9, Preview RESULT 3:2 ridotto, Foto finale 3:2
 PREVIEW_LIVE_W = int(os.getenv("PREVIEW_LIVE_W", 1280))
 PREVIEW_LIVE_H = int(os.getenv("PREVIEW_LIVE_H", 720))
 PREVIEW_RESULT_W = int(os.getenv("PREVIEW_RESULT_W", 800))  # Ridotto per lasciare spazio ai controlli
-PREVIEW_RESULT_H = int(os.getenv("PREVIEW_RESULT_H", 600))  # Ridotto per lasciare spazio ai controlli
-PHOTO_W = int(os.getenv("PHOTO_W", 1366))
-PHOTO_H = int(os.getenv("PHOTO_H", 1024))
+PREVIEW_RESULT_H = int(os.getenv("PREVIEW_RESULT_H", 533))  # Ridotto per lasciare spazio ai controlli (3:2)
+PHOTO_W = int(os.getenv("PHOTO_W", 1536))
+PHOTO_H = int(os.getenv("PHOTO_H", 1024))  # 3:2 aspect ratio (1536x1024)
 
 # Risoluzione webcam per cattura (alta qualità)
 WEBCAM_CAPTURE_W = int(os.getenv("WEBCAM_CAPTURE_W", 1920))
@@ -50,9 +50,12 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output_photos")
 EVENT_TEXT = os.getenv("EVENT_TEXT", "Benvenuti al LEGO Museum! #LEGOTrains")
 
 # Background template path
-WINDOW_TEMPLATE_PATH = os.getenv("WINDOW_TEMPLATE_PATH", "background.png")
+WINDOW_TEMPLATE_PATH = os.getenv("WINDOW_TEMPLATE_PATH", "background3.png")
 
-# Green screen - coordinate normalizzate per 1366x1024 (4:3)
+# Auto-detect green screen (True = automatico, False = usa coordinate manuali)
+AUTO_DETECT_GREEN_SCREEN = os.getenv("AUTO_DETECT_GREEN_SCREEN", "True").lower() in ("true", "1", "yes")
+
+# Green screen - coordinate normalizzate per 1536x1024 (3:2) - USATE SOLO SE AUTO_DETECT=False
 # Con inclinazione yaw 0.5-1° (lato destro leggermente ruotato)
 GS_TOP_LEFT_X = float(os.getenv("GS_TOP_LEFT_X", 0.4451))
 GS_TOP_LEFT_Y = float(os.getenv("GS_TOP_LEFT_Y", 0.1787))
@@ -211,10 +214,116 @@ else:
 
 print(f"Webcam: {actual_w}x{actual_h}")
 print(f"Preview LIVE: {PREVIEW_LIVE_W}x{PREVIEW_LIVE_H} (16:9)")
-print(f"Preview RESULT: {PREVIEW_RESULT_W}x{PREVIEW_RESULT_H} (4:3)")
-print(f"Output finale: {PHOTO_W}x{PHOTO_H} (4:3)")
+print(f"Preview RESULT: {PREVIEW_RESULT_W}x{PREVIEW_RESULT_H} (3:2)")
+print(f"Output finale: {PHOTO_W}x{PHOTO_H} (3:2)")
 
 # ================= FUNZIONI =================
+def detect_green_screen(background_path):
+    """
+    Rileva automaticamente l'area del green screen nel background.
+    Restituisce i 4 angoli normalizzati [TL, TR, BR, BL] o None se non trovato.
+    """
+    if not os.path.exists(background_path):
+        print("⚠️ Background non trovato, uso coordinate manuali")
+        return None
+    
+    # Carica background
+    bg = cv2.imread(background_path)
+    if bg is None:
+        print("⚠️ Errore caricamento background, uso coordinate manuali")
+        return None
+    
+    bg_h, bg_w = bg.shape[:2]
+    
+    # Converti in HSV per rilevare il verde
+    hsv = cv2.cvtColor(bg, cv2.COLOR_BGR2HSV)
+    
+    # Range per rilevare il verde del green screen
+    # Hue: 35-85 (verde), Saturation: 60+ (saturo), Value: 60+ (luminoso)
+    lower_green = np.array([35, 60, 60])
+    upper_green = np.array([85, 255, 255])
+    
+    # Crea maschera del verde
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+    
+    # Pulisci la maschera con operazioni morfologiche
+    kernel = np.ones((15, 15), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    
+    # Trova contorni
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if not contours:
+        print("⚠️ Green screen non rilevato, uso coordinate manuali")
+        return None
+    
+    # Prendi il contorno più grande (dovrebbe essere il green screen)
+    largest_contour = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(largest_contour)
+    
+    # Verifica che l'area sia significativa (almeno 5% dell'immagine)
+    min_area = (bg_w * bg_h) * 0.05
+    if area < min_area:
+        print(f"⚠️ Area verde troppo piccola ({area:.0f}px²), uso coordinate manuali")
+        return None
+    
+    # Approssima il contorno a un quadrilatero
+    epsilon = 0.02 * cv2.arcLength(largest_contour, True)
+    approx = cv2.approxPolyDP(largest_contour, epsilon, True)
+    
+    # Se non otteniamo esattamente 4 punti, usa il rettangolo minimo
+    if len(approx) != 4:
+        print(f"🔧 Contorno con {len(approx)} punti, uso rettangolo minimo")
+        rect = cv2.minAreaRect(largest_contour)
+        box = cv2.boxPoints(rect)
+        approx = box.reshape((-1, 1, 2)).astype(np.int32)
+    
+    # Estrai i 4 punti
+    points = approx.reshape(-1, 2)
+    
+    # Ordina i punti: TL, TR, BR, BL (in base a somma e differenza coordinate)
+    # TL ha la somma più piccola, BR la più grande
+    sum_pts = points.sum(axis=1)
+    diff_pts = np.diff(points, axis=1)
+    
+    tl = points[np.argmin(sum_pts)]      # Top-Left: min(x+y)
+    br = points[np.argmax(sum_pts)]      # Bottom-Right: max(x+y)
+    tr = points[np.argmin(diff_pts)]     # Top-Right: min(y-x)
+    bl = points[np.argmax(diff_pts)]     # Bottom-Left: max(y-x)
+    
+    # Calcola dimensioni del green screen rilevato
+    gs_width = max(tr[0] - tl[0], br[0] - bl[0])
+    gs_height = max(bl[1] - tl[1], br[1] - tr[1])
+    gs_aspect_ratio = gs_width / gs_height if gs_height > 0 else 0
+    
+    # Verifica che sia circa 16:9 (1.778)
+    expected_ratio = 16.0 / 9.0  # 1.778
+    ratio_tolerance = 0.15  # ±15%
+    
+    if abs(gs_aspect_ratio - expected_ratio) > (expected_ratio * ratio_tolerance):
+        print(f"⚠️ Green screen non è 16:9! Rilevato: {gs_aspect_ratio:.2f} (atteso: {expected_ratio:.2f})")
+        print(f"   Potrebbe causare distorsioni. Considera di usare coordinate manuali.")
+    
+    # Normalizza le coordinate (0-1)
+    corners_normalized = {
+        'tl': (tl[0] / bg_w, tl[1] / bg_h),
+        'tr': (tr[0] / bg_w, tr[1] / bg_h),
+        'br': (br[0] / bg_w, br[1] / bg_h),
+        'bl': (bl[0] / bg_w, bl[1] / bg_h),
+        'aspect_ratio': gs_aspect_ratio
+    }
+    
+    print(f"✅ Green screen rilevato automaticamente:")
+    print(f"   TL: ({corners_normalized['tl'][0]:.4f}, {corners_normalized['tl'][1]:.4f})")
+    print(f"   TR: ({corners_normalized['tr'][0]:.4f}, {corners_normalized['tr'][1]:.4f})")
+    print(f"   BR: ({corners_normalized['br'][0]:.4f}, {corners_normalized['br'][1]:.4f})")
+    print(f"   BL: ({corners_normalized['bl'][0]:.4f}, {corners_normalized['bl'][1]:.4f})")
+    print(f"   Area: {area:.0f}px² ({area/(bg_w*bg_h)*100:.1f}% dell'immagine)")
+    print(f"   Aspect Ratio: {gs_aspect_ratio:.3f} (16:9 = {expected_ratio:.3f})")
+    
+    return corners_normalized
+
 def resize_no_crop(image, target_size):
     """Ridimensiona l'immagine senza crop, mantenendo tutto visibile"""
     return image.resize(target_size, Image.LANCZOS)
@@ -337,11 +446,51 @@ def process_captured_photo():
         background = cv2.imread(WINDOW_TEMPLATE_PATH)
         bg_h, bg_w = background.shape[:2]
         
-        # Calcola coordinate assolute dei 4 angoli del green screen
-        pts_tl = np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h])
-        pts_tr = np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h])
-        pts_br = np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h])
-        pts_bl = np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
+        # Rileva green screen automaticamente o usa coordinate manuali
+        if AUTO_DETECT_GREEN_SCREEN:
+            # Prova rilevamento automatico
+            print("🔍 Rilevamento automatico green screen...")
+            detected_corners = detect_green_screen(WINDOW_TEMPLATE_PATH)
+            
+            if detected_corners:
+                # Usa coordinate rilevate automaticamente
+                pts_tl = np.array([detected_corners['tl'][0] * bg_w, detected_corners['tl'][1] * bg_h])
+                pts_tr = np.array([detected_corners['tr'][0] * bg_w, detected_corners['tr'][1] * bg_h])
+                pts_br = np.array([detected_corners['br'][0] * bg_w, detected_corners['br'][1] * bg_h])
+                pts_bl = np.array([detected_corners['bl'][0] * bg_w, detected_corners['bl'][1] * bg_h])
+            else:
+                # Fallback: usa coordinate manuali dal .env
+                print("🔧 Fallback: uso coordinate manuali dal file .env")
+                pts_tl = np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h])
+                pts_tr = np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h])
+                pts_br = np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h])
+                pts_bl = np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
+        else:
+            # Usa coordinate manuali dal .env (modalità manuale)
+            print("🔧 Modalità manuale: uso coordinate dal file .env")
+            pts_tl = np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h])
+            pts_tr = np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h])
+            pts_br = np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h])
+            pts_bl = np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
+        
+        # ESPANSIONE: Allunga l'area per coprire completamente il green screen
+        # Espansioni separate per sinistra e destra per bilanciare la copertura
+        expansion_left = 85     # pixel di espansione a sinistra
+        expansion_right = 25    # pixel di espansione a destra
+        expansion_vertical = 20 # pixel di espansione verticale
+        
+        # Espandi i punti verso l'esterno
+        pts_tl[0] -= expansion_left       # Sinistra in alto - sposta a sinistra
+        pts_tl[1] -= expansion_vertical   # Sinistra in alto - sposta in alto
+        
+        pts_tr[0] += expansion_right      # Destra in alto - sposta poco a destra
+        pts_tr[1] -= expansion_vertical   # Destra in alto - sposta in alto
+        
+        pts_br[0] += expansion_right      # Destra in basso - sposta poco a destra
+        pts_br[1] += expansion_vertical   # Destra in basso - sposta in basso
+        
+        pts_bl[0] -= expansion_left       # Sinistra in basso - sposta a sinistra
+        pts_bl[1] += expansion_vertical   # Sinistra in basso - sposta in basso
         
         dst_pts = np.float32([pts_tl, pts_tr, pts_br, pts_bl])
         
@@ -352,30 +501,58 @@ def process_captured_photo():
         print(f"Green screen reale: {gs_width}x{gs_height} px (ratio {gs_width/gs_height:.2f})")
         print(f"Frame catturato: {frame.shape[1]}x{frame.shape[0]} px")
         
-        # Ridimensiona la foto per coprire esattamente il green screen
-        # Aggiungi un piccolo fattore di scala per coprire completamente
-        scale_factor = 1.02
-        target_width = int(gs_width * scale_factor)
-        target_height = int(gs_height * scale_factor)
+        # RIDIMENSIONAMENTO PROPORZIONALE: Mantiene 16:9 senza distorsioni
+        # Calcola scale factor per coprire il green screen
+        frame_h, frame_w = frame.shape[:2]
+        frame_ratio = frame_w / frame_h  # Dovrebbe essere ~1.778 (16:9)
+        
+        # Calcola scale factor: usa il MASSIMO per garantire copertura completa
+        scale_w = gs_width / frame_w
+        scale_h = gs_height / frame_h
+        scale_factor = max(scale_w, scale_h) * 1.03  # +3% margine minimo
+        
+        # Ridimensiona mantenendo aspect ratio
+        target_width = int(frame_w * scale_factor)
+        target_height = int(frame_h * scale_factor)
         
         frame_resized = cv2.resize(frame, (target_width, target_height), interpolation=cv2.INTER_LANCZOS4)
         
-        print(f"Frame ridimensionato: {frame_resized.shape[1]}x{frame_resized.shape[0]} px")
+        # Verifica che non ci siano distorsioni
+        resized_ratio = target_width / target_height
+        print(f"Frame ridimensionato: {target_width}x{target_height} px")
+        print(f"   Aspect ratio originale: {frame_ratio:.3f} → ridimensionato: {resized_ratio:.3f}")
+        print(f"   Green screen: {gs_width:.0f}x{gs_height:.0f} px (ratio: {gs_width/gs_height:.3f})")
         
-        # Coordinate sorgente: usiamo l'intera immagine ridimensionata
+        # Se l'immagine ridimensionata è più grande dell'area necessaria, centra
+        if target_width > gs_width or target_height > gs_height:
+            # Calcola offset per centrare
+            offset_x = max(0, (target_width - int(gs_width)) // 2)
+            offset_y = max(0, (target_height - int(gs_height)) // 2)
+            
+            # Estrai la porzione centrale senza distorsioni
+            end_x = min(offset_x + int(gs_width), target_width)
+            end_y = min(offset_y + int(gs_height), target_height)
+            
+            frame_cropped = frame_resized[offset_y:end_y, offset_x:end_x]
+            print(f"   Frame centrato: {frame_cropped.shape[1]}x{frame_cropped.shape[0]} px")
+        else:
+            frame_cropped = frame_resized
+        
+        # Coordinate sorgente: usa l'intera porzione (proporzionale, senza allungamenti)
+        crop_h, crop_w = frame_cropped.shape[:2]
         src_pts = np.float32([
-            [0, 0],                           # Top-Left
-            [target_width - 1, 0],            # Top-Right
-            [target_width - 1, target_height - 1],  # Bottom-Right
-            [0, target_height - 1]            # Bottom-Left
+            [0, 0],                    # Top-Left
+            [crop_w - 1, 0],           # Top-Right
+            [crop_w - 1, crop_h - 1],  # Bottom-Right
+            [0, crop_h - 1]            # Bottom-Left
         ])
         
         # Calcola matrice di trasformazione prospettica
         # Mappa la foto rettangolare sul quadrilatero del green screen
         matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
         
-        # Applica warp sulla foto
-        warped = cv2.warpPerspective(frame_resized, matrix, (bg_w, bg_h), 
+        # Applica warp sulla foto (usa la porzione croppata/spostata)
+        warped = cv2.warpPerspective(frame_cropped, matrix, (bg_w, bg_h), 
                                      flags=cv2.INTER_LANCZOS4,
                                      borderMode=cv2.BORDER_CONSTANT,
                                      borderValue=(0, 0, 0))
@@ -511,7 +688,7 @@ def show_result(image_pil):
     global mode
     mode = MODE_RESULT
     
-    # Mostra foto composta 4:3 nell'anteprima
+    # Mostra foto composta 3:2 nell'anteprima
     imgtk = ImageTk.PhotoImage(image_pil.resize((PREVIEW_RESULT_W, PREVIEW_RESULT_H)))
     preview_label.imgtk = imgtk
     preview_label.config(image=imgtk)
@@ -934,7 +1111,7 @@ def send_email():
     
     # Crea versione HTML
     msg.add_alternative(EMAIL_HTML_BODY, subtype="html")
-    
+
     # Aggiungi solo la foto come allegato scaricabile
     photo_filename = os.path.basename(current_photo_path)
     with open(current_photo_path, "rb") as f:
@@ -1012,7 +1189,7 @@ canvas_bg.place(x=0, y=0, relwidth=1, relheight=1)
 
 # Carica e crea pattern con logo (se disponibile)
 def create_logo_pattern():
-    """Crea pattern ripetuto con logo M9Lab in diagonale come watermark"""
+    """Crea pattern ripetuto con logo M9Lab ruotato 45° come watermark"""
     try:
         if os.path.exists(UI_LOGO_PATH):
             logo_pil = Image.open(UI_LOGO_PATH).convert("RGBA")
@@ -1020,6 +1197,12 @@ def create_logo_pattern():
             # Ridimensiona logo per pattern
             logo_size = 180
             logo_pil = logo_pil.resize((logo_size, logo_size), Image.LANCZOS)
+            
+            # RUOTA il logo di 45 gradi
+            logo_pil = logo_pil.rotate(45, expand=True, resample=Image.BICUBIC)
+            
+            # Aggiorna dimensioni dopo la rotazione (expand=True aumenta le dimensioni)
+            rotated_w, rotated_h = logo_pil.size
             
             # Applica opacità
             alpha = logo_pil.split()[3]
@@ -1041,11 +1224,11 @@ def create_logo_pattern():
             
             # Crea pattern diagonale - partendo da coordinate negative per coprire tutto
             row = 0
-            for y in range(-logo_size, screen_h + logo_size, spacing_y):
+            for y in range(-rotated_h, screen_h + rotated_h, spacing_y):
                 # Calcola offset X per questa riga (effetto diagonale)
                 x_offset = (row * diagonal_offset // 2) % (spacing_x * 2)
                 
-                for x in range(-logo_size + x_offset, screen_w + logo_size, spacing_x):
+                for x in range(-rotated_w + x_offset, screen_w + rotated_w, spacing_x):
                     logo_tk = ImageTk.PhotoImage(logo_pil)
                     canvas_bg.create_image(x, y, image=logo_tk, anchor="nw")
                     canvas_bg.logo_images.append(logo_tk)
