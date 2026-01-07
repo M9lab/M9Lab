@@ -74,9 +74,9 @@ EMAIL_SUBJECT = os.getenv("EMAIL_SUBJECT", "La tua foto LEGO").replace('\n', ' '
 EMAIL_HTML_BODY_DEFAULT = """<html>
 <body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
     <h2 style='color: #2C3E50; text-align: center;'>🎉 Grazie per aver visitato il nostro stand!</h2>
-    <p style='font-size: 16px; line-height: 1.6;'>Trovi in allegato la tua <strong>foto LEGO della Maker Faire 2026</strong>! 📸</p>
+    <p style='font-size: 16px; line-height: 1.6;'>Trovi in allegato la tua <strong>foto della Maker Faire 2026</strong>! 📸</p>
     <p style='font-size: 16px; line-height: 1.6;'>Condividila sui social con gli hashtag:<br/>
-    <strong style='color: #3498DB;'>#MFTS26 #M9LAB #fotoricordo</strong></p>
+    <strong style='color: #3498DB;'>#MFTS26 #M9LAB #fotoricordolego @legofotomachine</strong></p>
     <hr style='border: none; border-top: 2px solid #ddd; margin: 30px 0;'/>
     <h3 style='color: #3498DB; text-align: center;'>📱 Seguici sui nostri social!</h3>
     <p style='font-size: 15px; text-align: center; color: #555;'>
@@ -129,6 +129,9 @@ STATUS_EMAIL_ERROR = os.getenv("STATUS_EMAIL_ERROR", "Errore invio email: {error
 
 # Entry placeholder
 EMAIL_PLACEHOLDER = os.getenv("EMAIL_PLACEHOLDER", "Inserisci la tua email")
+
+# Privacy notice
+EMAIL_PRIVACY_NOTICE = os.getenv("EMAIL_PRIVACY_NOTICE", "Useremo la tua email solo per questa operazione. Niente archiviazione, niente spam.")
 
 # ================= COLORI INTERFACCIA (TEMA M9LAB) =================
 UI_BG_COLOR = os.getenv("UI_BG_COLOR", "#5DADE2")  # Azzurro M9Lab
@@ -520,6 +523,12 @@ def show_result(image_pil):
     entry_frame.pack_forget()
     btn_send.pack_forget()
     
+    # Nascondi privacy label e bottoni azione se esistevano
+    if hasattr(root, 'privacy_label') and root.privacy_label and root.privacy_label.winfo_exists():
+        root.privacy_label.pack_forget()
+    if hasattr(root, 'btn_action_frame') and root.btn_action_frame and root.btn_action_frame.winfo_exists():
+        root.btn_action_frame.pack_forget()
+    
     # Ordine corretto: FOTO → LABEL ISTRUZIONI → CAMPO EMAIL → BOTTONE
     
     # 1. Foto in alto
@@ -530,15 +539,23 @@ def show_result(image_pil):
     status_label.config(text=STATUS_ENTER_EMAIL, fg="#FFFFFF", bg="#2C3E50")
     
     # 3. Campo email
-    entry_frame.pack(pady=(5, PADDING_FRAME))  # Poco padding sopra, normale sotto
+    entry_frame.pack(pady=(5, 0))  # Poco padding sopra, zero sotto (privacy notice sotto)
     entry_email.pack(padx=40, pady=PADDING_FRAME, ipady=8)
+    
+    # 3b. Label privacy sotto il campo email in giallo M9Lab (su una riga)
+    privacy_label = tk.Label(root, text=EMAIL_PRIVACY_NOTICE, 
+                            font=("Arial", 14, "italic"),  # Font aumentato da 11 a 14
+                            fg=UI_ACCENT_COLOR,  # Giallo M9Lab (#FFD700)
+                            bg=UI_BG_COLOR)  # Nessun wrap - testo su una riga
+    privacy_label.pack(pady=(0, PADDING_FRAME))
     
     # 4. Frame per bottoni INVIA e ANNULLA affiancati
     btn_action_frame = tk.Frame(root, bg=UI_BG_COLOR)
     btn_action_frame.pack(pady=PADDING_FRAME)
     
-    # Salva riferimento per poterlo distruggere nel reset
+    # Salva riferimenti per poterli distruggere nel reset
     root.btn_action_frame = btn_action_frame
+    root.privacy_label = privacy_label
     
     # Crea bottone INVIA FOTO a sinistra (principale)
     btn_send_result = tk.Button(btn_action_frame, text=BTN_SEND_TEXT, 
@@ -547,7 +564,8 @@ def show_result(image_pil):
                                  activebackground="#1976D2", activeforeground="white",
                                  width=20, height=1, pady=5,
                                  command=send_email, 
-                                 relief=tk.FLAT, borderwidth=0, cursor="hand2")
+                                 relief=tk.FLAT, borderwidth=0, cursor="hand2",
+                                 takefocus=True)  # Navigabile con TAB
     btn_send_result.grid(row=0, column=0, padx=5)
     
     # Crea bottone ANNULLA a destra (secondario) - stessa altezza di INVIA
@@ -557,8 +575,31 @@ def show_result(image_pil):
                                    activebackground="#616161", activeforeground="white",
                                    width=20, height=1, pady=5,  # Stessa width di INVIA
                                    command=reset_kiosk, 
-                                   relief=tk.FLAT, borderwidth=0, cursor="hand2")
+                                   relief=tk.FLAT, borderwidth=0, cursor="hand2",
+                                   takefocus=True)  # Navigabile con TAB
     btn_cancel_result.grid(row=0, column=1, padx=5)
+    
+    # Imposta ordine TAB corretto: EMAIL → INVIA → ANNULLA → EXIT
+    # Forza il focus su INVIA quando si preme TAB dall'email
+    def email_tab_handler(event):
+        btn_send_result.focus_set()
+        return "break"  # Previene comportamento default
+    
+    entry_email.bind('<Tab>', email_tab_handler)
+    
+    # TAB da INVIA va ad ANNULLA
+    def send_tab_handler(event):
+        btn_cancel_result.focus_set()
+        return "break"
+    
+    btn_send_result.bind('<Tab>', send_tab_handler)
+    
+    # TAB da ANNULLA va ad EXIT
+    def cancel_tab_handler(event):
+        btn_exit.focus_set()
+        return "break"
+    
+    btn_cancel_result.bind('<Tab>', cancel_tab_handler)
     
     # Nascondi bottoni originali
     btn_frame.pack_forget()
@@ -588,6 +629,12 @@ def show_engagement_screen():
     btn_cancel.grid_forget()
     status_frame.pack_forget()
     btn_frame.pack_forget()
+    
+    # Nascondi privacy label e bottoni azione se esistono
+    if hasattr(root, 'privacy_label') and root.privacy_label and root.privacy_label.winfo_exists():
+        root.privacy_label.pack_forget()
+    if hasattr(root, 'btn_action_frame') and root.btn_action_frame and root.btn_action_frame.winfo_exists():
+        root.btn_action_frame.pack_forget()
     
     # Crea frame engagement
     engagement_frame = tk.Frame(root, bg=UI_BG_COLOR)
@@ -731,22 +778,37 @@ def reset_kiosk():
     if hasattr(root, 'engagement_frame'):
         root.engagement_frame.pack_forget()
     
-    # Nascondi elementi email
+    # Nascondi elementi email (anche privacy label e bottoni azione)
     entry_frame.pack_forget()
     entry_email.pack_forget()
     btn_send.pack_forget()
     btn_cancel.grid_forget()
     
-    # Distruggi frame bottoni dinamici se esiste (DOPO aver gestito gli altri elementi)
-    def destroy_action_frame():
+    # Nascondi privacy label e bottoni azione se esistono
+    if hasattr(root, 'privacy_label') and root.privacy_label and root.privacy_label.winfo_exists():
+        root.privacy_label.pack_forget()
+    if hasattr(root, 'btn_action_frame') and root.btn_action_frame and root.btn_action_frame.winfo_exists():
+        root.btn_action_frame.pack_forget()
+    
+    # Distruggi elementi dinamici (DOPO aver gestito gli altri elementi)
+    def destroy_dynamic_elements():
+        # Distruggi frame bottoni
         if hasattr(root, 'btn_action_frame') and root.btn_action_frame:
             try:
                 root.btn_action_frame.destroy()
             except:
                 pass
             root.btn_action_frame = None
+        
+        # Distruggi label privacy
+        if hasattr(root, 'privacy_label') and root.privacy_label:
+            try:
+                root.privacy_label.destroy()
+            except:
+                pass
+            root.privacy_label = None
     
-    root.after(10, destroy_action_frame)
+    root.after(10, destroy_dynamic_elements)
     
     # Mostra elementi standard (stesso ordine dell'avvio)
     preview_frame.pack(expand=True, pady=PADDING_BUTTON, padx=PADDING_BUTTON)
@@ -804,6 +866,36 @@ def validate_email(email):
         return True
     return False
 
+def log_email_send(esito, email_address, photo_filename):
+    """
+    Registra l'invio email in un file di log.
+    
+    Args:
+        esito: "OK" per successo, "KO" per fallimento
+        email_address: Indirizzo email destinatario
+        photo_filename: Nome del file foto allegato
+    """
+    log_file = "email_log.txt"
+    
+    try:
+        # Calcola il contatore leggendo il numero di righe esistenti
+        contatore = 1
+        if os.path.exists(log_file):
+            with open(log_file, "r", encoding="utf-8") as f:
+                contatore = sum(1 for line in f) + 1
+        
+        # Timestamp formato: YYYY-MM-DD HH:MM:SS
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Scrivi la riga di log: contatore | timestamp | esito | nome_foto | email
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(f"{contatore} | {timestamp} | {esito} | {photo_filename} | {email_address}\n")
+        
+        print(f"📝 Log #{contatore}: {esito} - {photo_filename} - {email_address}")
+        
+    except Exception as e:
+        print(f"⚠️ Errore scrittura log: {e}")
+
 def send_email():
     email_to = entry_email.get().strip()
     
@@ -819,11 +911,17 @@ def send_email():
         entry_email.config(highlightbackground="#FF6B6B", highlightcolor="#FF6B6B", highlightthickness=2)
         return
     
-    # Email valida - Nascondi immediatamente il campo email e i bottoni
+    # Email valida - Nascondi immediatamente il campo email, privacy label e i bottoni
     entry_frame.pack_forget()
     entry_email.pack_forget()
     btn_send.pack_forget()
     btn_cancel.grid_forget()
+    
+    # Nascondi privacy label e bottoni azione se esistono
+    if hasattr(root, 'privacy_label') and root.privacy_label and root.privacy_label.winfo_exists():
+        root.privacy_label.pack_forget()
+    if hasattr(root, 'btn_action_frame') and root.btn_action_frame and root.btn_action_frame.winfo_exists():
+        root.btn_action_frame.pack_forget()
     
     status_label.config(text="Invio in corso...", fg="#FFFFFF", bg="#3498DB")
     root.update()  # Forza aggiornamento interfaccia
@@ -838,10 +936,11 @@ def send_email():
     msg.add_alternative(EMAIL_HTML_BODY, subtype="html")
     
     # Aggiungi solo la foto come allegato scaricabile
+    photo_filename = os.path.basename(current_photo_path)
     with open(current_photo_path, "rb") as f:
         photo_data = f.read()
         msg.add_attachment(photo_data, maintype="image", subtype="jpeg", 
-                          filename=os.path.basename(current_photo_path))
+                          filename=photo_filename)
 
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
@@ -849,25 +948,40 @@ def send_email():
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
         
+        # Log invio riuscito
+        log_email_send("OK", email_to, photo_filename)
+        
         # Mostra schermata engagement dopo invio email
         show_engagement_screen()
         
     except Exception as e:
+        # Log invio fallito
+        log_email_send("KO", email_to, photo_filename)
+        
         status_label.config(text=STATUS_EMAIL_ERROR.format(error=str(e)), fg="#FFFFFF", bg="#E74C3C")
         entry_email.config(highlightbackground="#FF6B6B", highlightcolor="#FF6B6B", highlightthickness=2)
 
 # ================= GUI =================
 root = tk.Tk()
-
-# Rimuovi la barra del titolo (title bar) su tutte le piattaforme
-root.overrideredirect(True)
-
-# Fullscreen robusto per tutte le piattaforme
-root.attributes("-fullscreen", True)
 root.configure(bg=UI_BG_COLOR)
 
-# Su Linux/Raspberry, forza fullscreen con geometry
-if system == "Linux":
+# Fullscreen gestito diversamente per Windows e Linux
+if system == "Windows":
+    # Su Windows: usa solo fullscreen (overrideredirect causa conflitto)
+    try:
+        root.attributes("-fullscreen", True)
+        print("🖥️ Windows: Fullscreen attivo")
+    except:
+        # Fallback: geometry manuale
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        root.geometry(f"{screen_width}x{screen_height}+0+0")
+        root.state('zoomed')  # Massimizza finestra
+        print(f"🖥️ Windows: Geometry {screen_width}x{screen_height}")
+        
+elif system == "Linux":
+    # Su Linux/Raspberry: rimuovi barra titolo + geometry + cursore nascosto
+    root.overrideredirect(True)
     try:
         # Ottieni dimensioni schermo
         screen_width = root.winfo_screenwidth()
@@ -879,7 +993,14 @@ if system == "Linux":
         root.after_idle(root.attributes, '-topmost', False)
         # Nascondi cursore per kiosk mode
         root.config(cursor="none")
-        print(f"🖥️ Fullscreen: {screen_width}x{screen_height}")
+        print(f"🖥️ Linux: Fullscreen {screen_width}x{screen_height}")
+    except Exception as e:
+        print(f"⚠️ Errore fullscreen Linux: {e}")
+else:
+    # macOS o altro
+    try:
+        root.attributes("-fullscreen", True)
+        print(f"🖥️ {system}: Fullscreen attivo")
     except:
         pass
 

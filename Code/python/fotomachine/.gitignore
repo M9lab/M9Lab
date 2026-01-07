@@ -2,9 +2,10 @@
 input_photos/
 output_photos/
 
-# Environment variables (sensitive data)
+# Environment variables and logs (sensitive data)
 .env
 .env.raspberry
+email_log.txt
 
 # Python
 __pycache__/
