@@ -12,6 +12,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 import re  # Per validazione email
 import platform  # Per rilevare sistema operativo
+import random  # Per selezione random background
 
 # ================= CARICAMENTO CONFIG DA .ENV =================
 # Carica il file .env corretto in base al sistema operativo
@@ -49,8 +50,53 @@ OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output_photos")
 # Variabile per testo evento
 EVENT_TEXT = os.getenv("EVENT_TEXT", "Benvenuti al LEGO Museum! #LEGOTrains")
 
-# Background template path
-WINDOW_TEMPLATE_PATH = os.getenv("WINDOW_TEMPLATE_PATH", "background3.png")
+# Background template directory
+BACKGROUNDS_DIR = os.getenv("BACKGROUNDS_DIR", "backgrounds")
+
+# Funzione per selezionare il background dinamicamente
+def get_dynamic_background():
+    """
+    Seleziona il background in base all'orario e un numero random.
+    Formato: background<id>_<condizione>.png
+    - id: numero random da 1 a 3
+    - condizione: "day" (8:00-16:00) o "nite" (16:00-8:00)
+    """
+    # Ottieni ora corrente
+    current_hour = datetime.now().hour
+    
+    # Determina condizione (day o nite)
+    if 8 <= current_hour < 16:
+        condition = "day"
+    else:
+        condition = "nite"
+    
+    # Genera numero random da 1 a 3
+    bg_id = random.randint(1, 3)
+    
+    # Costruisci nome file
+    filename = f"background{bg_id}_{condition}.png"
+    filepath = os.path.join(BACKGROUNDS_DIR, filename)
+    
+    # Verifica se esiste, altrimenti fallback
+    if os.path.exists(filepath):
+        print(f"🎨 Background selezionato: {filename} (ora: {current_hour:02d}:00, condizione: {condition})")
+        return filepath
+    else:
+        # Fallback: cerca qualsiasi background nella cartella
+        print(f"⚠️ Background {filename} non trovato, cerco alternative...")
+        if os.path.exists(BACKGROUNDS_DIR):
+            bg_files = [f for f in os.listdir(BACKGROUNDS_DIR) if f.startswith("background") and f.endswith(".png")]
+            if bg_files:
+                fallback = os.path.join(BACKGROUNDS_DIR, bg_files[0])
+                print(f"🔄 Uso fallback: {bg_files[0]}")
+                return fallback
+        
+        # Ultimo fallback: background3.png nella root
+        print("⚠️ Uso fallback: background3.png")
+        return "background3.png"
+
+# Background template path (ora dinamico)
+WINDOW_TEMPLATE_PATH = get_dynamic_background()
 
 # Auto-detect green screen (True = automatico, False = usa coordinate manuali)
 AUTO_DETECT_GREEN_SCREEN = os.getenv("AUTO_DETECT_GREEN_SCREEN", "True").lower() in ("true", "1", "yes")
@@ -441,16 +487,19 @@ def process_captured_photo():
     cv2.imwrite(input_path, frame)
 
     # ================= COMPOSIZIONE CON GREEN SCREEN =================
-    if os.path.exists(WINDOW_TEMPLATE_PATH):
+    # 🎨 Seleziona background dinamicamente ad ogni foto
+    current_background = get_dynamic_background()
+    
+    if os.path.exists(current_background):
         # Carica background
-        background = cv2.imread(WINDOW_TEMPLATE_PATH)
+        background = cv2.imread(current_background)
         bg_h, bg_w = background.shape[:2]
         
         # Rileva green screen automaticamente o usa coordinate manuali
         if AUTO_DETECT_GREEN_SCREEN:
             # Prova rilevamento automatico
             print("🔍 Rilevamento automatico green screen...")
-            detected_corners = detect_green_screen(WINDOW_TEMPLATE_PATH)
+            detected_corners = detect_green_screen(current_background)
             
             if detected_corners:
                 # Usa coordinate rilevate automaticamente
