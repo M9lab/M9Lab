@@ -70,12 +70,16 @@ def get_dynamic_background():
     else:
         condition = "nite"
     
-    # Genera numero random da 1 a 3
+    # Genera numero random da 1 a 3 (usa timestamp per più randomness)
+    random.seed()  # Re-inizializza seed per più casualità
     bg_id = random.randint(1, 3)
     
     # Costruisci nome file
     filename = f"background{bg_id}_{condition}.png"
     filepath = os.path.join(BACKGROUNDS_DIR, filename)
+    
+    # DEBUG: Mostra quale background viene selezionato
+    print(f"🎲 Random ID: {bg_id}, File: {filename}")
     
     # Verifica se esiste, altrimenti fallback
     if os.path.exists(filepath):
@@ -197,6 +201,57 @@ current_photo_path = None
 captured_frame = None  # Frame catturato prima del flash
 inactivity_timer = None  # Timer per timeout automatico
 
+# ================= CACHE PER PERFORMANCE RASPBERRY =================
+# Pre-calcola elementi pesanti per velocizzare process_captured_photo()
+background_cache = {}  # Cache dei background caricati
+green_screen_cache = {}  # Cache coordinate green screen rilevate
+kernels_cache = {  # Kernel pre-calcolati
+    'close_5x5': np.ones((5, 5), np.uint8),
+    'open_3x3': np.ones((3, 3), np.uint8),
+    'dilate_3x3': np.ones((3, 3), np.uint8),
+    'erode_2x2': np.ones((2, 2), np.uint8)
+}
+font_cache = None  # Font pre-caricato
+lower_green_hsv = np.array([35, 80, 80])  # Pre-calcolato
+upper_green_hsv = np.array([75, 255, 255])  # Pre-calcolato
+cache_initialized = False  # Flag per inizializzazione cache
+
+def preload_all_backgrounds():
+    """Pre-carica TUTTI i background possibili per evitare chiamate ripetute - OTTIMIZZAZIONE CRITICA"""
+    global cache_initialized
+    
+    if cache_initialized:
+        return
+    
+    print("🚀 Pre-caricamento cache (backgrounds + green screen + font)...")
+    
+    # Lista di tutti i background possibili
+    conditions = ['day', 'nite']
+    bg_ids = [1, 2, 3]
+    
+    preloaded_count = 0
+    for condition in conditions:
+        for bg_id in bg_ids:
+            filename = f"background{bg_id}_{condition}.png"
+            filepath = os.path.join(BACKGROUNDS_DIR, filename)
+            
+            if os.path.exists(filepath):
+                print(f"   Carico: {filename}...")
+                # Pre-carica background (BGR + HSV)
+                bg_data = load_background_cached(filepath, verbose=True)
+                if bg_data:
+                    bg_h, bg_w = bg_data['shape']
+                    # Pre-calcola coordinate green screen
+                    get_green_screen_coords_cached(filepath, bg_w, bg_h, verbose=True)
+                    preloaded_count += 1
+    
+    # Pre-carica anche font
+    print("   Carico: Font...")
+    load_font_cached()
+    
+    print(f"✅ Cache pronta! {preloaded_count} backgrounds pre-caricati\n")
+    cache_initialized = True
+
 # ================= CREAZIONE CARTELLE =================
 os.makedirs(INPUT_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -264,19 +319,21 @@ print(f"Preview RESULT: {PREVIEW_RESULT_W}x{PREVIEW_RESULT_H} (3:2)")
 print(f"Output finale: {PHOTO_W}x{PHOTO_H} (3:2)")
 
 # ================= FUNZIONI =================
-def detect_green_screen(background_path):
+def detect_green_screen(background_path, verbose=True):
     """
     Rileva automaticamente l'area del green screen nel background.
     Restituisce i 4 angoli normalizzati [TL, TR, BR, BL] o None se non trovato.
     """
     if not os.path.exists(background_path):
-        print("⚠️ Background non trovato, uso coordinate manuali")
+        if verbose:
+            print("⚠️ Background non trovato, uso coordinate manuali")
         return None
     
     # Carica background
     bg = cv2.imread(background_path)
     if bg is None:
-        print("⚠️ Errore caricamento background, uso coordinate manuali")
+        if verbose:
+            print("⚠️ Errore caricamento background, uso coordinate manuali")
         return None
     
     bg_h, bg_w = bg.shape[:2]
@@ -301,7 +358,8 @@ def detect_green_screen(background_path):
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     if not contours:
-        print("⚠️ Green screen non rilevato, uso coordinate manuali")
+        if verbose:
+            print("⚠️ Green screen non rilevato, uso coordinate manuali")
         return None
     
     # Prendi il contorno più grande (dovrebbe essere il green screen)
@@ -320,7 +378,8 @@ def detect_green_screen(background_path):
     
     # Se non otteniamo esattamente 4 punti, usa il rettangolo minimo
     if len(approx) != 4:
-        print(f"🔧 Contorno con {len(approx)} punti, uso rettangolo minimo")
+        if verbose:
+            print(f"      🔧 Contorno con {len(approx)} punti, uso rettangolo minimo")
         rect = cv2.minAreaRect(largest_contour)
         box = cv2.boxPoints(rect)
         approx = box.reshape((-1, 1, 2)).astype(np.int32)
@@ -348,8 +407,8 @@ def detect_green_screen(background_path):
     ratio_tolerance = 0.15  # ±15%
     
     if abs(gs_aspect_ratio - expected_ratio) > (expected_ratio * ratio_tolerance):
-        print(f"⚠️ Green screen non è 16:9! Rilevato: {gs_aspect_ratio:.2f} (atteso: {expected_ratio:.2f})")
-        print(f"   Potrebbe causare distorsioni. Considera di usare coordinate manuali.")
+        if verbose:
+            print(f"      ⚠️ Aspect ratio: {gs_aspect_ratio:.2f} (atteso 16:9 = {expected_ratio:.2f})")
     
     # Normalizza le coordinate (0-1)
     corners_normalized = {
@@ -360,15 +419,74 @@ def detect_green_screen(background_path):
         'aspect_ratio': gs_aspect_ratio
     }
     
-    print(f"✅ Green screen rilevato automaticamente:")
-    print(f"   TL: ({corners_normalized['tl'][0]:.4f}, {corners_normalized['tl'][1]:.4f})")
-    print(f"   TR: ({corners_normalized['tr'][0]:.4f}, {corners_normalized['tr'][1]:.4f})")
-    print(f"   BR: ({corners_normalized['br'][0]:.4f}, {corners_normalized['br'][1]:.4f})")
-    print(f"   BL: ({corners_normalized['bl'][0]:.4f}, {corners_normalized['bl'][1]:.4f})")
-    print(f"   Area: {area:.0f}px² ({area/(bg_w*bg_h)*100:.1f}% dell'immagine)")
-    print(f"   Aspect Ratio: {gs_aspect_ratio:.3f} (16:9 = {expected_ratio:.3f})")
-    
     return corners_normalized
+
+def load_background_cached(bg_path, verbose=False):
+    """Carica background con cache per evitare riletture - OTTIMIZZAZIONE RASPBERRY"""
+    if bg_path not in background_cache:
+        bg = cv2.imread(bg_path)
+        if bg is not None:
+            # Pre-converti anche in HSV (operazione costosa)
+            hsv_bg = cv2.cvtColor(bg, cv2.COLOR_BGR2HSV)
+            background_cache[bg_path] = {
+                'bgr': bg,
+                'hsv': hsv_bg,
+                'shape': bg.shape[:2]
+            }
+            if verbose:
+                print(f"   📦 {os.path.basename(bg_path)}")
+    return background_cache.get(bg_path)
+
+def get_green_screen_coords_cached(bg_path, bg_w, bg_h, verbose=False):
+    """Ottieni coordinate green screen con cache - OTTIMIZZAZIONE RASPBERRY"""
+    cache_key = f"{bg_path}_{bg_w}x{bg_h}"
+    
+    if cache_key not in green_screen_cache:
+        if AUTO_DETECT_GREEN_SCREEN:
+            detected = detect_green_screen(bg_path, verbose=verbose)
+            if detected:
+                green_screen_cache[cache_key] = {
+                    'tl': np.array([detected['tl'][0] * bg_w, detected['tl'][1] * bg_h]),
+                    'tr': np.array([detected['tr'][0] * bg_w, detected['tr'][1] * bg_h]),
+                    'br': np.array([detected['br'][0] * bg_w, detected['br'][1] * bg_h]),
+                    'bl': np.array([detected['bl'][0] * bg_w, detected['bl'][1] * bg_h])
+                }
+            else:
+                # Usa coordinate manuali
+                green_screen_cache[cache_key] = {
+                    'tl': np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h]),
+                    'tr': np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h]),
+                    'br': np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h]),
+                    'bl': np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
+                }
+        else:
+            # Coordinate manuali
+            green_screen_cache[cache_key] = {
+                'tl': np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h]),
+                'tr': np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h]),
+                'br': np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h]),
+                'bl': np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
+            }
+        if verbose:
+            print(f"   ✅ Coordinate calcolate")
+    
+    return green_screen_cache[cache_key]
+
+def load_font_cached():
+    """Carica font una volta sola - OTTIMIZZAZIONE RASPBERRY"""
+    global font_cache
+    if font_cache is None:
+        try:
+            font_cache = ImageFont.truetype("arialbd.ttf", FONT_SIZE_EVENT_TEXT)
+        except:
+            try:
+                font_cache = ImageFont.truetype("arial.ttf", FONT_SIZE_EVENT_TEXT)
+            except:
+                try:
+                    font_cache = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_EVENT_TEXT)
+                except:
+                    font_cache = ImageFont.load_default()
+    return font_cache
 
 def resize_no_crop(image, target_size):
     """Ridimensiona l'immagine senza crop, mantenendo tutto visibile"""
@@ -473,209 +591,119 @@ def flash_effect():
     root.after(10, lambda: fade_flash(1.0))
 
 def process_captured_photo():
-    """Processa il frame già catturato (chiamato dopo il flash)"""
+    """Processa il frame già catturato (chiamato dopo il flash) - OTTIMIZZATO RASPBERRY"""
     global mode, current_photo_path, captured_frame
     
-    # Usa il frame già catturato
     frame = captured_frame
-
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_path = os.path.join(INPUT_DIR, f"{ts}.png")
     output_path = os.path.join(OUTPUT_DIR, f"{ts}.jpg")
 
-    # Salva foto originale senza crop
+    # Salva foto originale (operazione I/O, non bloccante per CPU)
     cv2.imwrite(input_path, frame)
 
-    # ================= COMPOSIZIONE CON GREEN SCREEN =================
-    # 🎨 Seleziona background dinamicamente ad ogni foto
+    # ================= COMPOSIZIONE CON GREEN SCREEN OTTIMIZZATA =================
     current_background = get_dynamic_background()
     
     if os.path.exists(current_background):
-        # Carica background
-        background = cv2.imread(current_background)
-        bg_h, bg_w = background.shape[:2]
+        # 📦 USA CACHE per background (evita cv2.imread e conversione HSV ripetute!)
+        bg_data = load_background_cached(current_background)
+        if not bg_data:
+            print("⚠️ Errore caricamento background")
+            return
         
-        # Rileva green screen automaticamente o usa coordinate manuali
-        if AUTO_DETECT_GREEN_SCREEN:
-            # Prova rilevamento automatico
-            print("🔍 Rilevamento automatico green screen...")
-            detected_corners = detect_green_screen(current_background)
-            
-            if detected_corners:
-                # Usa coordinate rilevate automaticamente
-                pts_tl = np.array([detected_corners['tl'][0] * bg_w, detected_corners['tl'][1] * bg_h])
-                pts_tr = np.array([detected_corners['tr'][0] * bg_w, detected_corners['tr'][1] * bg_h])
-                pts_br = np.array([detected_corners['br'][0] * bg_w, detected_corners['br'][1] * bg_h])
-                pts_bl = np.array([detected_corners['bl'][0] * bg_w, detected_corners['bl'][1] * bg_h])
-            else:
-                # Fallback: usa coordinate manuali dal .env
-                print("🔧 Fallback: uso coordinate manuali dal file .env")
-                pts_tl = np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h])
-                pts_tr = np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h])
-                pts_br = np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h])
-                pts_bl = np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
-        else:
-            # Usa coordinate manuali dal .env (modalità manuale)
-            print("🔧 Modalità manuale: uso coordinate dal file .env")
-            pts_tl = np.array([GS_TOP_LEFT_X * bg_w, GS_TOP_LEFT_Y * bg_h])
-            pts_tr = np.array([GS_TOP_RIGHT_X * bg_w, GS_TOP_RIGHT_Y * bg_h])
-            pts_br = np.array([GS_BOTTOM_RIGHT_X * bg_w, GS_BOTTOM_RIGHT_Y * bg_h])
-            pts_bl = np.array([GS_BOTTOM_LEFT_X * bg_w, GS_BOTTOM_LEFT_Y * bg_h])
+        background = bg_data['bgr']
+        hsv_bg = bg_data['hsv']  # ⚡ Già pre-calcolato in cache!
+        bg_h, bg_w = bg_data['shape']
         
-        # ESPANSIONE: Allunga l'area per coprire completamente il green screen
-        # Espansioni separate per sinistra e destra per bilanciare la copertura
-        expansion_left = 85     # pixel di espansione a sinistra
-        expansion_right = 25    # pixel di espansione a destra
-        expansion_vertical = 20 # pixel di espansione verticale
+        # 📍 USA CACHE per coordinate green screen (evita detect_green_screen ripetuto!)
+        coords = get_green_screen_coords_cached(current_background, bg_w, bg_h)
+        pts_tl = coords['tl'].copy()  # Copy per non modificare cache
+        pts_tr = coords['tr'].copy()
+        pts_br = coords['br'].copy()
+        pts_bl = coords['bl'].copy()
         
-        # Espandi i punti verso l'esterno
-        pts_tl[0] -= expansion_left       # Sinistra in alto - sposta a sinistra
-        pts_tl[1] -= expansion_vertical   # Sinistra in alto - sposta in alto
+        # Espansioni (costanti pre-definite)
+        EXPANSION_LEFT = 85
+        EXPANSION_RIGHT = 25
+        EXPANSION_VERTICAL = 20
         
-        pts_tr[0] += expansion_right      # Destra in alto - sposta poco a destra
-        pts_tr[1] -= expansion_vertical   # Destra in alto - sposta in alto
-        
-        pts_br[0] += expansion_right      # Destra in basso - sposta poco a destra
-        pts_br[1] += expansion_vertical   # Destra in basso - sposta in basso
-        
-        pts_bl[0] -= expansion_left       # Sinistra in basso - sposta a sinistra
-        pts_bl[1] += expansion_vertical   # Sinistra in basso - sposta in basso
+        pts_tl[0] -= EXPANSION_LEFT
+        pts_tl[1] -= EXPANSION_VERTICAL
+        pts_tr[0] += EXPANSION_RIGHT
+        pts_tr[1] -= EXPANSION_VERTICAL
+        pts_br[0] += EXPANSION_RIGHT
+        pts_br[1] += EXPANSION_VERTICAL
+        pts_bl[0] -= EXPANSION_LEFT
+        pts_bl[1] += EXPANSION_VERTICAL
         
         dst_pts = np.float32([pts_tl, pts_tr, pts_br, pts_bl])
         
-        # Calcola dimensioni reali del green screen (differenza coordinate)
+        # Calcoli dimensioni (semplificati)
         gs_width = int(pts_tr[0] - pts_tl[0])
         gs_height = int(pts_bl[1] - pts_tl[1])
         
-        print(f"Green screen reale: {gs_width}x{gs_height} px (ratio {gs_width/gs_height:.2f})")
-        print(f"Frame catturato: {frame.shape[1]}x{frame.shape[0]} px")
-        
-        # RIDIMENSIONAMENTO PROPORZIONALE: Mantiene 16:9 senza distorsioni
-        # Calcola scale factor per coprire il green screen
+        # RIDIMENSIONAMENTO - ⚡ INTER_LINEAR su Raspberry (3x più veloce di LANCZOS4!)
         frame_h, frame_w = frame.shape[:2]
-        frame_ratio = frame_w / frame_h  # Dovrebbe essere ~1.778 (16:9)
-        
-        # Calcola scale factor: usa il MASSIMO per garantire copertura completa
-        scale_w = gs_width / frame_w
-        scale_h = gs_height / frame_h
-        scale_factor = max(scale_w, scale_h) * 1.03  # +3% margine minimo
-        
-        # Ridimensiona mantenendo aspect ratio
+        scale_factor = max(gs_width / frame_w, gs_height / frame_h) * 1.03
         target_width = int(frame_w * scale_factor)
         target_height = int(frame_h * scale_factor)
         
-        frame_resized = cv2.resize(frame, (target_width, target_height), interpolation=cv2.INTER_LANCZOS4)
+        # Usa interpolazione veloce su Raspberry, qualità su Windows
+        interpolation = cv2.INTER_LINEAR if system == "Linux" else cv2.INTER_LANCZOS4
+        frame_resized = cv2.resize(frame, (target_width, target_height), interpolation=interpolation)
         
-        # Verifica che non ci siano distorsioni
-        resized_ratio = target_width / target_height
-        print(f"Frame ridimensionato: {target_width}x{target_height} px")
-        print(f"   Aspect ratio originale: {frame_ratio:.3f} → ridimensionato: {resized_ratio:.3f}")
-        print(f"   Green screen: {gs_width:.0f}x{gs_height:.0f} px (ratio: {gs_width/gs_height:.3f})")
-        
-        # Se l'immagine ridimensionata è più grande dell'area necessaria, centra
+        # Crop centrale
         if target_width > gs_width or target_height > gs_height:
-            # Calcola offset per centrare
-            offset_x = max(0, (target_width - int(gs_width)) // 2)
-            offset_y = max(0, (target_height - int(gs_height)) // 2)
-            
-            # Estrai la porzione centrale senza distorsioni
-            end_x = min(offset_x + int(gs_width), target_width)
-            end_y = min(offset_y + int(gs_height), target_height)
-            
+            offset_x = max(0, (target_width - gs_width) // 2)
+            offset_y = max(0, (target_height - gs_height) // 2)
+            end_x = min(offset_x + gs_width, target_width)
+            end_y = min(offset_y + gs_height, target_height)
             frame_cropped = frame_resized[offset_y:end_y, offset_x:end_x]
-            print(f"   Frame centrato: {frame_cropped.shape[1]}x{frame_cropped.shape[0]} px")
         else:
             frame_cropped = frame_resized
         
-        # Coordinate sorgente: usa l'intera porzione (proporzionale, senza allungamenti)
+        # Trasformazione prospettica
         crop_h, crop_w = frame_cropped.shape[:2]
-        src_pts = np.float32([
-            [0, 0],                    # Top-Left
-            [crop_w - 1, 0],           # Top-Right
-            [crop_w - 1, crop_h - 1],  # Bottom-Right
-            [0, crop_h - 1]            # Bottom-Left
-        ])
-        
-        # Calcola matrice di trasformazione prospettica
-        # Mappa la foto rettangolare sul quadrilatero del green screen
+        src_pts = np.float32([[0, 0], [crop_w-1, 0], [crop_w-1, crop_h-1], [0, crop_h-1]])
         matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
-        
-        # Applica warp sulla foto (usa la porzione croppata/spostata)
         warped = cv2.warpPerspective(frame_cropped, matrix, (bg_w, bg_h), 
-                                     flags=cv2.INTER_LANCZOS4,
+                                     flags=interpolation,
                                      borderMode=cv2.BORDER_CONSTANT,
                                      borderValue=(0, 0, 0))
         
-        # ================= RILEVAMENTO GREEN SCREEN ULTRA-PRECISO =================
-        # Converti background in HSV
-        hsv_bg = cv2.cvtColor(background, cv2.COLOR_BGR2HSV)
+        # ================= GREEN SCREEN MASKING OTTIMIZZATO =================
+        # ⚡ USA hsv_bg già pre-calcolato dalla cache (risparmia conversione HSV!)
+        # ⚡ USA lower_green_hsv e upper_green_hsv pre-calcolati
+        green_mask = cv2.inRange(hsv_bg, lower_green_hsv, upper_green_hsv)
         
-        # Range MOLTO preciso per il verde - solo verde puro brillante
-        # Hue: 35-75 (verde), Saturation: 80+ (molto saturo), Value: 80+ (brillante)
-        lower_green = np.array([35, 80, 80])    # Verde MOLTO saturo e brillante
-        upper_green = np.array([75, 255, 255])   # Range stretto
-        
-        # Crea maschera del green screen con range molto stretto
-        green_mask = cv2.inRange(hsv_bg, lower_green, upper_green)
-        
-        # Morphological operations più conservative
-        kernel_close = np.ones((5, 5), np.uint8)
-        kernel_open = np.ones((3, 3), np.uint8)
-        
-        # Chiudi solo piccoli buchi
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernel_close, iterations=1)
-        
-        # Rimuovi piccoli artefatti
-        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, kernel_open, iterations=1)
-        
-        # NON dilatare troppo - vogliamo essere conservativi per non coprire elementi
-        kernel_dilate = np.ones((3, 3), np.uint8)
-        green_mask = cv2.dilate(green_mask, kernel_dilate, iterations=1)
-        
-        # Sfuma SOLO leggermente i bordi
+        # ⚡ USA kernel pre-calcolati dalla cache (risparmia creazione numpy arrays!)
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_CLOSE, kernels_cache['close_5x5'], iterations=1)
+        green_mask = cv2.morphologyEx(green_mask, cv2.MORPH_OPEN, kernels_cache['open_3x3'], iterations=1)
+        green_mask = cv2.dilate(green_mask, kernels_cache['dilate_3x3'], iterations=1)
         green_mask = cv2.GaussianBlur(green_mask, (5, 5), 0)
         
-        # Crea maschera del poligono green screen ma NON dilatarla troppo
+        # Poly mask
         poly_mask = np.zeros((bg_h, bg_w), dtype=np.uint8)
         cv2.fillConvexPoly(poly_mask, dst_pts.astype(np.int32), 255)
         
-        # NON dilatare il poligono - mantieni i bordi precisi
-        # Così gli elementi 3D ai bordi non vengono coperti
-        
-        # Combina le maschere: usa SOLO pixel che sono sia verdi CHE dentro il poligono
-        # Questo esclude automaticamente oggetti non verdi come la paletta
         combined_mask = cv2.bitwise_and(green_mask, poly_mask)
+        combined_mask = cv2.erode(combined_mask, kernels_cache['erode_2x2'], iterations=1)
         
-        # Applica erosione finale per essere SICURI di non coprire elementi in primo piano
-        kernel_erode = np.ones((2, 2), np.uint8)
-        combined_mask = cv2.erode(combined_mask, kernel_erode, iterations=1)
-        
-        # Normalizza maschera per blending
+        # Blending ottimizzato
         mask_3ch = cv2.cvtColor(combined_mask, cv2.COLOR_GRAY2BGR).astype(float) / 255.0
-        
-        # Blending finale - SOLO dove c'è verde puro
         final_cv = (background.astype(float) * (1 - mask_3ch) + 
                     warped.astype(float) * mask_3ch).astype(np.uint8)
         
-        # Converti in PIL per aggiungere testo
         final_image = Image.fromarray(cv2.cvtColor(final_cv, cv2.COLOR_BGR2RGB))
     else:
-        # Nessun background, ridimensiona la foto al formato finale
-        frame_resized = cv2.resize(frame, (PHOTO_W, PHOTO_H), interpolation=cv2.INTER_LANCZOS4)
+        # Nessun background
+        frame_resized = cv2.resize(frame, (PHOTO_W, PHOTO_H), interpolation=cv2.INTER_LINEAR)
         final_image = Image.fromarray(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB))
 
-    # ================= TESTO EVENTO CON SFONDO =================
+    # ================= TESTO EVENTO - USA FONT CACHED =================
     draw = ImageDraw.Draw(final_image)
-    try:
-        font = ImageFont.truetype("arialbd.ttf", FONT_SIZE_EVENT_TEXT)
-    except:
-        try:
-            font = ImageFont.truetype("arial.ttf", FONT_SIZE_EVENT_TEXT)
-        except:
-            try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_EVENT_TEXT)
-            except:
-                font = ImageFont.load_default()
+    font = load_font_cached()  # ⚡ Font pre-caricato dalla cache!
     
     # Calcola bounding box del testo (coordinate relative)
     bbox = draw.textbbox((0, 0), EVENT_TEXT, font=font)
@@ -1186,6 +1214,11 @@ def send_email():
         
         status_label.config(text=STATUS_EMAIL_ERROR.format(error=str(e)), fg="#FFFFFF", bg="#E74C3C")
         entry_email.config(highlightbackground="#FF6B6B", highlightcolor="#FF6B6B", highlightthickness=2)
+
+# ================= PRE-CARICAMENTO CACHE (OTTIMIZZAZIONE CRITICA!) =================
+# Pre-carica TUTTI i background e coordinate green screen prima di avviare la GUI
+# Questo evita chiamate ripetute a detect_green_screen() durante l'uso
+preload_all_backgrounds()
 
 # ================= GUI =================
 root = tk.Tk()
