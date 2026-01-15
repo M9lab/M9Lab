@@ -1,7 +1,7 @@
-// === M9LAB DISPLAY SLAVE - v1.2 ===
-// Modalità: CLIENT ATTIVO (si connette al Master)
+// === M9LAB DISPLAY SLAVE - v2.0 BT PASSIVO ===
+// Modalità: SERVER PASSIVO (aspetta connessioni dal Master)
 // Separatore comandi: | (pipe) per compatibilità con orari HH:MM
-// Connessione via MAC address al Master
+// Il Master si connette on-demand per inviare comandi
 
 #include <SPI.h>
 #include <Adafruit_GFX.h>
@@ -29,22 +29,68 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 #define COLORE_ETICHETTE  0x39C7
 
 // Variabili per lo scrolling
-String infoScorrente = "WELCOME TO M9LAB TRAINSTATION";
+String infoScorrente = "ATTENZIONE E' VIETATO INDICARE I PERSONAGGI";
 int scrollX = 320;
 int scrollSpeed = 2;
 unsigned long lastScrollTime = 0;
 int scrollDelay = 50;
 bool displayMeteoAttivo = false;
+bool firstCommandReceived = false;  // Flag: primo comando ricevuto
+bool infoLabelDrawn = false;         // Flag: label "informazioni" già disegnata
 
-// === BLUETOOTH SLAVE ===
+// === BLUETOOTH SLAVE (PASSIVO) ===
 BluetoothSerial SerialBT;
 bool btConnected = false;
-bool btConnecting = false;  // Flag per indicare connessione in corso
 unsigned long lastBTCheck = 0;
 char btInputBuffer[128];
 
-// Modalità: TRUE SLAVE (passivo) - aspetta che il Master si connetta
-// NON tenta connessione attiva, solo attesa passiva
+// Modalità: TRUE SLAVE (passivo) - aspetta che il Master si connetta on-demand
+// Il Master apre connessione, invia comando, chiude → nessun conflitto audio!
+
+// === VERBOSE MODE (debug dettagliato) ===
+bool verboseMode = false;  // OFF di default per performance ottimali
+
+// === DEBUG HELPER FUNCTIONS ===
+// Funzioni per debug condizionale (solo se verboseMode=true)
+void debugPrint(const char* str) {
+  if (verboseMode) Serial.print(str);
+}
+
+void debugPrint(const __FlashStringHelper* str) {
+  if (verboseMode) Serial.print(str);
+}
+
+void debugPrint(int val) {
+  if (verboseMode) Serial.print(val);
+}
+
+void debugPrint(float val) {
+  if (verboseMode) Serial.print(val);
+}
+
+void debugPrint(String str) {
+  if (verboseMode) Serial.print(str);
+}
+
+void debugPrintln(const char* str) {
+  if (verboseMode) Serial.println(str);
+}
+
+void debugPrintln(const __FlashStringHelper* str) {
+  if (verboseMode) Serial.println(str);
+}
+
+void debugPrintln(int val) {
+  if (verboseMode) Serial.println(val);
+}
+
+void debugPrintln(String str) {
+  if (verboseMode) Serial.println(str);
+}
+
+void debugPrintln() {
+  if (verboseMode) Serial.println();
+}
 
 // Prototipi
 void mostraSplashScreen();
@@ -53,137 +99,82 @@ void disegnaMeteo(String, String, String, int, float, int);
 const unsigned char* getIconaMeteo(int);
 String getDescrizioneMeteo(int);
 
-// ========== FUNZIONI BLUETOOTH SLAVE ==========
+// ========== FUNZIONI BLUETOOTH SLAVE PASSIVO ==========
 
 bool initBluetooth() {
-  Serial.println("Inizializzazione Bluetooth CLIENT...");
+  Serial.println("📡 Inizializzazione Bluetooth SLAVE PASSIVO...");
   
-  // Inizializzazione BT in modalità CLIENT
-  // Questo display si connetterà ATTIVAMENTE al Master
-  // true = isMaster (per client che fa connessioni attive)
-  if (!SerialBT.begin("M9Lab-Display-Slave", true)) {
-    Serial.println("ERRORE: Impossibile inizializzare BT!");
+  // Inizializzazione BT in modalità SLAVE PASSIVO
+  // false = slave (aspetta connessioni invece di connettersi attivamente)
+  if (!SerialBT.begin("M9Lab-Display-Slave", false)) {
+    Serial.println("❌ ERRORE: Impossibile inizializzare BT!");
     return false;
   }
   
   // Abilita SSP per pairing automatico
   SerialBT.enableSSP();
   
-  Serial.println("✅ BT Client inizializzato: M9Lab-Display-Slave");
-  Serial.println("   Modalità: CLIENT ATTIVO");
-  Serial.println("   Aspetto che Master sia pronto...");
+  Serial.println("✅ BT Slave inizializzato: M9Lab-Display-Slave");
+  Serial.println("   Modalità: SERVER PASSIVO");
   
-  // Aspetta più tempo per dare al Master tempo di inizializzare
-  delay(3000);
+  // Stampa MAC address per configurazione Master
+  String macAddr = SerialBT.getBtAddressString();
+  Serial.print("   MAC Display: ");
+  Serial.println(macAddr);  
+  Serial.println("   In attesa connessioni dal Master...");
   
-  // MAC address del Master (più affidabile del nome)
-  uint8_t masterMAC[6] = {0x94, 0xB9, 0x7E, 0x9F, 0x8C, 0x72};
-  
-  // Tentativi multipli di connessione all'avvio
-  Serial.println("Tento connessione al Master via MAC (5 tentativi)...");
-  Serial.println("Master MAC: 94:B9:7E:9F:8C:72");
-  
-  btConnecting = true;  // Connessione in corso
-  
-  for (int attempt = 1; attempt <= 5; attempt++) {
-    Serial.print("Tentativo ");
-    Serial.print(attempt);
-    Serial.print("/5: ");
-    
-    // Connessione via MAC (più affidabile)
-    bool connected = SerialBT.connect(masterMAC);
-    
-    if (connected) {
-      Serial.println("✅ CONNESSO AL MASTER!");
-      btConnected = true;
-      btConnecting = false;
-      return true;
-    } else {
-      Serial.println("fallito");
-      if (attempt < 5) {
-        delay(2000);  // Pausa tra tentativi
-      }
-    }
-  }
-  
-  Serial.println("⚠️  Connessione fallita dopo 5 tentativi");
-  Serial.println("   Continuerò a riprovare in background...");
   btConnected = false;
-  btConnecting = false;
   
-  return true;  // Ritorna true comunque per continuare
+  return true;
 }
 
 void checkBluetoothConnection() {
-  // MAC address del Master
-  static uint8_t masterMAC[6] = {0x94, 0xB9, 0x7E, 0x9F, 0x8C, 0x72};
+  // Modalità PASSIVA: monitora solo lo stato, NON tenta connessioni attive
+  bool currentlyConnected = SerialBT.hasClient();
   
-  bool currentlyConnected = SerialBT.connected();
+  // Debug: mostra stato ogni volta che cambia
+  static bool lastState = false;
+  if (currentlyConnected != lastState) {
+    debugPrint("BT hasClient: ");
+    debugPrintln(currentlyConnected ? "TRUE" : "FALSE");
+    lastState = currentlyConnected;
+  }
   
   if (currentlyConnected && !btConnected) {
-    // Connessione stabilita
-    Serial.println("✅ BT CONNESSO AL MASTER");
-    Serial.println("   Display pronto per ricevere comandi");
+    // Master si è connesso
+    Serial.println("✅ MASTER CONNESSO");  // Importante: sempre visibile
+    debugPrintln("   Ricevo comandi...");
     btConnected = true;
     
   } else if (!currentlyConnected && btConnected) {
-    // Connessione persa - RIPROVA AUTOMATICAMENTE
-    Serial.println("⚠️  BT DISCONNESSO DAL MASTER");
-    Serial.println("   Tento riconnessione...");
+    // Master si è disconnesso (normale dopo invio comando on-demand)
+    Serial.println("🔌 Master disconnesso");  // Importante: sempre visibile
+    debugPrintln("   In attesa prossimo comando...");
     btConnected = false;
-    btConnecting = true;  // Inizio tentativo riconnessione
-    
-    // Riprova connessione via MAC
-    delay(1000);
-    bool reconnected = SerialBT.connect(masterMAC);
-    
-    if (reconnected) {
-      Serial.println("✅ Riconnesso!");
-      btConnected = true;
-      btConnecting = false;
-    } else {
-      Serial.println("⚠️  Riconnessione fallita, riproverò");
-      btConnecting = false;
-    }
   }
   
-  // Se mai connesso e non attualmente connesso, riprova periodicamente
-  if (!currentlyConnected && !btConnected) {
-    static unsigned long lastRetry = 0;
-    if (millis() - lastRetry > 5000) {  // Ogni 5 secondi
-      lastRetry = millis();
-      Serial.println("Riprovo connessione via MAC...");
-      btConnecting = true;  // Inizio tentativo
-      bool connected = SerialBT.connect(masterMAC);
-      if (connected) {
-        Serial.println("✅ Connesso!");
-        btConnected = true;
-        btConnecting = false;
-      } else {
-        btConnecting = false;
-      }
-    }
-  }
+  // PASSIVO: nessun tentativo di riconnessione attiva
+  // Il Master si connetterà quando necessario
 }
 
 void processBluetoothCommand(char* cmd) {
-  Serial.print("📥 Comando ricevuto: ");
-  Serial.println(cmd);
+  debugPrint("📥 Comando ricevuto: ");
+  debugPrintln(cmd);
   
   // Comando ALERT - non fare nulla
   if (strcmp(cmd, "ALERT") == 0) {
-    Serial.println("  → Comando ALERT ignorato");
+    debugPrintln("  → Comando ALERT ignorato");
     return;
   }
   
-  // Comando METEO - formato: METEO|temperatura|weathercode|citta|orario
+  // Comando METEO - formato: METEO|temperatura|weathercode|citta|orario|vento
   // Separatore | per evitare conflitto con : nell'orario (HH:MM)
   if (strncmp(cmd, "METEO|", 6) == 0) {
     // Parse con separatore |
     char* token = strtok(cmd + 6, "|");
     
-    // Temperatura arrotondata
-    String temp = token ? String(token) + "C" : "21C";
+    // Temperatura come numero (senza simbolo, lo disegneremo dopo)
+    String temp = token ? String(token) : "21";
     
     token = strtok(NULL, "|");
     int code = token ? atoi(token) : 0;
@@ -194,25 +185,32 @@ void processBluetoothCommand(char* cmd) {
     token = strtok(NULL, "|");
     String orario = token ? String(token) : "12:00";
     
-    Serial.print("  → Meteo: ");
-    Serial.print(citta);
-    Serial.print(" ");
-    Serial.print(temp);
-    Serial.print(" code=");
-    Serial.print(code);
-    Serial.print(" orario=");
-    Serial.println(orario);
+    token = strtok(NULL, "|");
+    float vento = token ? atof(token) : 0.0;
+    
+    debugPrint("  → Meteo: ");
+    debugPrint(citta);
+    debugPrint(" ");
+    debugPrint(temp);
+    debugPrint(" code=");
+    debugPrint(code);
+    debugPrint(" vento=");
+    debugPrint(vento);
+    debugPrint(" km/h orario=");
+    debugPrintln(orario);
     
     tft.fillScreen(COLORE_SFONDO);
-    disegnaMeteo(citta, orario, temp, code, 0.0, 0);
+    disegnaMeteo(citta, orario, temp, code, vento, 0);
     displayMeteoAttivo = true;
+    firstCommandReceived = true;  // Primo comando ricevuto
+    infoLabelDrawn = false;       // Reset per quando tornerà schermata treno
     return;
   }
   
   // Comando TRAIN - formato: TRAIN|dest|bin|linea1|linea2|orario|tipo
   // Separatore | per evitare conflitto con : nell'orario (HH:MM)
   if (strncmp(cmd, "TRAIN|", 6) == 0) {
-    Serial.println("  → Comando TRAIN ricevuto");
+    debugPrintln("  → Comando TRAIN ricevuto");
     
     // Parse con separatore |
     char* token = strtok(cmd + 6, "|");
@@ -233,26 +231,33 @@ void processBluetoothCommand(char* cmd) {
     token = strtok(NULL, "|");
     String tipoOrario = token ? String(token) : "partenza";
     
-    Serial.print("  → Treno: ");
-    Serial.print(trenoLinea1);
-    Serial.print(" ");
-    Serial.print(trenoLinea2);
-    Serial.print(" bin.");
-    Serial.print(binario);
-    Serial.print(" orario=");
-    Serial.print(orario);
-    Serial.print(" ");
-    Serial.println(tipoOrario);
+    // Rimuovi eventuali caratteri di fine riga (\n, \r) dal tipo
+    tipoOrario.trim();
+    
+    debugPrint("  → Treno: ");
+    debugPrint(trenoLinea1);
+    debugPrint(" ");
+    debugPrint(trenoLinea2);
+    debugPrint(" bin.");
+    debugPrint(binario);
+    debugPrint(" orario=");
+    debugPrint(orario);
+    debugPrint(" tipo=[");
+    debugPrint(tipoOrario);
+    debugPrintln("]");  // Mostra tipo tra [] per vedere spazi nascosti
     
     tft.fillScreen(COLORE_SFONDO);
-    infoScorrente = "ANNUNCIO TRENO DA M9LAB TRAINSTATION";
+    infoScorrente = "ATTENZIONE E' VIETATO INDICARE I PERSONAGGI";
     disegnaDisplay(destinazione, binario, trenoLinea1, trenoLinea2, orario, tipoOrario, infoScorrente);
     displayMeteoAttivo = false;
+    firstCommandReceived = true;  // Primo comando ricevuto
+    infoLabelDrawn = false;       // Reset flag per ridisegnare label "informazioni"
+    scrollX = 320;                // Reset posizione scroll
     return;
   }
   
   // Comando non riconosciuto
-  Serial.println("  ⚠️  Comando non riconosciuto");
+  debugPrintln("  ⚠️  Comando non riconosciuto");
 }
 
 // ========== SPLASH SCREEN ==========
@@ -313,47 +318,21 @@ void setup() {
   
   Serial.println("Display OK");
 
-  // Mostra splash screen
+  // Mostra splash screen e mantienilo fino al primo comando
   mostraSplashScreen();
   
-  // Inizializza Bluetooth
-  tft.fillScreen(COLORE_SFONDO);
-  tft.setTextSize(2);
-  tft.setTextColor(ST77XX_CYAN);
-  tft.setCursor(10, 10);
-  tft.print("Bluetooth");
-  tft.setCursor(10, 30);
-  tft.print("Slave...");
-  
-  if (initBluetooth()) {
-    tft.setTextColor(ST77XX_GREEN);
-    tft.setCursor(10, 60);
-    tft.print("BT PRONTO");
-    
-    tft.setTextSize(1);
-    tft.setTextColor(ST77XX_YELLOW);
-    tft.setCursor(10, 90);
-    tft.print("In attesa Master");
-    
-    tft.setCursor(10, 110);
-    tft.setTextColor(ST77XX_WHITE);
-    tft.print("Sul Master digita:");
-    
-    tft.setCursor(10, 125);
-    tft.setTextColor(ST77XX_CYAN);
-    tft.print("enableslave");
-    
-  } else {
+  // Inizializza Bluetooth (il logo resta visibile)
+  if (!initBluetooth()) {
+    // Solo in caso di errore, sovrascrivi con messaggio
+    tft.fillScreen(COLORE_SFONDO);
     tft.setTextColor(ST77XX_RED);
+    tft.setTextSize(2);
     tft.setCursor(10, 60);
     tft.print("ERRORE BT!");
   }
   
-  delay(3000);
-  
-  // Mostra schermata iniziale
-  tft.fillScreen(COLORE_SFONDO);
-  disegnaDisplay("TRIESTE", "1", "MEZZANINELAB", "REG 8101", "12:00", "partenza", infoScorrente);
+  // Logo splash rimane visibile fino al primo comando TRAIN o METEO
+  // che chiamerà tft.fillScreen() per disegnare il contenuto
   displayMeteoAttivo = false;
 }
 
@@ -374,7 +353,7 @@ void disegnaDisplay(String destinazione, String binario, String trenoLinea1, Str
   tft.setCursor(screenWidth - 60, y);
   tft.print("bin.");
   
-  y += 20;
+  y += 22;  // +2px padding-bottom per fare spazio alla label "informazioni" più grande
 
   // Pulisci area destinazione prima di scrivere
   tft.fillRect(0, y, screenWidth - 50, 24, COLORE_SFONDO);
@@ -392,14 +371,15 @@ void disegnaDisplay(String destinazione, String binario, String trenoLinea1, Str
   tft.drawFastHLine(0, y, screenWidth, COLORE_ETICHETTE);
   y += 8;
 
-  // Pulisci area destra per "partenza/arrivo" prima di scrivere
-  tft.fillRect(screenWidth - 120, y, 120, 16, COLORE_SFONDO);
-
+  // PULISCI TUTTA LA RIGA prima di scrivere (risolve sovrapposizione partenza/arrivo)
+  tft.fillRect(0, y, screenWidth, 20, COLORE_SFONDO);
+  
   tft.setTextSize(2);
   tft.setTextColor(ST77XX_CYAN);
   tft.setCursor(5, y);
   tft.print("treno");
   
+  // Scrivi tipo orario a destra
   int tipoW = tipoOrario.length() * 12;
   tft.setCursor(screenWidth - tipoW - 5, y);
   tft.print(tipoOrario);
@@ -480,10 +460,20 @@ void disegnaMeteo(String citta, String orario = "16:44", String temperatura = "2
     }
   }
   
+  // Disegna temperatura: numero grande + "C" piccola in alto
   tft.setTextSize(8);
   tft.setTextColor(COLORE_TESTO);
-  tft.setCursor(iconX + 90, y);
-  tft.print(temperatura);
+  int tempX = iconX + 90;
+  tft.setCursor(tempX, y);
+  tft.print(temperatura);  // Solo il numero
+  
+  // Calcola larghezza del numero per posizionare la "C"
+  int numWidth = temperatura.length() * 48;  // 48 = larghezza approssimativa char size 8
+  
+  // Disegna "C" piccola in alto a destra del numero
+  tft.setTextSize(3);  // "C" più piccola
+  tft.setCursor(tempX + numWidth, y + 5);  // +5 per allinearla in alto
+  tft.print("C");
   
   y += 66;
   
@@ -522,38 +512,19 @@ String getDescrizioneMeteo(int weatherCode) {
 }
 
 void loop() {
-  // Check BT ogni 2 secondi (ridotto da 1 per performance)
-  if (millis() - lastBTCheck > 2000) {
+  // Check BT più frequente (50ms) per catturare connessioni on-demand rapide
+  if (millis() - lastBTCheck > 50) {
     checkBluetoothConnection();
     lastBTCheck = millis();
   }
   
-  // PALLINO STATUS BT SEMPRE VISIBILE (anche su schermata meteo)
-  // Verde = connesso | Giallo lampeggiante = connessione in corso | Rosso = disconnesso
-  static unsigned long lastDotUpdate = 0;
-  static bool yellowBlink = false;
-  
-  if (millis() - lastDotUpdate > 500) {  // Aggiorna ogni 500ms
-    lastDotUpdate = millis();
-    yellowBlink = !yellowBlink;  // Toggle per lampeggio
-    
-    int dotX = TFT_HEIGHT - 8;
-    int dotY = 5;
-    uint16_t dotColor;
-    
-    if (btConnected) {
-      dotColor = ST77XX_GREEN;    // Connesso (fisso)
-    } else if (btConnecting) {
-      // Giallo lampeggiante (alterna giallo/nero)
-      dotColor = yellowBlink ? ST77XX_YELLOW : COLORE_SFONDO;
-    } else {
-      dotColor = ST77XX_RED;      // Disconnesso (fisso)
+  if (SerialBT.available()) {
+    // Se ci sono dati, il Master è sicuramente connesso
+    if (!btConnected) {
+      btConnected = true;
+      Serial.println("✅ MASTER CONNESSO (dati ricevuti)");
     }
     
-    tft.fillCircle(dotX, dotY, 1, dotColor);  // Raggio 1px = diametro 2px
-  }
-  
-  if (SerialBT.available()) {
     int idx = 0;
     unsigned long timeout = millis() + 100;
     
@@ -572,7 +543,36 @@ void loop() {
     }
   }
   
-  if (displayMeteoAttivo) return;
+  // === COMANDI VIA SERIAL (per debug) ===
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    
+    if (cmd.equalsIgnoreCase("verbose") || cmd.startsWith("verbose=")) {
+      if (cmd.startsWith("verbose=")) {
+        int val = cmd.substring(8).toInt();
+        verboseMode = (val != 0);
+      } else {
+        verboseMode = !verboseMode;  // Toggle
+      }
+      Serial.print("🔊 Verbose mode: ");
+      Serial.println(verboseMode ? "ON" : "OFF");
+    }
+    else if (cmd.equalsIgnoreCase("status")) {
+      Serial.println("=== STATUS DISPLAY ===");
+      Serial.print("BT Connected: ");
+      Serial.println(btConnected ? "YES" : "NO");
+      Serial.print("Verbose: ");
+      Serial.println(verboseMode ? "ON" : "OFF");
+      Serial.print("Display mode: ");
+      Serial.println(displayMeteoAttivo ? "METEO" : "TRENO");
+      Serial.println("======================");
+    }
+  }
+  
+  // Non disegnare scrolling se non è stato ricevuto il primo comando
+  // (mantieni logo splash visibile)
+  if (displayMeteoAttivo || !firstCommandReceived) return;
   
   unsigned long currentTime = millis();
   
@@ -581,17 +581,24 @@ void loop() {
     
     int screenWidth = TFT_HEIGHT;
     int screenHeight = TFT_WIDTH;
-    int labelY = screenHeight - 28;
-    int scrollY = screenHeight - 16;
-    int areaHeight = 35;
+    int labelY = screenHeight - 36;     // Più in basso per label più grande
+    int scrollY = screenHeight - 16;    // Scritta scorrevole 2px più in basso
     
-    tft.fillRect(0, labelY, screenWidth, areaHeight, COLORE_SFONDO);
+    // Disegna label "informazioni" solo una volta (non ad ogni frame)
+    if (!infoLabelDrawn) {
+      tft.setTextSize(2);
+      tft.setTextColor(ST77XX_CYAN);
+      tft.setCursor(5, labelY);
+      tft.print("informazioni");
+      infoLabelDrawn = true;
+    }
     
-    tft.setTextSize(1);
-    tft.setTextColor(ST77XX_CYAN);
-    tft.setCursor(5, labelY);
-    tft.print("informazioni");
+    // Cancella e ridisegna SOLO l'area del testo scrollante (non la label sopra)
+    int scrollAreaY = scrollY - 2;        // Inizia leggermente sopra il testo
+    int scrollAreaHeight = 20;            // Altezza solo del testo scrollante (size 2 = ~16px + margine)
+    tft.fillRect(0, scrollAreaY, screenWidth, scrollAreaHeight, COLORE_SFONDO);
     
+    // Testo scorrevole
     tft.setTextSize(2);
     tft.setTextColor(COLORE_TESTO);
     tft.setCursor(scrollX, scrollY);

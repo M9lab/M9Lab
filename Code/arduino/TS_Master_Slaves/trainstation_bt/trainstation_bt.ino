@@ -6,12 +6,12 @@
     ESP8266Audio: https://github.com/earlephilhower/ESP8266Audio
     Audio generato da: https://www.readspeaker.com/
 */
-// Versione script: 1.7.0 - WIFI TCP (Master Server)
+// Versione script: 1.8.0 - BT ON-DEMAND
 // Board: Atom Lite + SPK (MASTER)
-// Novità: BT Cellulare (config) + WiFi TCP Server per display LCD
+// Novità: BT Display on-demand (apri→invia→chiudi) + BT Config opzionale
 // Pattern bottone: 1x=Alert1, 2x=Alert9, 3x=Meteo, Long=BT toggle
 // Random play include: alert, treni, meteo
-// WiFi Server: porta 8888 per comunicazione con display
+// BT Display: si apre SOLO per inviare comandi, poi si chiude → ZERO conflitti!
 
 #include <M5Atom.h>
 #include <WiFi.h>
@@ -28,7 +28,7 @@
 
 
 // === SCRIPT VERSION ===
-const char scriptVersion[] = "1.7.0-WIFI-TCP";
+const char scriptVersion[] = "1.8.0-BT-ONDEMAND";
 
 // === CONFIG ===
 #define AUDIO_FILE "/riverloop.mp3"
@@ -39,13 +39,6 @@ const char scriptVersion[] = "1.7.0-WIFI-TCP";
 #define I2S_LRCL 21
 #define I2S_DOUT 25
 
-// === WIFI TCP SERVER CONFIG ===
-#define DISPLAY_SERVER_PORT 8888
-WiFiServer displayServer(DISPLAY_SERVER_PORT);
-WiFiClient displayClient;
-bool displayConnected = false;
-unsigned long lastDisplayCheck = 0;
-
 // === NTP CONFIG ===
 const char* ntpServer = "0.it.pool.ntp.org";
 const char* wifiSSID = "StefxMobile";
@@ -53,50 +46,67 @@ const char* wifiPWD = "qwerty123456";
 const long gmtOffset_sec = 3600;        // UTC+1 per Italia
 
 // === DAYLIGHT SAVING TIME (ORA LEGALE) ===
+// Calcola se siamo in ora legale (ultima domenica marzo-ottobre)
+// UE: ultima dom marzo 02:00 → ultima dom ottobre 03:00
 int getDaylightOffset() {
   int m = month();
   int d = day();
   int h = hour();
-  int dow = weekday();
+  int dow = weekday();  // 1=domenica, 2=lunedì...7=sabato
   
+  // Gen-Feb: ora solare
   if (m < 3) return 0;
+  
+  // Apr-Set: sempre ora legale
   if (m > 3 && m < 10) return 3600;
+  
+  // Nov-Dic: ora solare
   if (m > 10) return 0;
   
+  // Marzo: ultima domenica alle 02:00 inizia ora legale
   if (m == 3) {
+    // L'ultima domenica di marzo è sempre >= 25
     if (d < 25) return 0;
-    if (dow == 1) {
-      if (d + 7 > 31) {
-        return (h >= 2) ? 3600 : 0;
+    // Trova quale domenica del mese siamo
+    // Se siamo domenica e >= 25, controlliamo se c'è un'altra domenica dopo
+    if (dow == 1) {  // Oggi è domenica
+      if (d + 7 > 31) {  // Non c'è un'altra domenica dopo
+        return (h >= 2) ? 3600 : 0;  // Ultima domenica, cambia alle 02:00
       } else {
-        return 0;
+        return 0;  // C'è ancora un'altra domenica
       }
     }
+    // Non siamo domenica, controlliamo se l'ultima domenica è passata
+    // Giorni fino alla prossima domenica
     int daysToSunday = (7 - dow + 1) % 7;
     if (daysToSunday == 0) daysToSunday = 7;
     int nextSunday = d + daysToSunday;
     if (nextSunday > 31) {
-      return 3600;
+      return 3600;  // L'ultima domenica è già passata
     }
-    return 0;
+    return 0;  // L'ultima domenica non è ancora arrivata
   }
   
+  // Ottobre: ultima domenica alle 03:00 finisce ora legale
   if (m == 10) {
+    // L'ultima domenica di ottobre è sempre >= 25
     if (d < 25) return 3600;
-    if (dow == 1) {
-      if (d + 7 > 31) {
-        return (h < 3) ? 3600 : 0;
+    // Se siamo domenica e >= 25
+    if (dow == 1) {  // Oggi è domenica
+      if (d + 7 > 31) {  // Non c'è un'altra domenica dopo = ultima domenica
+        return (h < 3) ? 3600 : 0;  // Cambia alle 03:00
       } else {
-        return 3600;
+        return 3600;  // C'è ancora un'altra domenica
       }
     }
+    // Non siamo domenica
     int daysToSunday = (7 - dow + 1) % 7;
     if (daysToSunday == 0) daysToSunday = 7;
     int nextSunday = d + daysToSunday;
     if (nextSunday > 31) {
-      return 0;
+      return 0;  // L'ultima domenica è già passata = ora solare
     }
-    return 3600;
+    return 3600;  // L'ultima domenica non è ancora arrivata = ora legale
   }
   
   return 0;
@@ -108,16 +118,23 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.80;
+float volume = 0.08; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
-// === BLUETOOTH CELLULARE (config) ===
+// === BLUETOOTH DISPLAY (ON-DEMAND) ===
+// MAC del Display Slave: 80:F3:DA:BB:F8:02
+uint8_t displayMAC[] = {0x80, 0xF3, 0xDA, 0xBB, 0xF8, 0x02};
 BluetoothSerial SerialBT;
-bool btEnabled = false;
+bool btCellulareEnabled = false;  // BT per configurazione da cellulare
 
-// === METEO ===
-String cittaMeteo = "TRIESTE";
+// === METEO CACHE ===
+unsigned long lastMeteoFetch = 0;
+const unsigned long METEO_FETCH_INTERVAL = 1800000;  // 30 minuti in millisecondi
+float lastTemp = 21.0;
+int lastWeatherCode = 0;
+float lastWindSpeed = 0.0;
+bool hasMeteoData = false;
 
 // === AUDIO STATE ===
 bool audioStarting = false;
@@ -125,7 +142,7 @@ unsigned long lastAudioAttempt = 0;
 int audioRestartAttempts = 0;
 
 // OTTIMIZZAZIONE: buffer fisso invece di String
-char inputBuffer[28];
+char inputBuffer[28]; // ridotto a 28 byte
 int sm_totalFile = 0;
 int sm_playList[30];
 bool sm_ready = false;
@@ -133,132 +150,161 @@ bool sm_ready = false;
 // === RANDOM PLAY FLAG ===
 bool randomPlayFlag = true;
 unsigned long lastRandomEvent = 0;
-unsigned long randomInterval = 60000;
+unsigned long randomInterval = 60000; // ogni 60s evento casuale
+
+// === VERBOSE MODE (debug dettagliato) ===
+bool verboseMode = false;  // OFF di default per performance ottimali
+
+// === DEBUG HELPER FUNCTIONS ===
+// Funzioni per debug condizionale (solo se verboseMode=true)
+// Migliorano performance evitando print inutili
+
+void debugPrint(const char* str) {
+  if (verboseMode) Serial.print(str);
+}
+
+void debugPrint(const __FlashStringHelper* str) {
+  if (verboseMode) Serial.print(str);
+}
+
+void debugPrint(int val) {
+  if (verboseMode) Serial.print(val);
+}
+
+void debugPrint(float val) {
+  if (verboseMode) Serial.print(val);
+}
+
+void debugPrint(String str) {
+  if (verboseMode) Serial.print(str);
+}
+
+void debugPrintln(const char* str) {
+  if (verboseMode) Serial.println(str);
+}
+
+void debugPrintln(const __FlashStringHelper* str) {
+  if (verboseMode) Serial.println(str);
+}
+
+void debugPrintln(int val) {
+  if (verboseMode) Serial.println(val);
+}
+
+void debugPrintln(String str) {
+  if (verboseMode) Serial.println(str);
+}
+
+void debugPrintln() {
+  if (verboseMode) Serial.println();
+}
 
 // === DEBOUNCE ===
 unsigned long lastButtonPress = 0;
 unsigned long buttonPressStart = 0;
 
-// === MULTI CLICK ===
+// === MULTI CLICK (doppio/triplo) ===
 unsigned long lastClickTime = 0;
-int clickCount = 0;
-#define MULTI_CLICK_TIMEOUT 800
-#define MAX_CLICK_DURATION 350
+int clickCount = 0;  // Conta i click
+#define MULTI_CLICK_TIMEOUT 800  // tempo per completare multi-click
+#define MAX_CLICK_DURATION 350    // massima durata click valido
 
 // === CALLBACKS ===
 void StatusCallback(void *cbData, int code, const char *string) {
   (void)cbData; (void)code; (void)string;
 }
 
-// === WIFI TCP DISPLAY SERVER ===
-bool initDisplayServer() {
-  Serial.println(F("🌐 Avvio WiFi TCP Server per display..."));
+// === BLUETOOTH DISPLAY ON-DEMAND ===
+// Apre BT, invia comando, chiude BT → massima compatibilità con audio!
+bool sendToDisplayBT(const char* command) {
+  debugPrintln(F("📡 Invio BT al display..."));
   
-  // WiFi già connesso da NTP, solo attivalo
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.print(F("Connessione WiFi..."));
-    WiFi.begin(wifiSSID, wifiPWD);
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-      delay(500);
-      Serial.print(".");
-      attempts++;
-      yield();
-    }
-    
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println(F(" FALLITO!"));
-      return false;
-    }
-    Serial.println(F(" OK"));
+  // 1) Ferma riverloop prima di attivare BT (per liberare RAM)
+  if (mp3 && mp3->isRunning()) {
+    debugPrintln(F("   Pauso riverloop"));
+    mp3->stop();
+    delay(100);
   }
   
-  // Avvia server TCP
-  displayServer.begin();
+  // 2) Verifica RAM disponibile
+  uint32_t freeRAM = ESP.getFreeHeap();
+  debugPrint(F("   RAM: "));
+  debugPrint((int)freeRAM);
+  debugPrintln(F(" bytes"));
   
-  Serial.println(F("✅ WiFi TCP Server attivo"));
-  Serial.print(F("   IP: "));
-  Serial.println(WiFi.localIP());
-  Serial.print(F("   Porta: "));
-  Serial.println(DISPLAY_SERVER_PORT);
-  Serial.println(F("   In attesa connessione display..."));
+  if (freeRAM < 40000) {
+    Serial.println(F("❌ RAM insufficiente per BT!"));  // Errore: sempre visibile
+    startRiverLoop();  // Riavvia riverloop
+    return false;
+  }
+  
+  // 3) Inizializza BT in modalità Master (true = master)
+  if (!SerialBT.begin("M9Lab-Master", true)) {
+    Serial.println(F("❌ Errore init BT"));  // Errore: sempre visibile
+    startRiverLoop();
+    return false;
+  }
+  
+  SerialBT.enableSSP();  // Pairing automatico
+  delay(500);
+  
+  // 4) Connetti al Display via MAC
+  if (verboseMode) {
+    Serial.print(F("   Connetto a Display MAC: "));
+    for (int i = 0; i < 6; i++) {
+      Serial.printf("%02X", displayMAC[i]);
+      if (i < 5) Serial.print(":");
+    }
+    Serial.println();
+  }
+  
+  bool connected = SerialBT.connect(displayMAC);
+  
+  if (!connected) {
+    Serial.println(F("❌ Connessione fallita"));  // Errore: sempre visibile
+    SerialBT.end();
+    delay(200);
+    startRiverLoop();
+    return false;
+  }
+  
+  debugPrintln(F("✅ Connesso!"));
+  delay(300);  // Tempo per stabilizzare connessione
+  
+  // 5) Invia comando
+  SerialBT.println(command);
+  SerialBT.flush();  // Aspetta invio completo
+  
+  debugPrint(F("📤 Inviato: "));
+  debugPrintln(command);
+  
+  delay(150);  // Tempo per ricezione lato Slave
+  
+  // 6) CHIUDI IMMEDIATAMENTE BT (questo è il trucco!)
+  SerialBT.disconnect();
+  delay(100);
+  SerialBT.end();
+  delay(200);
+  
+  debugPrintln(F("🔌 BT chiuso"));
+  debugPrint(F("   RAM recuperata: "));
+  debugPrintln((int)ESP.getFreeHeap());
+  
+  // 7) Riavvia riverloop
+  startRiverLoop();
   
   return true;
-}
-
-void checkDisplayConnection() {
-  // Controlla ogni 2 secondi
-  if (millis() - lastDisplayCheck < 2000) {
-    return;
-  }
-  lastDisplayCheck = millis();
-  
-  // Accetta nuove connessioni
-  if (!displayConnected || !displayClient.connected()) {
-    if (displayConnected) {
-      Serial.println(F("⚠️  Display disconnesso"));
-      displayConnected = false;
-    }
-    
-    WiFiClient newClient = displayServer.available();
-    if (newClient) {
-      displayClient = newClient;
-      displayConnected = true;
-      Serial.println(F("✅ Display connesso!"));
-      Serial.print(F("   IP client: "));
-      Serial.println(displayClient.remoteIP());
-      
-      // Invia stato iniziale al display appena connesso
-      delay(500);  // Aspetta che il display sia pronto
-      Serial.println(F("📤 Invio stato iniziale al display..."));
-      
-      // Invia messaggio di benvenuto come treno
-      char orarioBuffer[6];
-      snprintf(orarioBuffer, sizeof(orarioBuffer), "%02d:%02d", hour(), minute());
-      String orarioStr = String(orarioBuffer);
-      
-      sendTrainToDisplay("M9LAB", "-", "IN ATTESA", "DATI", orarioStr, "");
-    }
-  }
-}
-
-void sendToDisplay(const char* command) {
-  if (!displayConnected || !displayClient.connected()) {
-    return;
-  }
-  
-  displayClient.println(command);
-  Serial.print(F("📤 Inviato a display: "));
-  Serial.println(command);
-  yield();
-}
-
-void sendMeteoToDisplay(float temp, int weatherCode, String city) {
-  char cmd[128];
-  
-  int tempArrotondata = (int)round(temp);
-  
-  char orarioStr[6];
-  snprintf(orarioStr, sizeof(orarioStr), "%02d:%02d", hour(), minute());
-  
-  snprintf(cmd, sizeof(cmd), "METEO|%d|%d|%s|%s", tempArrotondata, weatherCode, city.c_str(), orarioStr);
-  sendToDisplay(cmd);
-}
-
-void sendTrainToDisplay(String dest, String bin, String linea1, String linea2, String orario, String tipo) {
-  char cmd[128];
-  snprintf(cmd, sizeof(cmd), "TRAIN|%s|%s|%s|%s|%s|%s", 
-           dest.c_str(), bin.c_str(), linea1.c_str(), linea2.c_str(), orario.c_str(), tipo.c_str());
-  sendToDisplay(cmd);
 }
 
 // === UTILS ===
 void playFile(const char* filename) {
   if (mp3 && mp3->isRunning()) mp3->stop();
   
+  // OTTIMIZZAZIONE: delete solo se esistenti
   if (file) { delete file; file = nullptr; }
   if (id3) { delete id3; id3 = nullptr; }
   
+  // Verifica file esiste
   if (!SD.exists(filename)) {
     Serial.print(F("ERR: File non trovato: "));
     Serial.println(filename);
@@ -271,9 +317,12 @@ void playFile(const char* filename) {
     return;
   }
   
-  if (btEnabled) {
+  // In BT cellulare mode, usa file direttamente senza ID3 wrapper
+  if (btCellulareEnabled) {
+    // Modalità BT: no ID3
     id3 = nullptr;
   } else {
+    // Modalità normale: usa ID3
     id3 = new AudioFileSourceID3(file);
     if (!id3) {
       Serial.println(F("ERR: AudioFileSourceID3 failed"));
@@ -288,8 +337,9 @@ void playFile(const char* filename) {
     return;
   }
   
+  // Usa file direttamente se BT mode, altrimenti usa id3
   bool started;
-  if (btEnabled) {
+  if (btCellulareEnabled) {
     started = mp3->begin(file, out);
   } else {
     started = mp3->begin(id3, out);
@@ -320,7 +370,7 @@ void printTime(Stream &s = Serial) {
 }
 
 void clearSerialScreen() {
-  Serial.write(27);
+  Serial.write(27); // ESC
   Serial.print(F("[2J"));
   Serial.write(27);
   Serial.print(F("[H"));
@@ -330,6 +380,7 @@ void clearSerialScreen() {
 void scanWiFi(Stream *s = &Serial) {
   s->println(F("🔍 Scansione reti WiFi (2.4GHz)..."));
   
+  // Attiva WiFi se spento
   bool wifiWasOff = (WiFi.getMode() == WIFI_OFF);
   if (wifiWasOff) {
     WiFi.mode(WIFI_STA);
@@ -359,6 +410,7 @@ void scanWiFi(Stream *s = &Serial) {
       s->print(F("dBm) Ch"));
       s->print(WiFi.channel(i));
       
+      // Verifica se è il nostro SSID configurato
       if (ssid.equals(wifiSSID)) {
         s->print(F(" ← Configurato"));
       }
@@ -368,6 +420,7 @@ void scanWiFi(Stream *s = &Serial) {
   
   WiFi.scanDelete();
   
+  // Rispegni WiFi se era spento prima
   if (wifiWasOff) {
     WiFi.mode(WIFI_OFF);
   }
@@ -377,10 +430,12 @@ void scanWiFi(Stream *s = &Serial) {
 bool syncTimeWithNTP(Stream *s = &Serial) {
   s->println(F("🌐 Sincronizzazione NTP..."));
   
+  // Reset completo WiFi
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
-  delay(500);
+  delay(500);  // Pausa più lunga per reset completo
   
+  // Attiva WiFi
   WiFi.mode(WIFI_STA);
   delay(500);
   
@@ -392,11 +447,12 @@ bool syncTimeWithNTP(Stream *s = &Serial) {
   
   s->print(F("Connessione"));
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 40) {
+  while (WiFi.status() != WL_CONNECTED && attempts < 40) {  // aumentato a 40 = 20 secondi
     delay(500);
     s->print(".");
     attempts++;
     
+    // Debug stato ogni 5 tentativi
     if (attempts % 5 == 0) {
       s->print(F(" ["));
       s->print(WiFi.status());
@@ -414,7 +470,7 @@ bool syncTimeWithNTP(Stream *s = &Serial) {
     if (WiFi.status() == 4) {
       s->println(F("   Password errata o sicurezza non compatibile"));
     } else if (WiFi.status() == 1) {
-      s->println(F("   SSID non raggiungibile"));
+      s->println(F("   SSID non raggiungibile (verifica lista sopra)"));
     }
     
     WiFi.disconnect(true);
@@ -426,9 +482,11 @@ bool syncTimeWithNTP(Stream *s = &Serial) {
   s->print(F("IP: "));
   s->println(WiFi.localIP());
   
+  // Configura e sincronizza NTP (senza DST, lo aggiungeremo dopo)
   s->println(F("Sincronizzo con NTP..."));
-  configTime(gmtOffset_sec, 0, ntpServer);
+  configTime(gmtOffset_sec, 0, ntpServer);  // Prima sincronizza senza DST
   
+  // Attendi sincronizzazione (max 10 secondi)
   int ntpAttempts = 0;
   struct tm timeinfo;
   while (!getLocalTime(&timeinfo) && ntpAttempts < 20) {
@@ -448,13 +506,16 @@ bool syncTimeWithNTP(Stream *s = &Serial) {
   
   s->println(F(" OK!"));
   
+  // Aggiorna TimeLib con l'orario sincronizzato (UTC+1)
   setTime(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec,
           timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
   
+  // Calcola offset ora legale in base alla data
   int dstOffset = getDaylightOffset();
   
+  // Applica l'offset DST se necessario
   if (dstOffset == 3600) {
-    adjustTime(3600);
+    adjustTime(3600);  // Aggiungi 1 ora se in ora legale
   }
   
   s->print(F("✅ Orario aggiornato: "));
@@ -464,11 +525,15 @@ bool syncTimeWithNTP(Stream *s = &Serial) {
   s->print(dstOffset == 3600 ? F("Ora legale +1h") : F("Ora solare"));
   s->println(F(")"));
   
-  // NON disconnettere WiFi - lo usiamo per il server TCP!
-  s->println(F("✅ WiFi mantenuto attivo per server display"));
+  // Disconnetti WiFi per risparmiare RAM
+  WiFi.disconnect();
+  WiFi.mode(WIFI_OFF);
+  s->println(F("WiFi disattivato (RAM risparmiata)"));
   
   return true;
 }
+
+
 
 void printHelp(bool useBT=false){
   Stream *s = useBT ? (Stream*)&SerialBT : (Stream*)&Serial;
@@ -477,6 +542,7 @@ void printHelp(bool useBT=false){
   printTime(*s);
   
   if (useBT) {
+    // Help per BT - solo comandi configurazione
     s->println(F("\n--- COMANDI BT (solo config) ---"));
     s->println(F("  help           → Questo elenco"));
     s->println(F("  vol+ / vol-    → Volume +/- 10%"));
@@ -488,15 +554,20 @@ void printHelp(bool useBT=false){
     s->println(F("  randomplay=X   → Random on/off (0/1)"));
     s->println(F("  setinterval=X  → Intervallo random (sec)"));
     s->println(F("  ram            → Statistiche RAM"));
-    s->println(F("  ip             → Mostra IP Master e display"));
+    s->println(F("  verbose / =X   → Toggle/imposta debug (0=OFF, 1=ON)"));
     s->println(F("  togglebt       → Spegne BT e riattiva audio"));
     s->println(F("\n  NOTA: Comandi audio NON disponibili via BT"));
+    s->println(F("  (alert, playtrain, playaudio)"));
   } else {
+    // Help completo per Serial
     s->println(F("  help             → Mostra questo elenco"));
-    s->println(F("  playtrain=XYZ    → Annuncio treno"));
+    s->println(F("  playtrain=XYZ    → Annuncio treno (X=tipo 1-7, Y=bin 1-9, Z=azione 1=part/2=arr)"));
+    s->println(F("                     Es: playtrain=411 (IC bin1 partenza)"));
     s->println(F("  playaudio=XXX    → Riproduce /0XXX.mp3"));    
     s->println(F("  alert1..10       → Vari annunci alert"));
     s->println(F("  meteo            → Annuncio meteo Trieste"));
+    s->println(F("  rndtrn           → Test treno random"));
+    s->println(F("  testdisplay      → Test comunicazione display BT"));
     s->println(F("  randomplay=X     → Random on/off (0/1)"));
     s->println(F("  setinterval=X    → Intervallo random (sec)"));
     s->println(F("  vol+/vol-/vol=XX → Controllo volume"));
@@ -505,25 +576,20 @@ void printHelp(bool useBT=false){
     s->println(F("  gettime          → Mostra orario"));
     s->println(F("  scanwifi         → Scansiona reti WiFi"));
     s->println(F("  ram              → Statistiche RAM"));
-    s->println(F("  ip               → Mostra IP Master e display"));
+    s->println(F("  verbose / =X     → Toggle/imposta debug (0=OFF, 1=ON)"));
     s->println(F("  togglebt         → Toggle BT cellulare"));
   }
   
+  s->printf("  Verbose: %s\n", verboseMode ? "ON" : "OFF");
   s->printf("  Random: %s (%.1fs)\n", randomPlayFlag ? "ON" : "OFF", randomInterval/1000.0);
-  s->printf("  BT Cell: %s", btEnabled ? "ATTIVO" : "OFF");
-  if (btEnabled) {
+  s->printf("  BT Cellulare: %s", btCellulareEnabled ? "ATTIVO" : "OFF");
+  if (btCellulareEnabled) {
     s->println(F(" [LED BLU]"));
+    s->println(F("  Audio/Riverloop fermati"));
   } else {
     s->println();
   }
-  s->printf("  WiFi Display: %s", displayConnected ? "CONNESSO" : "In attesa");
-  if (displayConnected) {
-    s->print(F(" ("));
-    s->print(displayClient.remoteIP());
-    s->println(F(")"));
-  } else {
-    s->println();
-  }
+  s->println(F("  BT Display: on-demand (apri→invia→chiudi)"));
   s->printf("  RAM: %d bytes\n", ESP.getFreeHeap());
   s->println(F("\n  === PATTERN BOTTONE ==="));
   s->println(F("  [1 click  = ALERT1]"));
@@ -545,10 +611,56 @@ int convertIntTo2DigitString(int i) {
 }
 
 void executeAudioPlayList(const char* command) {
+  // Validazione lunghezza comando (deve essere almeno 3 caratteri: train, track, action)
+  if (strlen(command) < 3) {
+    Serial.println(F("❌ Comando troppo corto! Formato: XYZ (es: 411)"));
+    Serial.print(F("   Ricevuto: "));
+    Serial.println(command);
+    return;
+  }
+  
   int sm_train = command[0] - '0';
   int sm_track = command[1] - '0';
   int sm_action = command[2] - '0';
+  
+  // DEBUG: stampa valori parsati (solo se verbose)
+  debugPrint(F("📋 Comando parsato: train="));
+  debugPrint(sm_train);
+  debugPrint(F(" track="));
+  debugPrint(sm_track);
+  debugPrint(F(" action="));
+  debugPrint(sm_action);
+  debugPrint(F(" ["));
+  debugPrint(command[0]);
+  debugPrint(command[1]);
+  debugPrint(command[2]);
+  debugPrintln(F("]"));
+  
+  // Validazione: sm_action deve essere 1 (partenza) o 2 (arrivo)
+  if (sm_action != 1 && sm_action != 2) {
+    Serial.print(F("⚠️  Azione non valida: "));  // Errore: sempre visibile
+    Serial.print(sm_action);
+    Serial.println(F(" (uso 1=partenza di default)"));
+    sm_action = 1;  // Default: partenza
+  }
+  
+  debugPrint(F("   → Tipo: "));
+  debugPrintln(sm_action == 1 ? "PARTENZA" : "ARRIVO");
 
+  // === GENERA NUMERO TRENO (da usare sia per audio che display) ===
+  // Strategia: genera prima i numeri audio validi (11-61), poi costruisci trainNumber
+  int rnd1 = random(11, 62);  // Prime 2 cifre (range audio valido)
+  int rnd2 = random(11, 62);  // Ultime 2 cifre (range audio valido)
+  int trainNumber = (rnd1 * 100) + rnd2;  // Ricostruisci numero: 45 e 23 -> 4523
+  
+  debugPrint(F("🎲 Numero treno: "));
+  debugPrint(trainNumber);
+  debugPrint(F(" (audio: "));
+  debugPrint(rnd1);
+  debugPrint(F(", "));
+  debugPrint(rnd2);
+  debugPrintln(F(")"));
+  
   sm_totalFile = 0;
   memset(sm_playList, 0, sizeof(sm_playList));
 
@@ -557,29 +669,27 @@ void executeAudioPlayList(const char* command) {
 
   switch (sm_train) {
     case 1:
+      // Freccia Bianca: usa rnd1 e rnd2 (es: FB 4523)
       addToPlayList(201);
-      addToPlayList(65);
-      addToPlayList(100);
-      addToPlayList(100);
-      addToPlayList(1);
+      addToPlayList(rnd1);
+      addToPlayList(rnd2);
       break;
 
     case 4:
+      // Intercity: usa rnd1 e rnd2 (es: IC 3512)
       addToPlayList(204);
-      addToPlayList(35);
-      addToPlayList(100);
-      addToPlayList(100);
-      addToPlayList(4);
+      addToPlayList(rnd1);
+      addToPlayList(rnd2);
       break;
 
+    // Per tutti gli altri casi: 2, 3, 5, 6, 7
     case 2:
     case 3:
     case 5:
     case 6:
     case 7: {
-      int base = 200 + sm_train;
-      int rnd1 = random(11, 61);
-      int rnd2 = random(11, 61);
+      int base = 200 + sm_train;  // genera 202, 203, 205, 206, 207
+      // Usa rnd1 e rnd2 estratti da trainNumber
       addToPlayList(base);
       addToPlayList(rnd1);
       addToPlayList(rnd2);
@@ -593,18 +703,64 @@ void executeAudioPlayList(const char* command) {
   addToPlayList(135);
   addToPlayList(convertIntTo2DigitString(minute()));
 
-  if (sm_action == 1) addToPlayList(141);
-  if (sm_action == 2) addToPlayList(146);
+  // Audio partenza/arrivo (INVERTITI: 0146=partenza, 0141=arrivo)
+  if (sm_action == 1) {
+    debugPrintln(F("   🎵 Audio: 0146.mp3 (partenza)"));
+    addToPlayList(146);  // File audio dice "partenza"
+  }
+  if (sm_action == 2) {
+    debugPrintln(F("   🎵 Audio: 0141.mp3 (arrivo)"));
+    addToPlayList(141);  // File audio dice "arrivo"
+  }
 
   addToPlayList(sm_track);
   if (sm_action == 1) addToPlayList(165);
   addToPlayList(191);
 
   sm_ready = true;
+  
+  // === INVIA COMANDO AL DISPLAY ===
+  // Costruisci comando treno per display (usa trainNumber generato sopra)
+  char displayCmd[128];
+  String trainName = "MEZZANINELAB";
+  String trainPrefix;
+  
+  switch(sm_train) {
+    case 1: trainPrefix = "FB"; break;
+    case 2: trainPrefix = "FR"; break;
+    case 3: trainPrefix = "I"; break;
+    case 4: trainPrefix = "IC"; break;
+    case 5: trainPrefix = "RV"; break;
+    case 6: trainPrefix = "ICN"; break;
+    case 7: trainPrefix = "R"; break;
+    default: trainPrefix = "R"; break;
+  }
+  
+  // trainNumber già generato all'inizio per sincronizzare audio e display
+  String trainCode = trainPrefix + " " + String(trainNumber);
+  String tipoOrario = sm_action == 1 ? "partenza" : "arrivo";
+  
+  debugPrint(F("   📱 Display → Treno: "));
+  debugPrint(trainCode);
+  debugPrint(F(" - Tipo: "));
+  debugPrint(tipoOrario);
+  debugPrint(F(" (sm_action="));
+  debugPrint(sm_action);
+  debugPrintln(F(")"));
+  
+  snprintf(displayCmd, sizeof(displayCmd), "TRAIN|MF-TRIESTE|%d|%s|%s|%02d:%02d|%s", 
+           sm_track, trainName.c_str(), trainCode.c_str(), 
+           hour(), minute(), tipoOrario.c_str());
+  
+  debugPrintln(F("📤 Invio treno al display..."));
+  debugPrint(F("   Comando: "));
+  debugPrintln(displayCmd);  // Debug: mostra comando completo
+  sendToDisplayBT(displayCmd);
 }
 
 // === AUDIO LOOP CONTROL ===
 void startRiverLoop() {
+  // Previeni chiamate multiple ravvicinate
   if (audioStarting || (millis() - lastAudioAttempt < 2000)) {
     return;
   }
@@ -613,31 +769,36 @@ void startRiverLoop() {
   lastAudioAttempt = millis();
   audioRestartAttempts++;
   
+  // Limita tentativi consecutivi
   if (audioRestartAttempts > 5) {
     Serial.println(F("ERR: Troppi tentativi riverloop"));
+    Serial.println(F("Prova: spegni BT (long press) per liberare RAM"));
     audioStarting = false;
-    delay(10000);
+    delay(10000); // Pausa 10 secondi prima di riprovare
     audioRestartAttempts = 0;
     return;
   }
   
-  Serial.print(F("Riverloop ("));
-  Serial.print(audioRestartAttempts);
-  Serial.print(F(") RAM:"));
-  Serial.println(ESP.getFreeHeap());
+  debugPrint(F("Riverloop ("));
+  debugPrint(audioRestartAttempts);
+  debugPrint(F(") RAM:"));
+  debugPrintln(ESP.getFreeHeap());
   
+  // Verifica che mp3 esista
   if (!mp3) {
-    Serial.println(F("ERR: MP3 null"));
+    Serial.println(F("ERR: MP3 null - reinit necessario"));  // Errore: sempre visibile
     audioStarting = false;
     return;
   }
   
+  // Verifica SD ancora accessibile
   if (!SD.exists(AUDIO_FILE)) {
-    Serial.println(F("ERR: riverloop non trovato"));
+    Serial.println(F("ERR: SD o file riverloop non trovato"));  // Errore: sempre visibile
     audioStarting = false;
     return;
   }
   
+  // Ferma se in esecuzione
   if (mp3->isRunning()) {
     mp3->stop();
     delay(50);
@@ -645,19 +806,26 @@ void startRiverLoop() {
   
   playFile(AUDIO_FILE);
   
+  // Verifica avvio con più dettagli
   delay(150);
   if (mp3->isRunning()) {    
-    audioRestartAttempts = 0;
+    audioRestartAttempts = 0; // Reset contatore su successo
   } else {
-    Serial.println(F("WARN: Audio non avviato"));
+    debugPrintln(F("WARN: Audio non avviato"));
+    debugPrint(F("mp3 ptr: "));
+    debugPrintln((int)mp3);
+    debugPrint(F("out ptr: "));
+    debugPrintln((int)out);
   }
   
   audioStarting = false;
 }
 
 void playSingleFile(int num) {
-  if (btEnabled) {
+  // NON riprodurre audio se BT cellulare è attivo (usato solo per config)
+  if (btCellulareEnabled) {
     Serial.println(F("Audio disabilitato in BT mode"));
+    Serial.println(F("Usa BT solo per configurazione"));
     return;
   }
   
@@ -667,16 +835,17 @@ void playSingleFile(int num) {
   else
     sprintf(filename, "/%04d.mp3", num);
 
-  Serial.print(F("> "));
-  Serial.println(filename);
+  debugPrint(F("> "));
+  debugPrintln(filename);
   
   if (!mp3) {
-    Serial.println(F("ERR: mp3 null"));
+    Serial.println(F("ERR: mp3 null, init fallito"));  // Errore: sempre visibile
     return;
   }
   
   playFile(filename);
   
+  // Attendi completamento con timeout
   unsigned long startPlay = millis();
   while (mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) {
     if (!mp3->loop()) break;
@@ -684,27 +853,51 @@ void playSingleFile(int num) {
     yield();
   }
   
+  // Reset contatore
   audioRestartAttempts = 0;
   audioStarting = false;
   lastAudioAttempt = 0;
   
+  // Riavvia riverloop
   startRiverLoop();
 }
 
-// === METEO ===
-bool getMeteoTrieste(float &temp, int &weatherCode) {
-  Serial.println(F("🌤️ Recupero meteo..."));
+// === METEO TRIESTE ===
+bool getMeteoTrieste(float &temp, int &weatherCode, float &windSpeed) {
+  debugPrintln(F("🌤️ Recupero meteo da Open-Meteo per Trieste..."));
   
-  // WiFi già attivo per server display
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println(F("❌ WiFi non connesso"));
-    return false;
+  // Attiva WiFi se spento
+  bool wifiWasOff = (WiFi.getMode() == WIFI_OFF);
+  if (wifiWasOff) {
+    WiFi.mode(WIFI_STA);
+    delay(500);
   }
   
+  // Connetti WiFi se non già connesso
+  if (WiFi.status() != WL_CONNECTED) {
+    debugPrint(F("Connessione WiFi..."));
+    WiFi.begin(wifiSSID, wifiPWD);
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      debugPrint(".");
+      attempts++;
+      yield();
+    }
+    
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println(F("❌ WiFi FALLITO!"));  // Errore: sempre visibile
+      if (wifiWasOff) WiFi.mode(WIFI_OFF);
+      return false;
+    }
+    debugPrintln(F(" OK"));
+  }
+  
+  // Chiamata API Open-Meteo
   String url = "http://api.open-meteo.com/v1/forecast?latitude=45.65&longitude=13.77&current_weather=true";
   HTTPClient http;
   http.begin(url);
-  http.setTimeout(10000);
+  http.setTimeout(10000); // 10 secondi timeout
   
   int httpCode = http.GET();
   bool success = false;
@@ -712,6 +905,7 @@ bool getMeteoTrieste(float &temp, int &weatherCode) {
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
     
+    // Parse JSON
     DynamicJsonDocument doc(1024);
     DeserializationError error = deserializeJson(doc, payload);
     
@@ -721,110 +915,188 @@ bool getMeteoTrieste(float &temp, int &weatherCode) {
       if (!weather.isNull()) {
         temp = weather["temperature"];
         weatherCode = weather["weathercode"];
+        windSpeed = weather["windspeed"];  // ← AGGIUNTO: velocità vento
         
-        Serial.printf("✅ Meteo: %.1f°C, code=%d\n", temp, weatherCode);
+        if (verboseMode) {
+          Serial.printf("✅ Meteo: %.1f°C, code=%d, vento=%.1f km/h\n", temp, weatherCode, windSpeed);
+        }
         success = true;
       } else {
-        Serial.println(F("❌ Dati meteo non trovati"));
+        Serial.println(F("❌ Dati meteo non trovati nel JSON"));  // Errore: sempre visibile
       }
     } else {
-      Serial.print(F("❌ Errore JSON: "));
+      Serial.print(F("❌ Errore parsing JSON: "));  // Errore: sempre visibile
       Serial.println(error.c_str());
     }
   } else {
-    Serial.printf("❌ HTTP error: %d\n", httpCode);
+    Serial.printf("❌ HTTP error: %d\n", httpCode);  // Errore: sempre visibile
   }
   
   http.end();
-  yield();
+  
+  // Rispegni WiFi se era spento prima
+  if (wifiWasOff) {
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
+    Serial.println(F("WiFi disattivato"));
+  }
   
   return success;
 }
 
 int getWeatherAudioCode(int weatherCode) {
+  // Mappa weatherCode di Open-Meteo agli audio
+  // Codici Open-Meteo: https://open-meteo.com/en/docs
   switch (weatherCode) {
-    case 0: return 311;
-    case 1: case 2: case 3: return 312;
-    case 45: case 48: return 314;
-    case 51: case 53: case 55:
-    case 61: case 63: case 65:
-    case 80: case 81: case 82: return 313;
-    case 95: case 96: case 99: return 315;
-    default: return 316;
+    case 0: return 311; // cielo sereno
+    case 1: case 2: case 3: return 312; // parzialmente nuvoloso
+    case 45: case 48: return 314; // nebbia
+    case 51: case 53: case 55: // drizzle
+    case 61: case 63: case 65: // pioggia
+    case 80: case 81: case 82: return 313; // pioggia
+    case 95: case 96: case 99: return 315; // temporale
+    default: return 316; // condizioni variabili
   }
 }
 
 void playMeteoAnnouncement() {
-  if (btEnabled) {
+  // NON riprodurre audio se BT cellulare è attivo
+  if (btCellulareEnabled) {
     Serial.println(F("Audio disabilitato in BT mode"));
     return;
   }
   
-  Serial.println(F("🌡️ Annuncio meteo"));
+  debugPrintln(F("🌡️ Annuncio meteo Trieste"));
   
+  // FERMA RIVERLOOP prima di caricare dati (evita glitch durante WiFi)
   if (mp3 && mp3->isRunning()) {
+    debugPrintln(F("Fermo riverloop per caricamento meteo..."));
     mp3->stop();
     delay(100);
   }
   
-  float temp;
-  int weatherCode;
+  // === CONTROLLO TIMING: Recupera solo se sono passati 30 minuti ===
+  unsigned long currentMillis = millis();
+  bool needsFetch = false;
   
-  if (!getMeteoTrieste(temp, weatherCode)) {
-    Serial.println(F("❌ Impossibile recuperare meteo"));
-    startRiverLoop();
-    return;
+  if (!hasMeteoData) {
+    // Prima chiamata: fetch obbligatorio
+    debugPrintln(F("   Prima chiamata meteo"));
+    needsFetch = true;
+  } else if (currentMillis - lastMeteoFetch >= METEO_FETCH_INTERVAL) {
+    // Sono passati 30+ minuti: fetch necessario
+    debugPrintln(F("   Dati meteo vecchi (>30 min), aggiorno..."));
+    needsFetch = true;
+  } else {
+    // Dati ancora validi: usa cache
+    unsigned long minutiPassati = (currentMillis - lastMeteoFetch) / 60000;
+    debugPrint(F("   Uso dati cache ("));
+    debugPrint((int)minutiPassati);
+    debugPrintln(F(" min fa)"));
   }
   
-  // *** PRIMA: INVIA DATI AL DISPLAY ***
-  Serial.println(F("📤 Invio dati meteo al display..."));
-  sendMeteoToDisplay(temp, weatherCode, cittaMeteo);
-  delay(200);
-  yield();
+  // Recupera dati meteo
+  float temp;
+  int weatherCode;
+  float windSpeed;
   
-  // *** POI: AUDIO ***
+  if (needsFetch) {
+    if (!getMeteoTrieste(temp, weatherCode, windSpeed)) {
+      Serial.println(F("❌ Impossibile recuperare meteo"));  // Errore: sempre visibile
+      
+      // Se abbiamo dati cache, usali
+      if (hasMeteoData) {
+        debugPrintln(F("   Uso ultimi dati disponibili"));
+        temp = lastTemp;
+        weatherCode = lastWeatherCode;
+        windSpeed = lastWindSpeed;
+      } else {
+        // Nessun dato disponibile: annulla
+        startRiverLoop();
+        return;
+      }
+    } else {
+      // Aggiorna cache
+      lastTemp = temp;
+      lastWeatherCode = weatherCode;
+      lastWindSpeed = windSpeed;
+      lastMeteoFetch = currentMillis;
+      hasMeteoData = true;
+      debugPrintln(F("✅ Dati meteo aggiornati"));
+    }
+  } else {
+    // Usa dati cache
+    temp = lastTemp;
+    weatherCode = lastWeatherCode;
+    windSpeed = lastWindSpeed;
+  }
+  
+  // === INVIA DATI METEO AL DISPLAY ===
+  char displayCmd[128];
+  int tempArrotondata = (int)round(temp);
+  int windSpeedInt = (int)round(windSpeed);
+  snprintf(displayCmd, sizeof(displayCmd), "METEO|%d|%d|TRIESTE|%02d:%02d|%d", 
+           tempArrotondata, weatherCode, hour(), minute(), windSpeedInt);
+  
+  debugPrintln(F("📤 Invio meteo al display..."));
+  sendToDisplayBT(displayCmd);
+  
+  // Aspetta che BT si chiuda e riverloop riparta
+  delay(500);
+  
+  // Costruisci playlist annuncio
   sm_totalFile = 0;
   
+  // Saluto in base all'ora
   int h = hour();
-  if (h >= 0 && h < 12) addToPlayList(301);
-  else if (h >= 12 && h < 17) addToPlayList(302);
-  else addToPlayList(303);
+  if (h >= 0 && h < 12) addToPlayList(301);       // Buongiorno
+  else if (h >= 12 && h < 17) addToPlayList(302); // Buonpomeriggio
+  else addToPlayList(303);                         // Buonasera
   
-  addToPlayList(304);
+  addToPlayList(304); // "a tutti da Trieste, sono le ore"
+  
+  // Ora attuale
   addToPlayList(hour());
-  addToPlayList(135);
+  addToPlayList(135); // "e"
   addToPlayList(convertIntTo2DigitString(minute()));
-  addToPlayList(305);
   
+  addToPlayList(305); // "in questo momento ci sono"
+  
+  // Temperatura (arrotonda a intero)
   int tempInt = (int)round(temp);
   if (tempInt < 0) {
+    // Temperatura negativa - gestione opzionale
     tempInt = abs(tempInt);
   }
   
-  if (tempInt < 10) {
-    addToPlayList(tempInt + 100);
-  } else {
-    addToPlayList(tempInt);
-  }
+  // Converti temperatura in audio
+  addToPlayList(tempInt); // 10-99 direttamente
   
-  addToPlayList(306);
-  addToPlayList(307);
+  addToPlayList(306); // "gradi"
   
+  addToPlayList(307); // "e le condizioni del meteo indicano"
+  
+  // Condizione meteo
   int audioCode = getWeatherAudioCode(weatherCode);
   addToPlayList(audioCode);
   
-  Serial.printf("🎤 Playlist meteo: %d file\n", sm_totalFile);
+  // Riproduci
+  if (verboseMode) {
+    Serial.printf("🎤 Playlist meteo: %d file\n", sm_totalFile);
+  }
   playPlaylist();
 }
 
 void playPlaylist() {
-  if (btEnabled) {
+  // NON riprodurre audio se BT cellulare è attivo (usato solo per config)
+  if (btCellulareEnabled) {
     Serial.println(F("Audio disabilitato in BT mode"));
+    Serial.println(F("Usa BT solo per configurazione"));
     return;
   }
   
   if (!mp3) {
-    Serial.println(F("ERR: mp3 null"));
+    Serial.println(F("ERR: mp3 null, playlist annullata"));
     return;
   }
   
@@ -837,8 +1109,8 @@ void playPlaylist() {
     else
       sprintf(filename, "/%04d.mp3", sm_playList[i]);
     
-    Serial.print(F("> "));
-    Serial.println(filename);
+    debugPrint(F("> "));
+    debugPrintln(filename);
     playFile(filename);
     
     unsigned long startPlay = millis();
@@ -850,10 +1122,13 @@ void playPlaylist() {
   }
   
   playingPlaylist = false;
+  
+  // Reset contatore dopo playlist completata
   audioRestartAttempts = 0;
   audioStarting = false;
   lastAudioAttempt = 0;
   
+  // Riavvia riverloop
   startRiverLoop();
 }
 
@@ -861,6 +1136,7 @@ void playPlaylist() {
 void reinitAudio() {
   Serial.println(F("Re-init audio..."));
   
+  // Pulisci oggetti audio esistenti completamente
   if (mp3) {
     if (mp3->isRunning()) mp3->stop();
     delay(100);
@@ -882,11 +1158,15 @@ void reinitAudio() {
     out = nullptr;
   }
   
-  delay(200);
+  delay(200); // Pausa per lasciare tempo al sistema
   
-  Serial.print(F("RAM: "));
-  Serial.println(ESP.getFreeHeap());
+  Serial.print(F("RAM prima init: "));
+  Serial.print(ESP.getFreeHeap());
+  Serial.print(F(" (largest: "));
+  Serial.print(ESP.getMaxAllocHeap());
+  Serial.println(F(")"));
   
+  // Ricrea oggetti audio con controlli
   out = new AudioOutputI2S();
   if (!out) {
     Serial.println(F("ERR: AudioOutputI2S failed!"));
@@ -894,23 +1174,38 @@ void reinitAudio() {
   }
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
   
-  int bufferSize = btEnabled ? 128 : 512;
-  out->SetBuffers(2, bufferSize);
+  // Buffer MINIMALI con BT cellulare attivo per massimizzare RAM disponibile
+  int bufferSize = btCellulareEnabled ? 128 : 512;
+  int bufferCount = btCellulareEnabled ? 2 : 2;
+  out->SetBuffers(bufferCount, bufferSize);
   out->SetGain(volume);
+  Serial.print(F("I2S OK (buf:"));
+  Serial.print(bufferSize);
+  Serial.println(F(")"));
   
   delay(100);
   
-  file = new AudioFileSourceSD(AUDIO_FILE);
-  if (!file) {
-    Serial.println(F("ERR: File failed!"));
+  if (!SD.exists(AUDIO_FILE)) {
+    Serial.println(F("ERR: riverloop.mp3 non trovato!"));
     return;
   }
   
-  if (btEnabled) {
+  file = new AudioFileSourceSD(AUDIO_FILE);
+  if (!file) {
+    Serial.println(F("ERR: AudioFileSourceSD failed!"));
+    return;
+  }
+  
+  // OTTIMIZZAZIONE BT: Salta ID3 wrapper per risparmiare RAM
+  if (btCellulareEnabled) {
+    // Modalità BT cellulare: usa direttamente file senza ID3
+    Serial.println(F("BT mode: skip ID3 wrapper"));
     id3 = nullptr;
   } else {
+    // Modalità normale: usa ID3
     id3 = new AudioFileSourceID3(file);
     if (!id3) {
+      Serial.println(F("ERR: AudioFileSourceID3 failed!"));
       delete file;
       file = nullptr;
       return;
@@ -919,7 +1214,7 @@ void reinitAudio() {
   
   mp3 = new AudioGeneratorMP3();
   if (!mp3) {
-    Serial.println(F("ERR: MP3 failed!"));
+    Serial.println(F("ERR: AudioGeneratorMP3 failed!"));
     if (id3) delete id3;
     delete file;
     id3 = nullptr;
@@ -927,10 +1222,17 @@ void reinitAudio() {
     return;
   }
   
+  Serial.print(F("RAM prima mp3->begin: "));
+  Serial.print(ESP.getFreeHeap());
+  Serial.print(F(" (largest: "));
+  Serial.print(ESP.getMaxAllocHeap());
+  Serial.println(F(")"));
+  
   mp3->RegisterStatusCB(StatusCallback, (void*)"mp3");
   
+  // Usa file direttamente se BT cellulare mode, altrimenti usa id3
   bool beginOK;
-  if (btEnabled) {
+  if (btCellulareEnabled) {
     beginOK = mp3->begin(file, out);
   } else {
     beginOK = mp3->begin(id3, out);
@@ -938,57 +1240,85 @@ void reinitAudio() {
   
   if (!beginOK) {
     Serial.println(F("ERR: mp3->begin failed!"));
+    Serial.print(F("RAM: "));
+    Serial.print(ESP.getFreeHeap());
+    Serial.print(F(" (largest: "));
+    Serial.print(ESP.getMaxAllocHeap());
+    Serial.println(F(")"));
+    Serial.println(F("RAM insufficiente per decoder MP3!"));
+  } else {
+    Serial.println(F("MP3 begin OK"));
   }
   
-  Serial.println(F("Audio re-init OK"));
+  Serial.println(F("Audio re-init completato"));
+  Serial.print(F("RAM dopo init: "));
+  Serial.println(ESP.getFreeHeap());
 }
 
 void toggleBluetooth() {
-  if (btEnabled) {
-    Serial.println(F("Disattivo BT..."));
+  if (btCellulareEnabled) {
+    // === SPEGNI BT CELLULARE ===
+    Serial.println(F("Disattivo Bluetooth cellulare..."));
     SerialBT.flush();
     SerialBT.end();
     delay(200);
-    btEnabled = false;
+    btCellulareEnabled = false;
     
+    // Spegni LED
     M5.dis.drawpix(0, 0x000000);
     
-    Serial.println(F("BT SPENTO"));
+    Serial.println(F("BT CELLULARE SPENTO"));
+    Serial.print(F("RAM recuperata: "));
+    Serial.println(ESP.getFreeHeap());
     
+    // Re-inizializza audio
     reinitAudio();
     audioRestartAttempts = 0;
     audioStarting = false;
     lastAudioAttempt = 0;
     
+    // Riavvia riverloop
     delay(300);
     startRiverLoop();
     
+    Serial.println(F("Audio/Riverloop riattivati"));
+    
   } else {
+    // === ATTIVA BT CELLULARE (per configurazione) ===
     uint32_t freeHeap = ESP.getFreeHeap();
-    Serial.print(F("RAM: "));
-    Serial.println(freeHeap);
+    Serial.print(F("RAM libera: "));
+    Serial.print(freeHeap);
+    Serial.println(F(" bytes"));
     
     if (freeHeap < 50000) {
-      Serial.println(F("RAM insufficiente!"));
+      Serial.println(F("ERRORE: RAM insufficiente per BT!"));
       return;
     }
     
+    // Ferma audio completamente
+    Serial.println(F("Fermo audio..."));
     if (mp3 && mp3->isRunning()) {
       mp3->stop();
     }
     delay(200);
     
-    Serial.println(F("Attivo BT..."));
+    Serial.println(F("Attivo Bluetooth cellulare..."));
     
-    if (!SerialBT.begin("M9Lab-TrainStation")) {
-      Serial.println(F("BT failed!"));
+    // Inizializza BT per configurazione (NON per display!)
+    if (!SerialBT.begin("M9Lab-Config")) {
+      Serial.println(F("ERRORE: Impossibile avviare BT"));
       return;
     }
     
-    btEnabled = true;
+    btCellulareEnabled = true;
+    
+    // Accendi LED BLU fisso
     M5.dis.drawpix(0, 0x0000FF);
     
-    Serial.println(F("BT ATTIVO"));
+    Serial.println(F("BT CELLULARE ATTIVO: M9Lab-Config"));
+    Serial.println(F("Solo configurazione (no audio)"));
+    Serial.print(F("RAM disponibile: "));
+    Serial.println(ESP.getFreeHeap());
   }
 }
 
@@ -1003,62 +1333,26 @@ bool equalsIgnoreCase(const char* str1, const char* str2) {
 
 void processCommand(char* cmd, bool fromBT=false) {
   Stream *s = fromBT ? (Stream*)&SerialBT : (Stream*)&Serial;
+    
   
+  // Trim whitespace
   while (*cmd && isspace(*cmd)) cmd++;
   char* end = cmd + strlen(cmd) - 1;
   while (end > cmd && isspace(*end)) *end-- = '\0';
   
+  
   if (equalsIgnoreCase(cmd, "help")) {
+    Serial.println(F("Comando help riconosciuto"));
     printHelp(fromBT);
   }
+  // Comandi AUDIO - BLOCCATI se BT attivo
   else if (startsWith(cmd, "playtrain=")) {
     if (fromBT) {
       s->println(F("Comando audio non disponibile via BT"));
+      s->println(F("Usa BT solo per configurazione"));
     } else {
-      const char* trainCmd = cmd + 10;
-      if (strlen(trainCmd) >= 3) {
-        int train = trainCmd[0] - '0';
-        int binario = trainCmd[1] - '0';
-        int azione = trainCmd[2] - '0';
-        
-        String trainName = "MEZZANINELAB";
-        
-        String trainPrefix;
-        switch(train) {
-          case 1: trainPrefix = "FB"; break;
-          case 2: trainPrefix = "FR"; break;
-          case 3: trainPrefix = "I"; break;
-          case 4: trainPrefix = "IC"; break;
-          case 5: trainPrefix = "RV"; break;
-          case 6: trainPrefix = "ICN"; break;
-          case 7: trainPrefix = "R"; break;
-          default: trainPrefix = "R"; break;
-        }
-        
-        int trainNumber = random(1000, 9999);
-        String trainCode = trainPrefix + " " + String(trainNumber);
-        
-        String tipoOrario = azione == 1 ? "partenza" : "arrivo";
-        
-        char orarioBuffer[6];
-        snprintf(orarioBuffer, sizeof(orarioBuffer), "%02d:%02d", hour(), minute());
-        String orarioStr = String(orarioBuffer);
-        
-        Serial.print(F("Treno: "));
-        Serial.print(trainCode);
-        Serial.print(F(" bin."));
-        Serial.print(binario);
-        Serial.print(F(" "));
-        Serial.println(tipoOrario);
-        
-        Serial.println(F("📤 Invio a display..."));
-        sendTrainToDisplay("MF-TRIESTE", String(binario), trainName, trainCode, orarioStr, tipoOrario);
-        delay(200);
-        yield();
-        
-        executeAudioPlayList(cmd + 10);
-        playPlaylist();
-      }
+      executeAudioPlayList(cmd + 10);
+      playPlaylist();
     }
   }
   else if (startsWith(cmd, "playaudio=")) {
@@ -1080,7 +1374,9 @@ void processCommand(char* cmd, bool fromBT=false) {
            equalsIgnoreCase(cmd, "alert10")) {
     if (fromBT) {
       s->println(F("Comando audio non disponibile via BT"));
+      s->println(F("Usa comandi: vol+/vol-/vol=XX, settime, gettime, ram"));
     } else {
+      // Esegui comando alert da Serial
       if (equalsIgnoreCase(cmd, "alert1")) playSingleFile(191);
       else if (equalsIgnoreCase(cmd, "alert2")) playSingleFile(171);
       else if (equalsIgnoreCase(cmd, "alert3")) playSingleFile(181);
@@ -1090,8 +1386,9 @@ void processCommand(char* cmd, bool fromBT=false) {
       else if (equalsIgnoreCase(cmd, "alert7")) playSingleFile(165);
       else if (equalsIgnoreCase(cmd, "alert8")) {
         int binario = random(1,10);
-        Serial.print(F("ALERT8 - bin"));
-        Serial.println(binario);
+        debugPrint(F("ALERT8 - binario "));
+        debugPrintln(binario);
+        // Usa sistema playlist esistente
         sm_totalFile = 0;
         addToPlayList(161);
         addToPlayList(binario);
@@ -1105,6 +1402,7 @@ void processCommand(char* cmd, bool fromBT=false) {
   else if (equalsIgnoreCase(cmd, "meteo")) {
     if (fromBT) {
       s->println(F("Comando audio non disponibile via BT"));
+      s->println(F("Usa BT solo per configurazione"));
     } else {
       playMeteoAnnouncement();
     }
@@ -1112,7 +1410,7 @@ void processCommand(char* cmd, bool fromBT=false) {
   else if (startsWith(cmd, "randomplay=")) {
     int val = atoi(cmd + 11);
     randomPlayFlag = (val != 0);
-    s->print(F("Random: "));
+    s->print(F("Random play "));
     s->println(randomPlayFlag ? F("ON") : F("OFF"));
     lastRandomEvent = millis();
   }
@@ -1122,79 +1420,123 @@ void processCommand(char* cmd, bool fromBT=false) {
       randomInterval = (unsigned long)sec * 1000;
       s->print(F("Intervallo: "));
       s->print(sec);
-      s->println(F("s"));
+      s->println(F(" secondi"));
+    } else {
+      s->println(F("Valore non valido"));
     }
   }
   else if (equalsIgnoreCase(cmd, "vol+")) volumeUp();
   else if (equalsIgnoreCase(cmd, "vol-")) volumeDown();
   else if (startsWith(cmd, "vol=")) setVolume(atoi(cmd + 4));
+  else if (equalsIgnoreCase(cmd, "settime")) {
+    setTime(12,0,0,1,1,1970);
+    s->print(F("Ora impostata: "));
+    printTime(*s);
+  }
   else if (startsWith(cmd, "settime=")) {
     if (equalsIgnoreCase(cmd + 8, "ntp")) {
+      // Sincronizza con NTP
       syncTimeWithNTP(s);
     } else {
+      // Imposta orario manuale
       int h, m, sec;
       if (sscanf(cmd + 8, "%d %d %d", &h, &m, &sec) == 3) {
         setTime(h,m,sec,1,1,1970);
-        s->print(F("Orario: "));
+        s->print(F("Orario aggiornato: "));
         printTime(*s);
+      } else {
+        s->println(F("Formato non valido. Usa: settime=H M S oppure settime=ntp"));
       }
     }
   }
   else if (equalsIgnoreCase(cmd, "gettime")) {
-    s->print(F("Ora: "));
+    s->print(F("Ora corrente: "));
     printTime(*s);
   }
   else if (equalsIgnoreCase(cmd, "scanwifi")) {
     scanWiFi(s);
   }
   else if (equalsIgnoreCase(cmd, "ram")) {
-    s->print(F("RAM: "));
-    s->println(ESP.getFreeHeap());
-  }
-  else if (equalsIgnoreCase(cmd, "ip")) {
-    if (WiFi.status() == WL_CONNECTED) {
-      s->print(F("📡 IP Master: "));
-      s->println(WiFi.localIP());
-      s->print(F("   Porta TCP: "));
-      s->println(DISPLAY_SERVER_PORT);
-      s->print(F("   Display: "));
-      s->println(displayConnected ? F("CONNESSO") : F("In attesa"));
-      if (displayConnected) {
-        s->print(F("   IP Client: "));
-        s->println(displayClient.remoteIP());
-      }
-    } else {
-      s->println(F("❌ WiFi non connesso"));
-    }
+    s->print(F("RAM libera: "));
+    s->print(ESP.getFreeHeap());
+    s->print(F(" bytes (largest: "));
+    s->print(ESP.getMaxAllocHeap());
+    s->println(F(")"));
+    s->print(F("Heap size: "));
+    s->println(ESP.getHeapSize());
   }
   else if (equalsIgnoreCase(cmd, "togglebt")) {
+    s->println(F("🔵 Toggle Bluetooth cellulare..."));
     toggleBluetooth();
+    if (btCellulareEnabled) {
+      s->println(F("✅ BT CELLULARE ATTIVO - Audio fermato"));
+    } else {
+      s->println(F("✅ BT CELLULARE SPENTO - Audio riattivato"));
+    }
+  }
+  else if (equalsIgnoreCase(cmd, "rndtrn")) {
+    // Test treno random
+    s->println(F("🚂 Test treno random..."));
+    executeAudioPlayList("411");  // Treno IC, bin 1, partenza
+    playPlaylist();
+  }
+  else if (equalsIgnoreCase(cmd, "testdisplay")) {
+    // Test comunicazione display
+    s->println(F("📡 Test comunicazione display..."));
+    char testCmd[128];
+    snprintf(testCmd, sizeof(testCmd), "TRAIN|TRENO TEST|-|M9LAB|TEST BT|%02d:%02d|test", 
+             hour(), minute());
+    if (sendToDisplayBT(testCmd)) {
+      s->println(F("✅ Comando inviato al display"));
+    } else {
+      s->println(F("❌ Errore invio display"));
+    }
+  }
+  else if (startsWith(cmd, "verbose=") || equalsIgnoreCase(cmd, "verbose")) {
+    if (startsWith(cmd, "verbose=")) {
+      int val = atoi(cmd + 8);
+      verboseMode = (val != 0);
+    } else {
+      // Toggle se chiamato senza parametro
+      verboseMode = !verboseMode;
+    }
+    s->print(F("🔊 Verbose mode: "));
+    s->println(verboseMode ? F("ON (debug dettagliato)") : F("OFF (performance ottimali)"));
   }
   else {
-    s->println(F("Comando sconosciuto"));
+    Serial.print(F("DEBUG: Comando non riconosciuto: ["));
+    Serial.print(cmd);
+    Serial.println(F("]"));
+    s->println(F("Comando sconosciuto. Usa 'help'"));
   }
 }
 
 // === SETUP ===
 void setup() {
+  // BT disabilitato all'avvio, si attiva con bottone lungo
+    
   M5.begin(true, false, true);
   SPI.begin(SCK, MISO, MOSI, -1);
   Serial.begin(115200);
   
   delay(100);
-  Serial.println(F("\n=== ATOM LITE + SPK + WiFi TCP ==="));
-  Serial.print(F("RAM: "));
+  Serial.println(F("\n=== ATOM LITE + SPK + BT ==="));
+  Serial.print(F("RAM iniziale: "));
   Serial.println(ESP.getFreeHeap());
 
   if (!SD.begin(-1, SPI, 40000000)) {
     Serial.println(F("ERR: SD!"));
-    while (1) delay(1000);
+    while (1) {
+      delay(1000);
+      yield();
+    }
   }
   Serial.println(F("SD OK"));
 
+  // OTTIMIZZAZIONE MASSIMA: buffer ridottissimi per ATOM LITE + BT
   out = new AudioOutputI2S();
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
-  out->SetBuffers(2, 256);
+  out->SetBuffers(2, 256); // RIDOTTO a 256 per lasciare RAM per BT
   out->SetGain(volume);
   Serial.println(F("I2S OK"));
 
@@ -1207,43 +1549,36 @@ void setup() {
 
   setTime(12, 0, 0, 1, 1, 1970);  
   
-  Serial.print(F("RAM: "));
+  Serial.print(F("RAM disponibile: "));
   Serial.println(ESP.getFreeHeap());
   
-  Serial.println(F("\n--- Sync NTP + Meteo ---"));
+  // === SINCRONIZZAZIONE NTP + METEO ALL'AVVIO ===
+  Serial.println(F("\n--- Sincronizzazione orario + Meteo ---"));
   bool ntpSuccess = syncTimeWithNTP(&Serial);
   if (ntpSuccess) {
-    Serial.println(F("✅ Orario OK"));
-    
-    // Avvia server WiFi TCP per display
-    Serial.println(F("\n--- WiFi TCP Server Display ---"));
-    initDisplayServer();
-    
-    delay(1000);
-    playMeteoAnnouncement();
+    Serial.println(F("✅ Orario sincronizzato, annuncio meteo..."));
+    delay(1000); // Pausa prima dell'annuncio
+    playMeteoAnnouncement(); // Conferma audio + meteo
   } else {
-    Serial.println(F("⚠️  NTP fallito"));
+    Serial.println(F("⚠️  Sincronizzazione fallita, uso orario di default"));
+    Serial.println(F("   Puoi sincronizzare manualmente con: settime=ntp"));
   }
   Serial.println(F("---\n"));
+  
+  Serial.println(F("Premi 3sec per BT"));
   
   printHelp();
   startRiverLoop();
 
+   // RANDOM seed robusto: micros() 
   randomSeed(micros());
-  
-  Serial.println(F("\n✅ Sistema pronto!"));
-  Serial.println(F("   Riverloop ATTIVO (WiFi risparmia RAM vs BT)"));
-  Serial.println(F("   Premi 3sec per BT cellulare"));
 }
 
 // === LOOP ===
 void loop() {
   M5.update();
-  
-  // Controlla connessione display WiFi
-  checkDisplayConnection();
 
-  // GESTIONE BOTTONE
+  // GESTIONE BOTTONE: 1x=ALERT1, 2x=ALERT9, 3x=METEO, Long(3s)=Toggle BT
   if (M5.Btn.wasPressed()) {
     buttonPressStart = millis();
   }
@@ -1253,46 +1588,61 @@ void loop() {
     unsigned long now = millis();
     
     if (pressDuration >= 3000) {
-      Serial.println(F("Long press"));
+      // Pressione lunga: Toggle Bluetooth
+      debugPrintln(F("Long press detected"));
       toggleBluetooth();
       clickCount = 0;
       lastClickTime = 0;
       
-    } else if (pressDuration >= 50 && pressDuration <= MAX_CLICK_DURATION && !btEnabled) {
+    } else if (pressDuration >= 50 && pressDuration <= MAX_CLICK_DURATION && !btCellulareEnabled) {
+      // Click valido: incrementa contatore
       if (clickCount == 0 || (now - lastClickTime) < MULTI_CLICK_TIMEOUT) {
         clickCount++;
         lastClickTime = now;
-        Serial.print(F("Click "));
-        Serial.println(clickCount);
+        debugPrint(F("✓ Click "));
+        debugPrint(clickCount);
+        debugPrintln(F("..."));
       } else {
+        // Timeout scaduto, ricomincia da 1
         clickCount = 1;
         lastClickTime = now;
+        debugPrintln(F("✓ Click 1..."));
       }
       
-    } else if (pressDuration > MAX_CLICK_DURATION && pressDuration < 3000 && !btEnabled) {
+    } else if (pressDuration > MAX_CLICK_DURATION && pressDuration < 3000 && !btCellulareEnabled) {
+      // Click lungo (non valido per multi-click) → ALERT1 immediato
+      debugPrintln(F("Click singolo (lungo) -> ALERT1"));
       playSingleFile(191);
       clickCount = 0;
       lastClickTime = 0;
       
-    } else if (btEnabled) {
+    } else if (btCellulareEnabled) {
+      debugPrintln(F("Audio disabilitato (BT cellulare attivo)"));
       clickCount = 0;
       lastClickTime = 0;
     }
   }
   
+  // Gestione timeout multi-click: esegui azione in base al numero di click
   if (clickCount > 0 && !playingPlaylist && (millis() - lastClickTime) > MULTI_CLICK_TIMEOUT) {
     if (clickCount == 1) {
+      // Click singolo → ALERT1
+      debugPrintln(F("→ Click singolo → ALERT1"));
       playSingleFile(191);
     } else if (clickCount == 2) {
+      // Doppio click → ALERT9
+      debugPrintln(F("→ Doppio click → ALERT9"));
       playSingleFile(186);
     } else if (clickCount >= 3) {
+      // Triplo click → METEO
+      debugPrintln(F("→ Triplo click → METEO"));
       playMeteoAnnouncement();
     }
     clickCount = 0;
     lastClickTime = 0;
   }
 
-  // LETTURA SERIALE
+  // LETTURA SERIALE (USB)
   if (Serial.available()) {
     int idx = 0;
     unsigned long timeout = millis() + 100;
@@ -1307,13 +1657,15 @@ void loop() {
     while (Serial.available()) Serial.read();
     
     if (idx > 0) {
+
+      
       lastCommandTime = millis();
       processCommand(inputBuffer, false);
     }
   }
 
-  // LETTURA BT CELLULARE
-  if (btEnabled && SerialBT.available()) {
+  // LETTURA BLUETOOTH CELLULARE (se attivo)
+  if (btCellulareEnabled && SerialBT.available()) {
     int idx = 0;
     unsigned long timeout = millis() + 100;
     
@@ -1328,24 +1680,28 @@ void loop() {
     
     if (idx > 0) {
       lastCommandTime = millis();
-      Serial.print(F("BT> "));
+      Serial.print(F("📱 BT> "));
       Serial.println(inputBuffer);
       processCommand(inputBuffer, true);
     }
   }
 
-  // RANDOM PLAY
-  if (randomPlayFlag && !btEnabled && !playingPlaylist && millis() - lastRandomEvent > randomInterval) {
+  // === MODALITÀ RANDOM === (solo se BT cellulare spento)
+  if (randomPlayFlag && !btCellulareEnabled && !playingPlaylist && millis() - lastRandomEvent > randomInterval) {
     lastRandomEvent = millis();
-    int tipo = random(3);
+    int tipo = random(3); // 0=alert, 1=treno, 2=meteo
     
     if (tipo == 0) {
+      // Alert random
       int alertNum = random(1, 11);
-      Serial.print(F("RND-AL"));
-      Serial.println(alertNum);
+      debugPrint(F("RND-AL"));
+      debugPrintln(alertNum);
       
       if(alertNum == 8) {
         int binario = random(1,10);
+        debugPrint(F("bin"));
+        debugPrintln(binario);
+        // Usa sistema playlist esistente
         sm_totalFile = 0;
         addToPlayList(161);
         addToPlayList(binario);
@@ -1363,6 +1719,7 @@ void loop() {
         playSingleFile(fileNum);
       }
     } else if (tipo == 1) {
+      // Annuncio treno random
       int train = random(1, 8);
       int binario = random(1, 10);
       int azione = random(1, 3);
@@ -1370,52 +1727,28 @@ void loop() {
       char cmd[4];
       sprintf(cmd, "%d%d%d", train, binario, azione);
       
-      Serial.print(F("RND-TRN:"));
-      Serial.println(cmd);
-      
-      String trainName = "MEZZANINELAB";
-      String trainPrefix;
-      switch(train) {
-        case 1: trainPrefix = "FB"; break;
-        case 2: trainPrefix = "FR"; break;
-        case 3: trainPrefix = "I"; break;
-        case 4: trainPrefix = "IC"; break;
-        case 5: trainPrefix = "RV"; break;
-        case 6: trainPrefix = "ICN"; break;
-        case 7: trainPrefix = "R"; break;
-        default: trainPrefix = "R"; break;
-      }
-      
-      int trainNumber = random(1000, 9999);
-      String trainCode = trainPrefix + " " + String(trainNumber);
-      
-      String tipoOrario = azione == 1 ? "partenza" : "arrivo";
-      
-      char orarioBuffer[6];
-      snprintf(orarioBuffer, sizeof(orarioBuffer), "%02d:%02d", hour(), minute());
-      String orarioStr = String(orarioBuffer);
-      
-      Serial.println(F("📤 Invio a display..."));
-      sendTrainToDisplay("MF-TRIESTE", String(binario), trainName, trainCode, orarioStr, tipoOrario);
-      delay(200);
-      yield();
+      debugPrint(F("RND-TRN:"));
+      debugPrintln(cmd);
       
       executeAudioPlayList(cmd);
       playPlaylist();
     } else {
-      Serial.println(F("RND-METEO"));
+      // Annuncio meteo random
+      debugPrintln(F("RND-METEO"));
       playMeteoAnnouncement();
     }
   }
 
-  // Audio loop
+  // Audio loop management - SEMPLIFICATO con anti-loop
   if (!playingPlaylist && !audioStarting) {
     if (mp3 && mp3->isRunning()) {
       if (!mp3->loop()) mp3->stop();
-    } else if (!btEnabled && mp3 && !mp3->isRunning() && (millis() - lastAudioAttempt > 2000)) {
+    } else if (!btCellulareEnabled && mp3 && !mp3->isRunning() && (millis() - lastAudioAttempt > 2000)) {
+      // Riavvia SOLO se BT cellulare è SPENTO e sono passati almeno 2 secondi
       startRiverLoop();
     }
   }
   
+  // CRITICO: yield per evitare watchdog reset
   yield();
 }
