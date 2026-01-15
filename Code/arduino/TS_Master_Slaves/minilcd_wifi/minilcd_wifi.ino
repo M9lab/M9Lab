@@ -1,12 +1,12 @@
-// === M9LAB DISPLAY SLAVE - v1.2 ===
-// Modalità: CLIENT ATTIVO (si connette al Master)
+// === M9LAB DISPLAY SLAVE - v2.0 WiFi TCP ===
+// Modalità: WiFi TCP CLIENT (si connette al Master via WiFi)
 // Separatore comandi: | (pipe) per compatibilità con orari HH:MM
-// Connessione via MAC address al Master
+// Connessione TCP al Master IP
 
 #include <SPI.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
-#include <BluetoothSerial.h>
+#include <WiFi.h>
 #include "icone_meteo.h"
 #include "logo_m9lab.h"
 
@@ -36,15 +36,19 @@ unsigned long lastScrollTime = 0;
 int scrollDelay = 50;
 bool displayMeteoAttivo = false;
 
-// === BLUETOOTH SLAVE ===
-BluetoothSerial SerialBT;
-bool btConnected = false;
-bool btConnecting = false;  // Flag per indicare connessione in corso
-unsigned long lastBTCheck = 0;
-char btInputBuffer[128];
+// === WIFI TCP CLIENT ===
+const char* wifiSSID = "StefxMobile";
+const char* wifiPWD = "qwerty123456";
+const char* masterIP = "10.248.101.102";  // IP del Master
+const int masterPort = 8888;
 
-// Modalità: TRUE SLAVE (passivo) - aspetta che il Master si connetta
-// NON tenta connessione attiva, solo attesa passiva
+WiFiClient tcpClient;
+bool wifiConnected = false;
+bool tcpConnected = false;
+bool tcpConnecting = false;  // Flag per indicare connessione in corso
+unsigned long lastTCPCheck = 0;
+unsigned long lastBlinkTime = 0;
+char tcpInputBuffer[128];
 
 // Prototipi
 void mostraSplashScreen();
@@ -53,120 +57,113 @@ void disegnaMeteo(String, String, String, int, float, int);
 const unsigned char* getIconaMeteo(int);
 String getDescrizioneMeteo(int);
 
-// ========== FUNZIONI BLUETOOTH SLAVE ==========
+// ========== FUNZIONI WIFI TCP CLIENT ==========
 
-bool initBluetooth() {
-  Serial.println("Inizializzazione Bluetooth CLIENT...");
+bool initWiFi() {
+  Serial.println("🌐 Connessione WiFi...");
   
-  // Inizializzazione BT in modalità CLIENT
-  // Questo display si connetterà ATTIVAMENTE al Master
-  // true = isMaster (per client che fa connessioni attive)
-  if (!SerialBT.begin("M9Lab-Display-Slave", true)) {
-    Serial.println("ERRORE: Impossibile inizializzare BT!");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifiSSID, wifiPWD);
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+  
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println(" FALLITO!");
     return false;
   }
   
-  // Abilita SSP per pairing automatico
-  SerialBT.enableSSP();
+  Serial.println(" OK!");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+  wifiConnected = true;
   
-  Serial.println("✅ BT Client inizializzato: M9Lab-Display-Slave");
-  Serial.println("   Modalità: CLIENT ATTIVO");
-  Serial.println("   Aspetto che Master sia pronto...");
-  
-  // Aspetta più tempo per dare al Master tempo di inizializzare
-  delay(3000);
-  
-  // MAC address del Master (più affidabile del nome)
-  uint8_t masterMAC[6] = {0x94, 0xB9, 0x7E, 0x9F, 0x8C, 0x72};
-  
-  // Tentativi multipli di connessione all'avvio
-  Serial.println("Tento connessione al Master via MAC (5 tentativi)...");
-  Serial.println("Master MAC: 94:B9:7E:9F:8C:72");
-  
-  btConnecting = true;  // Connessione in corso
-  
-  for (int attempt = 1; attempt <= 5; attempt++) {
-    Serial.print("Tentativo ");
-    Serial.print(attempt);
-    Serial.print("/5: ");
-    
-    // Connessione via MAC (più affidabile)
-    bool connected = SerialBT.connect(masterMAC);
-    
-    if (connected) {
-      Serial.println("✅ CONNESSO AL MASTER!");
-      btConnected = true;
-      btConnecting = false;
-      return true;
-    } else {
-      Serial.println("fallito");
-      if (attempt < 5) {
-        delay(2000);  // Pausa tra tentativi
-      }
-    }
-  }
-  
-  Serial.println("⚠️  Connessione fallita dopo 5 tentativi");
-  Serial.println("   Continuerò a riprovare in background...");
-  btConnected = false;
-  btConnecting = false;
-  
-  return true;  // Ritorna true comunque per continuare
+  return true;
 }
 
-void checkBluetoothConnection() {
-  // MAC address del Master
-  static uint8_t masterMAC[6] = {0x94, 0xB9, 0x7E, 0x9F, 0x8C, 0x72};
+bool connectToMaster() {
+  Serial.print("📡 Connessione a Master ");
+  Serial.print(masterIP);
+  Serial.print(":");
+  Serial.println(masterPort);
   
-  bool currentlyConnected = SerialBT.connected();
+  tcpConnecting = true;
   
-  if (currentlyConnected && !btConnected) {
+  if (tcpClient.connect(masterIP, masterPort)) {
+    Serial.println("✅ CONNESSO AL MASTER!");
+    tcpConnected = true;
+    tcpConnecting = false;
+    return true;
+  }
+  
+  Serial.println("❌ Connessione fallita");
+  tcpConnected = false;
+  tcpConnecting = false;
+  return false;
+}
+
+void checkTCPConnection() {
+  // Controlla ogni 2 secondi
+  if (millis() - lastTCPCheck < 2000) {
+    return;
+  }
+  lastTCPCheck = millis();
+  
+  bool currentlyConnected = tcpClient.connected();
+  
+  if (currentlyConnected && !tcpConnected) {
     // Connessione stabilita
-    Serial.println("✅ BT CONNESSO AL MASTER");
-    Serial.println("   Display pronto per ricevere comandi");
-    btConnected = true;
+    Serial.println("✅ TCP CONNESSO AL MASTER");
+    tcpConnected = true;
+    tcpConnecting = false;
     
-  } else if (!currentlyConnected && btConnected) {
+  } else if (!currentlyConnected && tcpConnected) {
     // Connessione persa - RIPROVA AUTOMATICAMENTE
-    Serial.println("⚠️  BT DISCONNESSO DAL MASTER");
+    Serial.println("⚠️  TCP DISCONNESSO DAL MASTER");
     Serial.println("   Tento riconnessione...");
-    btConnected = false;
-    btConnecting = true;  // Inizio tentativo riconnessione
+    tcpConnected = false;
+    tcpConnecting = true;
     
-    // Riprova connessione via MAC
+    // Riprova connessione
+    tcpClient.stop();
     delay(1000);
-    bool reconnected = SerialBT.connect(masterMAC);
+    bool reconnected = tcpClient.connect(masterIP, masterPort);
     
     if (reconnected) {
       Serial.println("✅ Riconnesso!");
-      btConnected = true;
-      btConnecting = false;
+      tcpConnected = true;
+      tcpConnecting = false;
     } else {
       Serial.println("⚠️  Riconnessione fallita, riproverò");
-      btConnecting = false;
+      tcpConnecting = false;
     }
   }
   
-  // Se mai connesso e non attualmente connesso, riprova periodicamente
-  if (!currentlyConnected && !btConnected) {
+  // Se non connesso, riprova periodicamente
+  if (!currentlyConnected && !tcpConnected) {
     static unsigned long lastRetry = 0;
     if (millis() - lastRetry > 5000) {  // Ogni 5 secondi
       lastRetry = millis();
-      Serial.println("Riprovo connessione via MAC...");
-      btConnecting = true;  // Inizio tentativo
-      bool connected = SerialBT.connect(masterMAC);
+      Serial.println("Riprovo connessione TCP...");
+      tcpConnecting = true;
+      tcpClient.stop();
+      bool connected = tcpClient.connect(masterIP, masterPort);
       if (connected) {
         Serial.println("✅ Connesso!");
-        btConnected = true;
-        btConnecting = false;
+        tcpConnected = true;
+        tcpConnecting = false;
       } else {
-        btConnecting = false;
+        tcpConnecting = false;
       }
     }
   }
 }
 
-void processBluetoothCommand(char* cmd) {
+void processTCPCommand(char* cmd) {
   Serial.print("📥 Comando ricevuto: ");
   Serial.println(cmd);
   
@@ -295,7 +292,7 @@ void setup() {
   // Inizializza Serial per debug
   Serial.begin(115200);
   delay(100);
-  Serial.println("\n=== M9LAB DISPLAY SLAVE ===");
+  Serial.println("\n=== M9LAB DISPLAY WiFi TCP CLIENT ===");
   
   // Inizializza display
   pinMode(TFT_RST, OUTPUT);
@@ -316,45 +313,59 @@ void setup() {
   // Mostra splash screen
   mostraSplashScreen();
   
-  // Inizializza Bluetooth
+  // Inizializza WiFi
   tft.fillScreen(COLORE_SFONDO);
   tft.setTextSize(2);
   tft.setTextColor(ST77XX_CYAN);
   tft.setCursor(10, 10);
-  tft.print("Bluetooth");
+  tft.print("WiFi TCP");
   tft.setCursor(10, 30);
-  tft.print("Slave...");
+  tft.print("Client...");
   
-  if (initBluetooth()) {
+  if (initWiFi()) {
     tft.setTextColor(ST77XX_GREEN);
     tft.setCursor(10, 60);
-    tft.print("BT PRONTO");
+    tft.print("WiFi OK");
     
     tft.setTextSize(1);
     tft.setTextColor(ST77XX_YELLOW);
     tft.setCursor(10, 90);
-    tft.print("In attesa Master");
+    tft.print("Connessione al");
+    tft.setCursor(10, 105);
+    tft.print("Master...");
     
-    tft.setCursor(10, 110);
-    tft.setTextColor(ST77XX_WHITE);
-    tft.print("Sul Master digita:");
-    
-    tft.setCursor(10, 125);
-    tft.setTextColor(ST77XX_CYAN);
-    tft.print("enableslave");
+    connectToMaster();
     
   } else {
     tft.setTextColor(ST77XX_RED);
     tft.setCursor(10, 60);
-    tft.print("ERRORE BT!");
+    tft.print("ERRORE WiFi!");
   }
   
   delay(3000);
   
+  // TEST VISIVO: Schermo rosso per 2 secondi
+  Serial.println("🧪 TEST: Schermo rosso...");
+  tft.fillScreen(ST77XX_RED);
+  delay(2000);
+  
+  // TEST VISIVO: Testo grande
+  Serial.println("🧪 TEST: Testo grande...");
+  tft.fillScreen(COLORE_SFONDO);
+  tft.setTextSize(4);
+  tft.setTextColor(ST77XX_GREEN);
+  tft.setCursor(10, 60);
+  tft.print("TEST");
+  delay(2000);
+  
   // Mostra schermata iniziale
+  Serial.println("🎨 Rendering schermata iniziale...");
   tft.fillScreen(COLORE_SFONDO);
   disegnaDisplay("TRIESTE", "1", "MEZZANINELAB", "REG 8101", "12:00", "partenza", infoScorrente);
   displayMeteoAttivo = false;
+  Serial.println("✅ Setup completato! Display dovrebbe mostrare TRIESTE/MEZZANINELAB");
+  Serial.println("   Aspetto 5 secondi prima di entrare nel loop...");
+  delay(5000);  // Aspetta 5 secondi per vedere la schermata iniziale
 }
 
 // Display tabellone ferroviario semplificato
@@ -522,13 +533,10 @@ String getDescrizioneMeteo(int weatherCode) {
 }
 
 void loop() {
-  // Check BT ogni 2 secondi (ridotto da 1 per performance)
-  if (millis() - lastBTCheck > 2000) {
-    checkBluetoothConnection();
-    lastBTCheck = millis();
-  }
+  // Check TCP
+  checkTCPConnection();
   
-  // PALLINO STATUS BT SEMPRE VISIBILE (anche su schermata meteo)
+  // PALLINO STATUS TCP SEMPRE VISIBILE (anche su schermata meteo)
   // Verde = connesso | Giallo lampeggiante = connessione in corso | Rosso = disconnesso
   static unsigned long lastDotUpdate = 0;
   static bool yellowBlink = false;
@@ -541,9 +549,9 @@ void loop() {
     int dotY = 5;
     uint16_t dotColor;
     
-    if (btConnected) {
+    if (tcpConnected) {
       dotColor = ST77XX_GREEN;    // Connesso (fisso)
-    } else if (btConnecting) {
+    } else if (tcpConnecting) {
       // Giallo lampeggiante (alterna giallo/nero)
       dotColor = yellowBlink ? ST77XX_YELLOW : COLORE_SFONDO;
     } else {
@@ -553,22 +561,17 @@ void loop() {
     tft.fillCircle(dotX, dotY, 1, dotColor);  // Raggio 1px = diametro 2px
   }
   
-  if (SerialBT.available()) {
-    int idx = 0;
-    unsigned long timeout = millis() + 100;
+  // Leggi comandi TCP
+  if (tcpClient.available()) {
+    String line = tcpClient.readStringUntil('\n');
+    line.trim();
     
-    while (SerialBT.available() && idx < 127 && millis() < timeout) {
-      char c = SerialBT.read();
-      if (c == '\n' || c == '\r') break;
-      btInputBuffer[idx++] = c;
-      delay(1);
-    }
-    btInputBuffer[idx] = '\0';
+    Serial.print("📥 TCP RAW: ");
+    Serial.println(line);
     
-    while (SerialBT.available()) SerialBT.read();
-    
-    if (idx > 0) {
-      processBluetoothCommand(btInputBuffer);
+    if (line.length() > 0 && line.length() < 128) {
+      line.toCharArray(tcpInputBuffer, sizeof(tcpInputBuffer));
+      processTCPCommand(tcpInputBuffer);
     }
   }
   
