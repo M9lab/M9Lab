@@ -54,12 +54,15 @@ EVENT_TEXT = os.getenv("EVENT_TEXT", "Benvenuti al LEGO Museum! #LEGOTrains")
 BACKGROUNDS_DIR = os.getenv("BACKGROUNDS_DIR", "backgrounds")
 
 # Funzione per selezionare il background dinamicamente
-def get_dynamic_background():
+def get_dynamic_background(forced_id=None):
     """
-    Seleziona il background in base all'orario e un numero random.
+    Seleziona il background in base all'orario e un numero random o forzato.
     Formato: background<id>_<condizione>.png
-    - id: numero random da 1 a 3
+    - id: numero specificato (1-5), 'random' (1-4), o random da 1 a 3 (default)
     - condizione: "day" (8:00-16:00) o "nite" (16:00-8:00)
+    
+    Args:
+        forced_id: None (auto random 1-3), 'random' (random 1-4), o numero 1-5
     """
     # Ottieni ora corrente
     current_hour = datetime.now().hour
@@ -70,20 +73,30 @@ def get_dynamic_background():
     else:
         condition = "nite"
     
-    # Genera numero random da 1 a 3 (usa timestamp per più randomness)
-    random.seed()  # Re-inizializza seed per più casualità
-    bg_id = random.randint(1, 3)
+    # Determina ID background
+    if forced_id == 'random':
+        # Random da 1 a 4 (per tasto INVIO)
+        random.seed()
+        bg_id = random.randint(1, 4)
+        print(f"🎲 Random ID (1-4): {bg_id}")
+    elif forced_id is not None:
+        # ID forzato dall'utente (1-5)
+        bg_id = forced_id
+        print(f"🎯 ID forzato: {bg_id}")
+    else:
+        # Genera numero random da 1 a 3 (comportamento originale)
+        random.seed()
+        bg_id = random.randint(1, 3)
+        print(f"🎲 Random ID (1-3): {bg_id}")
     
     # Costruisci nome file
     filename = f"background{bg_id}_{condition}.png"
     filepath = os.path.join(BACKGROUNDS_DIR, filename)
     
-    # DEBUG: Mostra quale background viene selezionato
-    print(f"🎲 Random ID: {bg_id}, File: {filename}")
+    print(f"🎨 Background selezionato: {filename} (ora: {current_hour:02d}:00, condizione: {condition})")
     
     # Verifica se esiste, altrimenti fallback
     if os.path.exists(filepath):
-        print(f"🎨 Background selezionato: {filename} (ora: {current_hour:02d}:00, condizione: {condition})")
         return filepath
     else:
         # Fallback: cerca qualsiasi background nella cartella
@@ -200,6 +213,7 @@ mode = MODE_PREVIEW
 current_photo_path = None
 captured_frame = None  # Frame catturato prima del flash
 inactivity_timer = None  # Timer per timeout automatico
+selected_background_id = None  # ID background selezionato dall'utente (1-5 o 'random')
 
 # ================= CACHE PER PERFORMANCE RASPBERRY =================
 # Pre-calcola elementi pesanti per velocizzare process_captured_photo()
@@ -227,7 +241,7 @@ def preload_all_backgrounds():
     
     # Lista di tutti i background possibili
     conditions = ['day', 'nite']
-    bg_ids = [1, 2, 3]
+    bg_ids = [1, 2, 3, 4, 5]  # Tutti i background disponibili
     
     preloaded_count = 0
     for condition in conditions:
@@ -534,6 +548,19 @@ def update_preview():
             preview_label.config(image=imgtk)
     root.after(50, update_preview)
 
+def start_countdown_with_background():
+    """Wrapper che imposta selected_background_id se necessario prima di avviare countdown"""
+    global selected_background_id
+    
+    # Se selected_background_id non è stato impostato da tasto,
+    # allora è stato premuto il bottone con mouse o altro
+    if selected_background_id is None:
+        # Click mouse -> random 1-4
+        selected_background_id = 'random'
+        print("🖱️ Click mouse -> random (1-4)")
+    
+    start_countdown()
+
 def start_countdown():
     btn_shoot.config(state="disabled")
     root.countdown_active = True
@@ -592,7 +619,7 @@ def flash_effect():
 
 def process_captured_photo():
     """Processa il frame già catturato (chiamato dopo il flash) - OTTIMIZZATO RASPBERRY"""
-    global mode, current_photo_path, captured_frame
+    global mode, current_photo_path, captured_frame, selected_background_id
     
     frame = captured_frame
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -603,7 +630,9 @@ def process_captured_photo():
     cv2.imwrite(input_path, frame)
 
     # ================= COMPOSIZIONE CON GREEN SCREEN OTTIMIZZATA =================
-    current_background = get_dynamic_background()
+    # Usa background selezionato dall'utente, poi resetta
+    current_background = get_dynamic_background(selected_background_id)
+    selected_background_id = None  # Resetta per prossimo scatto
     
     if os.path.exists(current_background):
         # 📦 USA CACHE per background (evita cv2.imread e conversione HSV ripetute!)
@@ -1377,6 +1406,8 @@ btn_cancel = tk.Button(btn_frame, text=BTN_CANCEL_TEXT, font=("Arial", FONT_SIZE
 # ================= CONTROLLI DA TASTIERA =================
 def on_key_press(event):
     """Gestisce i comandi da tastiera"""
+    global selected_background_id
+    
     # ESC chiude sempre l'applicazione
     if event.keysym == 'Escape':
         if mode == MODE_RESULT or mode == "ENGAGEMENT":
@@ -1389,10 +1420,32 @@ def on_key_press(event):
         return
     
     if mode == MODE_PREVIEW:
-        # Modalità PREVIEW: SPAZIO o INVIO per scattare foto
-        if event.keysym in ['space', 'Space', 'Return']:
-            if btn_shoot.winfo_ismapped() and btn_shoot['state'] == 'normal':
-                start_countdown()
+        # Verifica che sia possibile scattare (bottone visibile e abilitato)
+        can_shoot = btn_shoot.winfo_ismapped() and btn_shoot['state'] == 'normal'
+        
+        if not can_shoot:
+            # Se non possiamo scattare, ignora i tasti
+            return
+        
+        # Modalità PREVIEW: gestione selezione background
+        # SPAZIO -> background5 (SEMPRE background5, mai random!)
+        if event.keysym in ['space', 'Space']:
+            selected_background_id = 5
+            print("🎨 Utente ha selezionato: SPAZIO -> background5")
+            start_countdown()
+            return "break"  # Impedisce propagazione al bottone
+        # INVIO -> background random da 1 a 4 (sempre random)
+        elif event.keysym == 'Return':
+            selected_background_id = 'random'
+            print("🎨 Utente ha selezionato: INVIO -> random (1-4)")
+            start_countdown()
+            return "break"  # Impedisce propagazione al bottone
+        # Tasti numerici 1-5 -> background specifico
+        elif event.char in ['1', '2', '3', '4', '5']:
+            selected_background_id = int(event.char)
+            print(f"🎨 Utente ha selezionato: {event.char} -> background{event.char}")
+            start_countdown()
+            return "break"  # Impedisce propagazione
     
     elif mode == MODE_RESULT:
         # Reset timer inattività ad ogni pressione tasto
@@ -1503,6 +1556,28 @@ btn_exit.lift()  # Ultimo
 root.after(200, lambda: btn_shoot.focus_set())
 
 # ================= AVVIO =================
-btn_shoot.config(command=start_countdown)
+btn_shoot.config(command=start_countdown_with_background)
+
+# Bind specifici per il bottone SCATTA per intercettare SPAZIO prima del command
+def btn_shoot_key_handler(event):
+    """Handler per tasti premuti quando il bottone SCATTA ha il focus"""
+    global selected_background_id
+    
+    if btn_shoot['state'] != 'normal':
+        return
+    
+    # SPAZIO sul bottone -> background5
+    if event.keysym in ['space', 'Space']:
+        selected_background_id = 5
+        print("🎨 SPAZIO -> background5")
+        # Non serve return "break" perché vogliamo che il bottone si attivi
+    # INVIO sul bottone -> random 1-4
+    elif event.keysym == 'Return':
+        selected_background_id = 'random'
+        print("🎨 INVIO -> random (1-4)")
+        # Non serve return "break" perché vogliamo che il bottone si attivi
+
+btn_shoot.bind('<KeyPress>', btn_shoot_key_handler)
+
 update_preview()
 root.mainloop()
