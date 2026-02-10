@@ -1,11 +1,11 @@
 
-void scanHub( int idTrain) {
+void scanHub(int idTrain) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
    
   if (!myTrain->isConnected() && !myTrain->isConnecting()){
-     myTrain->init(myTrains[idTrain].hubAddress.c_str());
+     myTrain->init(myTrains[idTrain].hubAddress);
      delay(200);
   }else{
     
@@ -14,14 +14,10 @@ void scanHub( int idTrain) {
       myTrain->connectHub();
       if (myTrain->isConnected()) {
         delay(200);
-        Serial.println("Now connected with hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
-  
-        // set the name
-        /*
-        char hubName[myTrains[idTrain].hubColor.length() + 1];
-        myTrains[idTrain].hubColor.toCharArray(hubName, myTrains[idTrain].hubColor.length() + 1);
-        myTrain->setHubName(hubName);
-        */
+        Serial.print(F("Now connected with hub "));
+        Serial.print(myTrains[idTrain].hubColor);
+        Serial.print(F(" -> "));
+        Serial.println(myTrains[idTrain].hubAddress);
         
         myTrains[idTrain].trainState = 0;
         myTrains[idTrain].hubState = 0;
@@ -33,7 +29,8 @@ void scanHub( int idTrain) {
         myTrain->setLedColor(PURPLE);
         
       } else {
-        Serial.println("Failed to connect with hub " +  myTrains[idTrain].hubColor);
+        Serial.print(F("Failed to connect with hub "));
+        Serial.println(myTrains[idTrain].hubColor);
       }
  
     }     
@@ -65,7 +62,9 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
         case 0: //ready -> active
           {
 
-            Serial.println("Hub " + myTrains[idTrain].hubColor + " is ready");
+            Serial.print(F("Hub "));
+            Serial.print(myTrains[idTrain].hubColor);
+            Serial.println(F(" is ready"));
             myTrains[idTrain].hubState = 1;            
             activeTrain++;
             byte portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
@@ -87,7 +86,10 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
             //myHub->deactivatePortDevice(portB, colorDistanceSensorCallback);
             delay(100);
             myHub->shutDownHub();
-            Serial.println("Disconnected from hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
+            Serial.print(F("Disconnected from hub "));
+            Serial.print(myTrains[idTrain].hubColor);
+            Serial.print(F(" -> "));
+            Serial.println(myTrains[idTrain].hubAddress);
             
             myTrains[idTrain].hubState = -1;     
             activeTrain--;         
@@ -119,9 +121,9 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
 
       myTrains[idTrain].lastcolor = color;
     
-      Serial.print("Color ");
-      Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
-      //Serial.println(COLOR_STRING[color]);     
+      Serial.print(F("Color Hub "));
+      Serial.print(myTrains[idTrain].hubColor);
+      Serial.print(F(": "));
       Serial.println(LegoinoCommon::ColorStringFromColor(color).c_str()); 
     
       myHub->setLedColor((Color)color);
@@ -142,9 +144,9 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
   }
 }
 
-int getHubIdByAddress(String address) {
+int getHubIdByAddress(const char* address) {
   for (int i = 0; i < MY_TRAIN_LEN; i++) {
-    if (myTrains[i].hubAddress == address) return i;
+    if (strcmp(myTrains[i].hubAddress, address) == 0) return i;
   }
   return -1;
 }

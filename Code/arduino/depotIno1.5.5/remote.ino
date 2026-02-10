@@ -64,7 +64,7 @@ void scanRemoteController(){
     }
   
     if (! myRemote.isConnected() ){       //&& ! isRemoteInitFirst
-      myRemote.init(remoteAddress.c_str(),1);
+      myRemote.init(remoteAddress, 1);
       isRemoteInitialized = false; 
       //isRemoteInitFirst = true;
     }

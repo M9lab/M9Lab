@@ -1,22 +1,21 @@
 void setSwitch(Switches *cSwitch, bool position) {
 
-  byte *myPort = (byte *)cSwitch->port;
   if (!mySwitchController.isConnected()) return;
 
   // position 0=straight, 1= turned
   if (cSwitch->switchState == position) {
-    _println("already setted");
+    if (isVerbose) Serial.println(F("already setted"));
     return;
   }
 
   bool p = position;
-  if (cSwitch->switchInvert == 1 ) p = !position;    
+  if (cSwitch->switchInvert) p = !position;    
   
-  int velocity = p ? switchVelocity : (switchVelocity * -1);    
+  int velocity = p ? switchVelocity : -switchVelocity;    
 
-  mySwitchController.setTachoMotorSpeed(*myPort, velocity);
+  mySwitchController.setTachoMotorSpeed(*(cSwitch->port), velocity);
   delay(switchInterval);
-  mySwitchController.stopTachoMotor(*myPort);
+  mySwitchController.stopTachoMotor(*(cSwitch->port));
   cSwitch->switchState = position;
 
 }
@@ -32,19 +31,25 @@ void switchReset() {
 }
 
 void increaseSwitchSpeed(){
-  switchVelocity = switchVelocity+ 5;
-  _print("Switch motor speed now is "); 
-  _println(String(switchVelocity));
+  switchVelocity += 5;
+  if (isVerbose) {
+    Serial.print(F("Switch motor speed now is "));
+    Serial.println(switchVelocity);
+  }
 }
 
 void decreaseSwitchSpeed(){
-  switchVelocity = switchVelocity - 5;
-  _print("Switch motor speed now is "); 
-  _println(String(switchVelocity));
+  switchVelocity -= 5;
+  if (isVerbose) {
+    Serial.print(F("Switch motor speed now is "));
+    Serial.println(switchVelocity);
+  }
 }
 
 void resetSwitchSpeed(){
   switchVelocity = 35;
-  _print("Switch motor speed now is "); 
-  _println(String(switchVelocity));
+  if (isVerbose) {
+    Serial.print(F("Switch motor speed now is "));
+    Serial.println(switchVelocity);
+  }
 }

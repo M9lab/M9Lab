@@ -1,68 +1,50 @@
 
 void printLegenda() {
 
-  // print command lists
-  Serial.println("*** M9Lab - DepotIno4 v." + ver + " ***");
-  Serial.println("_________________________________________________");
+  // print command lists using F() macro to save RAM
+  Serial.print(F("*** M9Lab - DepotIno4 v."));
+  Serial.print(ver);
+  Serial.println(F(" ***"));
+  Serial.println(F("_________________________________________________"));
   
-  Serial.println("");
-  Serial.println("-----System commands:-----");
-  Serial.println("help = show this message again");
-  Serial.println("on = set automatic system on");
-  Serial.println("off = set automatic system off");
-  Serial.println("panic = shutDown all hubs and reset the system");
-  Serial.println("reset = reset the system");
-  Serial.println("sron = enable remote control");
-  Serial.println("sroff = disable remote control");
-  Serial.println("verboseon = show more status messages");
-  Serial.println("verboseoff = show less status messages");
+  Serial.println(F("\n-----System commands:-----"));
+  Serial.println(F("help = show this message again"));
+  Serial.println(F("on = set automatic system on"));
+  Serial.println(F("off = set automatic system off"));
+  Serial.println(F("panic = shutDown all hubs and reset the system"));
+  Serial.println(F("reset = reset the system"));
+  Serial.println(F("sron = enable remote control"));
+  Serial.println(F("sroff = disable remote control"));
+  Serial.println(F("verboseon = show more status messages"));
+  Serial.println(F("verboseoff = show less status messages"));
   
-  Serial.println("");
-  Serial.println("-----Log commands:-----");
-  Serial.println("status = show system status");
-  Serial.println("autospeedon = set speed depends battery level on");
-  Serial.println("autospeedoff = set speed depends battery level off");
+  Serial.println(F("\n-----Log commands:-----"));
+  Serial.println(F("status = show system status"));
+  Serial.println(F("autospeedon = set speed depends battery level on"));
+  Serial.println(F("autospeedoff = set speed depends battery level off"));
 
-  Serial.println("");
-  Serial.println("-----Switches commands:-----");
-  Serial.println("sw<X>0 = set switch X (a,b,c) straight");
-  Serial.println("sw<X>1 = set switch X (a,b,c) turned");
-  Serial.println("resetsw = reset all switches");  
-  Serial.println("killsw = kill the main hub");
-  Serial.println("sws+ = increase current switch motor speed to +5");
-  Serial.println("sws- = decrease current switch motor speed to -5");
-  Serial.println("sws= = reset current switch motor speed set to default (35)");
+  Serial.println(F("\n-----Switches commands:-----"));
+  Serial.println(F("sw<X>0 = set switch X (a,b,c) straight"));
+  Serial.println(F("sw<X>1 = set switch X (a,b,c) turned"));
+  Serial.println(F("resetsw = reset all switches"));  
+  Serial.println(F("killsw = kill the main hub"));
+  Serial.println(F("sws+ = increase current switch motor speed to +5"));
+  Serial.println(F("sws- = decrease current switch motor speed to -5"));
+  Serial.println(F("sws= = reset current switch motor speed set to default (35)"));
 
-  Serial.println("");
-  Serial.println("-----Trains commands:-----");
-  Serial.println("str1|stg1|sty1 = start RED,GREEN or YELLOW Train");
-  //Serial.println("stg1 = start GREEN Train");
-  //Serial.println("sty1 = start YELLOW Train");
+  Serial.println(F("\n-----Trains commands:-----"));
+  Serial.println(F("str1|stg1|sty1 = start RED,GREEN or YELLOW Train"));
+  Serial.println(F("str0|stg0|sty0 = stop RED,GREEN or YELLOW Train"));
+  Serial.println(F("killr|killg|killy = kill RED,GREEN or YELLOW Train"));
+  Serial.println(F("killall = kill all Trains"));
 
-  Serial.println("str0|stg0|sty0 = stop RED,GREEN or YELLOW Train");
-  //Serial.println("stg0 = stop GREEN Train");
-  //Serial.println("sty0 = stop YELLOW Train");
-
-  Serial.println("killr|killg|killy = kill RED,GREEN or YELLOW Train");
-  //Serial.println("killg = kill GREEN Train");
-  //Serial.println("killy = kill YELLOW Train");
-  Serial.println("killall = kill all Trains");    
-
-  Serial.println("cts+ = increase current train speed set +5");
-  Serial.println("cts- = decrease current train speed set -5");
-  Serial.print("cts= = reset current train speed set to default ");
-  Serial.print("(");
+  Serial.println(F("cts+ = increase current train speed set +5"));
+  Serial.println(F("cts- = decrease current train speed set -5"));
+  Serial.print(F("cts= = reset current train speed set to default ("));
   Serial.print(initialTrainSpeed);
-  Serial.println(")");
+  Serial.println(F(")"));
 
-  /*
-  Serial.println("");
-  Serial.println("-----Lights commands:-----");
-  Serial.println("sbl1 = turn on blinking Lights");
-  Serial.println("sbl0 = turn off blinking Lights");
-  */
-
-  Serial.println("_________________________________________________");
+  Serial.println(F("_________________________________________________"));
 }
 
 void verboseOn() {
@@ -83,15 +65,15 @@ void autospeedOff() {
 
 void systemOn() {
   if (!mySwitchController.isConnected()) {
-    _println("Cannot find the Switch Controller");
+    if (isVerbose) Serial.println(F("Cannot find the Switch Controller"));
   } else {
-    _println("Automatic mode is active");
+    if (isVerbose) Serial.println(F("Automatic mode is active"));
     isAutoEnabled = true;
   }
 }
 
 void systemOff() {
-  _println("Automatic mode is disabled");
+  if (isVerbose) Serial.println(F("Automatic mode is disabled"));
   isAutoEnabled = false;
 }
 
@@ -116,7 +98,10 @@ void panic() {
     myTrains[idTrain].hubState = -1;    
     // shutDown Hub train
     killTrain(idTrain);
-    Serial.println("Disconnected from hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
+    Serial.print(F("Disconnected from hub "));
+    Serial.print(myTrains[idTrain].hubColor);
+    Serial.print(F(" -> "));
+    Serial.println(myTrains[idTrain].hubAddress);
   }
   activeTrain = 0;
 
@@ -132,50 +117,44 @@ void panic() {
 
 void systemStatus() {
 
-  Serial.println("hubColor|batteryLevel|hubState|trainState|speed|");
-  Serial.println("------------------------------------------------");
+  Serial.println(F("hubColor|batteryLevel|hubState|trainState|speed|"));
+  Serial.println(F("------------------------------------------------"));
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
     
-    _print_withspaces(myTrains[idTrain].hubColor,"hubColor");    
-    _print_withspaces(String(myTrains[idTrain].batteryLevel),"batteryLevel");    
-    _print_withspaces(String(myTrains[idTrain].hubState),"hubState");    
-    _print_withspaces(String(myTrains[idTrain].trainState),"trainState");    
-    _print_withspaces(String(myTrains[idTrain].speed),"speed");
-
-    Serial.println("");
+    Serial.print(myTrains[idTrain].hubColor);
+    Serial.print(F("|"));
+    Serial.print(myTrains[idTrain].batteryLevel);
+    Serial.print(F("|"));
+    Serial.print(myTrains[idTrain].hubState);
+    Serial.print(F("|"));
+    Serial.print(myTrains[idTrain].trainState);
+    Serial.print(F("|"));
+    Serial.print(myTrains[idTrain].speed);
+    Serial.println(F("|"));
   }
 
-  Serial.println("------------------------------------------------");
+  Serial.println(F("------------------------------------------------"));
 
-  Serial.print("Switch Battery Level: ");
+  Serial.print(F("Switch Battery Level: "));
   Serial.println(switchBatteryLevel);
 
-  Serial.print("Switch Motor Speed: ");
+  Serial.print(F("Switch Motor Speed: "));
   Serial.println(switchVelocity);
 
-  Serial.print("Automatic mode on: ");
+  Serial.print(F("Automatic mode on: "));
   Serial.println(isAutoEnabled);
 
-  Serial.print("Automatic speed on: ");
+  Serial.print(F("Automatic speed on: "));
   Serial.println(autoSpeedEnabled);  
 
 }
 
-void _print_withspaces(String inputS, String lengthS){
-
-  Serial.print(inputS);
-  unsigned int nspaces = lengthS.length() - inputS.length();
-  for(int i=0; i<nspaces; i++) Serial.print(" ");
-  Serial.print("|");  
-
-}
-
-void _print(String text) {
+void _print(const char* text) {
   if (isVerbose) Serial.print(text);
 }
 
-void _println(String text) {
+void _println(const char* text) {
   if (isVerbose) Serial.println(text);
 }
 
@@ -198,11 +177,13 @@ bool checkIfSensorColorIsAccepted(byte inputColor) {
   return false;
 }
 
-void checkIntervalisExpired(int idTrain ) {
+void checkIntervalisExpired(int idTrain) {
 
-  Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
-
-  if (millis() - myTrains[idTrain].colorPreviousMillis > colorInterval && myTrains[idTrain].colorPreviousMillis > 0) {
+  if (myTrains[idTrain].colorPreviousMillis == 0) return;
+  
+  unsigned long currentMillis = millis();
+  if (currentMillis - myTrains[idTrain].colorPreviousMillis > colorInterval) {
+    Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
     myTrains[idTrain].trainState = myTrains[idTrain].speed;
     myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
     myTrains[idTrain].colorPreviousMillis = 0;
