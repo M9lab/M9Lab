@@ -162,68 +162,84 @@ bool lights_ison = false;
 int lights_count = 0;
 
 
+// Helper function for system commands
+bool handleSystemCommands(const String &cmd) {
+  if (cmd == "panic") { panic(); return true; }
+  if (cmd == "killsw") { killSwitch(); return true; }
+  if (cmd == "reset") { systemReset(); return true; }
+  if (cmd == "on") { systemOn(); return true; }
+  if (cmd == "off") { systemOff(); return true; }
+  if (cmd == "help") { printLegenda(); return true; }
+  if (cmd == "status") { systemStatus(); return true; }
+  if (cmd == "autospeedon") { autospeedOn(); return true; }
+  if (cmd == "autospeedoff") { autospeedOff(); return true; }
+  if (cmd == "sron") { setRemoteOn(); return true; }
+  if (cmd == "sroff") { setRemoteOff(); return true; }
+  if (cmd == "verboseon") { verboseOn(); return true; }
+  if (cmd == "verboseoff") { verboseOff(); return true; }
+  return false;
+}
+
+// Helper function for switch commands
+bool handleSwitchCommands(const String &cmd) {
+  if (cmd == "swa0") { setSwitch(&mySwitchControlleres[0], 0); return true; }
+  if (cmd == "swa1") { setSwitch(&mySwitchControlleres[0], 1); return true; }
+  if (cmd == "swb0") { setSwitch(&mySwitchControlleres[1], 0); return true; }
+  if (cmd == "swb1") { setSwitch(&mySwitchControlleres[1], 1); return true; }
+  if (cmd == "swc0") { setSwitch(&mySwitchControlleres[2], 0); return true; }
+  if (cmd == "swc1") { setSwitch(&mySwitchControlleres[2], 1); return true; }
+  if (cmd == "sws+") { increaseSwitchSpeed(); return true; }
+  if (cmd == "sws-") { decreaseSwitchSpeed(); return true; }
+  if (cmd == "sws=") { resetSwitchSpeed(); return true; }
+  if (cmd == "resetsw") { switchReset(); return true; }
+  return false;
+}
+
+// Helper function for train commands
+bool handleTrainCommands(const String &cmd) {
+  if (cmd == "str1") { manualStartTrain(0); return true; }
+  if (cmd == "stg1") { manualStartTrain(1); return true; }
+  if (cmd == "sty1") { manualStartTrain(2); return true; }
+  if (cmd == "str0") { stopTrain(0); return true; }
+  if (cmd == "stg0") { stopTrain(1); return true; }
+  if (cmd == "sty0") { stopTrain(2); return true; }
+  if (cmd == "killr") { killTrain(0); return true; }
+  if (cmd == "killg") { killTrain(1); return true; }
+  if (cmd == "killy") { killTrain(2); return true; }
+  if (cmd == "cts+") { increaseCurrentTrainSpeed(); return true; }
+  if (cmd == "cts-") { decreaseCurrentTrainSpeed(); return true; }
+  if (cmd == "cts=") { resetCurrentTrainSpeed(); return true; }
+  if (cmd == "killall") { 
+    for (int i = 0; i < MY_TRAIN_LEN; i++) { killTrain(i); }
+    return true;
+  }
+  return false;
+}
+
+// Helper function for lights commands
+bool handleLightsCommands(const String &cmd) {
+  if (cmd == "sbl1") { startBlikLights(pPortA); return true; }
+  if (cmd == "sbl0") { stopBlikLights(pPortA); return true; }
+  return false;
+}
+
 void readFromSerial() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
+    command.trim();
     Serial.println("");
     Serial.println(">" + command);
     Serial.println("");
     
-    // system
-    if (command == "panic") panic();
-    else if (command == "killsw") killSwitch();
-    else if (command == "reset") systemReset();
-    else if (command == "on") systemOn();
-    else if (command == "off") systemOff();
-    else if (command == "help") printLegenda();
-    else if (command == "status") systemStatus();
-    else if (command == "autospeedon") autospeedOn();
-    else if (command == "autospeedoff") autospeedOff();
-    else if (command == "sron") setRemoteOn();
-    else if (command == "sroff") setRemoteOff();
-    else if (command == "verboseon") verboseOn();
-    else if (command == "verboseoff") verboseOff();
-
-    // switches
-    else if (command == "swa0") setSwitch(&mySwitchControlleres[0], 0);
-    else if (command == "swa1") setSwitch(&mySwitchControlleres[0], 1);
-    else if (command == "swb0") setSwitch(&mySwitchControlleres[1], 0);
-    else if (command == "swb1") setSwitch(&mySwitchControlleres[1], 1);
-    else if (command == "swc0") setSwitch(&mySwitchControlleres[2], 0);
-    else if (command == "swc1") setSwitch(&mySwitchControlleres[2], 1);
-    else if (command == "sws+") increaseSwitchSpeed();
-    else if (command == "sws-") decreaseSwitchSpeed();
-    else if (command == "sws=") resetSwitchSpeed();
-	
-    //lights
-  	else if (command == "sbl1") startBlikLights(pPortA);
-  	else if (command == "sbl0") stopBlikLights(pPortA);  	
-  	
-    // trains
-  	else if (command == "str1") manualStartTrain(0);
-  	else if (command == "stg1") manualStartTrain(1);
-  	else if (command == "sty1") manualStartTrain(2);	
-
-    else if (command == "str0") stopTrain(0);
-    else if (command == "stg0") stopTrain(1);
-    else if (command == "sty0") stopTrain(2);  
-
-    else if (command == "killr") killTrain(0);
-    else if (command == "killg") killTrain(1);
-    else if (command == "killy") killTrain(2);  
-
-    else if (command == "cts+") increaseCurrentTrainSpeed();  
-    else if (command == "cts-") decreaseCurrentTrainSpeed();  
-    else if (command == "cts=") resetCurrentTrainSpeed();  
-
-    else if (command == "killall") for (int i = 0; i < MY_TRAIN_LEN; i++) { killTrain(i);}      
-  
-    // main hub
-    else if (command == "resetsw") switchReset();
-    else {
-      Serial.println("");
-      Serial.println(">command not found");
-    }
+    // Try each command category
+    if (handleSystemCommands(command)) return;
+    if (handleSwitchCommands(command)) return;
+    if (handleTrainCommands(command)) return;
+    if (handleLightsCommands(command)) return;
+    
+    // Command not found
+    Serial.println("");
+    Serial.println(">command not found");
   }
 }
 
