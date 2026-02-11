@@ -118,7 +118,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.08; //(max 1 => 100)
+float volume = 0.09; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -150,7 +150,7 @@ bool sm_ready = false;
 // === RANDOM PLAY FLAG ===
 bool randomPlayFlag = true;
 unsigned long lastRandomEvent = 0;
-unsigned long randomInterval = 60000; // ogni 60s evento casuale
+unsigned long randomInterval = 90000; // ogni 60s evento casuale
 
 // === VERBOSE MODE (debug dettagliato) ===
 bool verboseMode = false;  // OFF di default per performance ottimali
@@ -216,14 +216,17 @@ void StatusCallback(void *cbData, int code, const char *string) {
 
 // === BLUETOOTH DISPLAY ON-DEMAND ===
 // Apre BT, invia comando, chiude BT → massima compatibilità con audio!
-bool sendToDisplayBT(const char* command) {
+// restartAudio: se true, riavvia riverloop dopo invio BT
+bool sendToDisplayBT(const char* command, bool restartAudio = true) {
   debugPrintln(F("📡 Invio BT al display..."));
   
   // 1) Ferma riverloop prima di attivare BT (per liberare RAM)
+  bool wasRunning = false;
   if (mp3 && mp3->isRunning()) {
     debugPrintln(F("   Pauso riverloop"));
     mp3->stop();
     delay(100);
+    wasRunning = true;
   }
   
   // 2) Verifica RAM disponibile
@@ -234,14 +237,14 @@ bool sendToDisplayBT(const char* command) {
   
   if (freeRAM < 40000) {
     Serial.println(F("❌ RAM insufficiente per BT!"));  // Errore: sempre visibile
-    startRiverLoop();  // Riavvia riverloop
+    if (wasRunning) startRiverLoop();  // Riavvia riverloop solo se era in esecuzione
     return false;
   }
   
   // 3) Inizializza BT in modalità Master (true = master)
   if (!SerialBT.begin("M9Lab-Master", true)) {
     Serial.println(F("❌ Errore init BT"));  // Errore: sempre visibile
-    startRiverLoop();
+    if (wasRunning) startRiverLoop();
     return false;
   }
   
@@ -264,7 +267,7 @@ bool sendToDisplayBT(const char* command) {
     Serial.println(F("❌ Connessione fallita"));  // Errore: sempre visibile
     SerialBT.end();
     delay(200);
-    startRiverLoop();
+    if (wasRunning) startRiverLoop();
     return false;
   }
   
@@ -290,8 +293,13 @@ bool sendToDisplayBT(const char* command) {
   debugPrint(F("   RAM recuperata: "));
   debugPrintln((int)ESP.getFreeHeap());
   
-  // 7) Riavvia riverloop
-  startRiverLoop();
+  // 7) Riavvia riverloop solo se richiesto (evita glitch quando playlist in arrivo)
+  if (restartAudio && wasRunning) {
+    debugPrintln(F("   Riavvio riverloop"));
+    startRiverLoop();
+  } else {
+    debugPrintln(F("   Riverloop NON riavviato (playlist in arrivo)"));
+  }
   
   return true;
 }
@@ -755,7 +763,7 @@ void executeAudioPlayList(const char* command) {
   debugPrintln(F("📤 Invio treno al display..."));
   debugPrint(F("   Comando: "));
   debugPrintln(displayCmd);  // Debug: mostra comando completo
-  sendToDisplayBT(displayCmd);
+  sendToDisplayBT(displayCmd, false);  // false = NON riavviare audio (playlist in arrivo)
 }
 
 // === AUDIO LOOP CONTROL ===
@@ -845,11 +853,13 @@ void playSingleFile(int num) {
   
   playFile(filename);
   
-  // Attendi completamento con timeout
+  // Attendi completamento con timeout - ottimizzato per qualità
   unsigned long startPlay = millis();
   while (mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) {
+    // Doppio loop per audio più fluido e qualità superiore
     if (!mp3->loop()) break;
-    delay(1);
+    if (mp3->isRunning()) mp3->loop(); // Secondo loop per fluidità
+    delay(1); // Delay minimo per massima qualità
     yield();
   }
   
@@ -1011,8 +1021,53 @@ void playMeteoAnnouncement() {
         weatherCode = lastWeatherCode;
         windSpeed = lastWindSpeed;
       } else {
-        // Nessun dato disponibile: annulla
-        startRiverLoop();
+        // Nessun dato disponibile: genera evento random al posto del meteo
+        Serial.println(F("⚠️  WiFi down, nessun dato cache → evento random"));
+        
+        // Genera evento casuale (50% alert, 50% treno)
+        // Le funzioni play* gestiscono già riverloop start/stop
+        int tipo = random(2); // 0=alert, 1=treno
+        
+        if (tipo == 0) {
+          // Alert random
+          int alertNum = random(1, 11);
+          debugPrint(F("→ ALERT"));
+          debugPrintln(alertNum);
+          
+          if(alertNum == 8) {
+            int binario = random(1,10);
+            sm_totalFile = 0;
+            addToPlayList(161);
+            addToPlayList(binario);
+            addToPlayList(165);
+            playPlaylist();
+          } else {
+            int fileNum = alertNum == 1 ? 191 :
+                          alertNum == 2 ? 171 :
+                          alertNum == 3 ? 181 :
+                          alertNum == 4 ? 151 :
+                          alertNum == 5 ? 176 :
+                          alertNum == 6 ? 177 :
+                          alertNum == 7 ? 165 :
+                          alertNum == 9 ? 186 : 196;
+            playSingleFile(fileNum);
+          }
+        } else {
+          // Annuncio treno random
+          int train = random(1, 8);
+          int binario = random(1, 10);
+          int azione = random(1, 3);
+          
+          char cmd[4];
+          sprintf(cmd, "%d%d%d", train, binario, azione);
+          
+          debugPrint(F("→ TRENO:"));
+          debugPrintln(cmd);
+          
+          executeAudioPlayList(cmd);
+          playPlaylist();
+        }
+        
         return;
       }
     } else {
@@ -1039,10 +1094,7 @@ void playMeteoAnnouncement() {
            tempArrotondata, weatherCode, hour(), minute(), windSpeedInt);
   
   debugPrintln(F("📤 Invio meteo al display..."));
-  sendToDisplayBT(displayCmd);
-  
-  // Aspetta che BT si chiuda e riverloop riparta
-  delay(500);
+  sendToDisplayBT(displayCmd, false);  // false = NON riavviare audio (playlist in arrivo)
   
   // Costruisci playlist annuncio
   sm_totalFile = 0;
@@ -1115,8 +1167,10 @@ void playPlaylist() {
     
     unsigned long startPlay = millis();
     while(mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) { 
-      if(!mp3->loop()) break; 
-      delay(5);
+      // Doppio loop per audio più fluido e qualità superiore
+      if(!mp3->loop()) break;
+      if(mp3->isRunning()) mp3->loop(); // Secondo loop per fluidità
+      delay(1); // Delay minimo per massima qualità
       yield();
     }
   }
@@ -1174,12 +1228,18 @@ void reinitAudio() {
   }
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
   
-  // Buffer MINIMALI con BT cellulare attivo per massimizzare RAM disponibile
-  int bufferSize = btCellulareEnabled ? 128 : 512;
-  int bufferCount = btCellulareEnabled ? 2 : 2;
+  // Buffer ottimizzati: ALTA QUALITÀ normalmente, ridotti solo con BT cellulare
+  int bufferSize = btCellulareEnabled ? 256 : 1024;
+  int bufferCount = btCellulareEnabled ? 4 : 8;
   out->SetBuffers(bufferCount, bufferSize);
+  
   out->SetGain(volume);
-  Serial.print(F("I2S OK (buf:"));
+  // Sample rate e bit depth gestiti automaticamente dal decoder MP3
+  Serial.print(F("I2S OK ("));
+  Serial.print(btCellulareEnabled ? "BT mode" : "alta qualità");
+  Serial.print(F(", buf:"));
+  Serial.print(bufferCount);
+  Serial.print(F("x"));
   Serial.print(bufferSize);
   Serial.println(F(")"));
   
@@ -1514,13 +1574,19 @@ void processCommand(char* cmd, bool fromBT=false) {
 // === SETUP ===
 void setup() {
   // BT disabilitato all'avvio, si attiva con bottone lungo
+  
+  // OTTIMIZZAZIONE CPU: Aumenta frequenza per audio fluido
+  setCpuFrequencyMhz(240); // Massima frequenza (240 MHz) per prestazioni ottimali
     
   M5.begin(true, false, true);
   SPI.begin(SCK, MISO, MOSI, -1);
   Serial.begin(115200);
   
   delay(100);
-  Serial.println(F("\n=== ATOM LITE + SPK + BT ==="));
+  Serial.println(F("\n=== ATOM LITE + SPK + BT (Alta Qualità) ==="));
+  Serial.print(F("CPU: "));
+  Serial.print(getCpuFrequencyMhz());
+  Serial.println(F(" MHz"));
   Serial.print(F("RAM iniziale: "));
   Serial.println(ESP.getFreeHeap());
 
@@ -1533,12 +1599,13 @@ void setup() {
   }
   Serial.println(F("SD OK"));
 
-  // OTTIMIZZAZIONE MASSIMA: buffer ridottissimi per ATOM LITE + BT
+  // QUALITÀ AUDIO MIGLIORATA: buffer ottimizzati per audio fluido
   out = new AudioOutputI2S();
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
-  out->SetBuffers(2, 256); // RIDOTTO a 256 per lasciare RAM per BT
+  out->SetBuffers(8, 1024); // 8 buffer da 1024 byte = audio fluido e cristallino
   out->SetGain(volume);
-  Serial.println(F("I2S OK"));
+  // Sample rate, bit depth e canali sono gestiti automaticamente dal decoder MP3
+  Serial.println(F("I2S OK (buf 8x1024, auto sample rate)"));
 
   file = new AudioFileSourceSD(AUDIO_FILE);
   id3 = new AudioFileSourceID3(file);
@@ -1558,10 +1625,25 @@ void setup() {
   if (ntpSuccess) {
     Serial.println(F("✅ Orario sincronizzato, annuncio meteo..."));
     delay(1000); // Pausa prima dell'annuncio
-    playMeteoAnnouncement(); // Conferma audio + meteo
+    playMeteoAnnouncement(); // Conferma audio + meteo (o evento random se meteo fallisce)
   } else {
     Serial.println(F("⚠️  Sincronizzazione fallita, uso orario di default"));
-    Serial.println(F("   Puoi sincronizzare manualmente con: settime=ntp"));
+    Serial.println(F("   WiFi down → genero annuncio sostitutivo..."));
+    delay(1000);
+    
+    // Genera annuncio treno random al posto del meteo
+    int train = random(1, 8);
+    int binario = random(1, 10);
+    int azione = random(1, 3);
+    
+    char cmd[4];
+    sprintf(cmd, "%d%d%d", train, binario, azione);
+    
+    Serial.print(F("   → TRENO: "));
+    Serial.println(cmd);
+    
+    executeAudioPlayList(cmd);
+    playPlaylist();
   }
   Serial.println(F("---\n"));
   
@@ -1739,16 +1821,18 @@ void loop() {
     }
   }
 
-  // Audio loop management - SEMPLIFICATO con anti-loop
+  // Audio loop management - OTTIMIZZATO per qualità audio
   if (!playingPlaylist && !audioStarting) {
     if (mp3 && mp3->isRunning()) {
+      // Chiama mp3->loop() più volte per fluidità
       if (!mp3->loop()) mp3->stop();
+      if (mp3->isRunning()) mp3->loop(); // Secondo loop per audio più fluido
     } else if (!btCellulareEnabled && mp3 && !mp3->isRunning() && (millis() - lastAudioAttempt > 2000)) {
       // Riavvia SOLO se BT cellulare è SPENTO e sono passati almeno 2 secondi
       startRiverLoop();
     }
   }
   
-  // CRITICO: yield per evitare watchdog reset
-  yield();
+  // Delay minimo per CPU: priorità all'audio, ma evita watchdog
+  delay(1); // 1ms delay garantisce fluidità senza sovraccaricare CPU
 }

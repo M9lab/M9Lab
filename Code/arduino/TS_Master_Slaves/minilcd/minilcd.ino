@@ -572,7 +572,11 @@ void loop() {
   
   // Non disegnare scrolling se non è stato ricevuto il primo comando
   // (mantieni logo splash visibile)
-  if (displayMeteoAttivo || !firstCommandReceived) return;
+  if (displayMeteoAttivo || !firstCommandReceived) {
+    delay(10);  // Previene watchdog reset quando in attesa del primo comando
+    yield();
+    return;
+  }
   
   unsigned long currentTime = millis();
   
@@ -611,4 +615,7 @@ void loop() {
       scrollX = screenWidth;
     }
   }
+  
+  // Previene watchdog reset
+  yield();
 }
