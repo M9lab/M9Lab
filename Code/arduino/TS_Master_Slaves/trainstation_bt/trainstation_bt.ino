@@ -118,7 +118,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.09; //(max 1 => 100)
+float volume = 0.08; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -150,7 +150,7 @@ bool sm_ready = false;
 // === RANDOM PLAY FLAG ===
 bool randomPlayFlag = true;
 unsigned long lastRandomEvent = 0;
-unsigned long randomInterval = 90000; // ogni 60s evento casuale
+unsigned long randomInterval = 60000; // ogni 60s evento casuale
 
 // === VERBOSE MODE (debug dettagliato) ===
 bool verboseMode = false;  // OFF di default per performance ottimali
@@ -853,13 +853,11 @@ void playSingleFile(int num) {
   
   playFile(filename);
   
-  // Attendi completamento con timeout - ottimizzato per qualità
+  // Attendi completamento con timeout
   unsigned long startPlay = millis();
   while (mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) {
-    // Doppio loop per audio più fluido e qualità superiore
     if (!mp3->loop()) break;
-    if (mp3->isRunning()) mp3->loop(); // Secondo loop per fluidità
-    delay(1); // Delay minimo per massima qualità
+    delay(1);
     yield();
   }
   
@@ -1167,10 +1165,8 @@ void playPlaylist() {
     
     unsigned long startPlay = millis();
     while(mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) { 
-      // Doppio loop per audio più fluido e qualità superiore
-      if(!mp3->loop()) break;
-      if(mp3->isRunning()) mp3->loop(); // Secondo loop per fluidità
-      delay(1); // Delay minimo per massima qualità
+      if(!mp3->loop()) break; 
+      delay(5);
       yield();
     }
   }
@@ -1228,18 +1224,12 @@ void reinitAudio() {
   }
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
   
-  // Buffer ottimizzati: ALTA QUALITÀ normalmente, ridotti solo con BT cellulare
-  int bufferSize = btCellulareEnabled ? 256 : 1024;
-  int bufferCount = btCellulareEnabled ? 4 : 8;
+  // Buffer MINIMALI con BT cellulare attivo per massimizzare RAM disponibile
+  int bufferSize = btCellulareEnabled ? 128 : 512;
+  int bufferCount = btCellulareEnabled ? 2 : 2;
   out->SetBuffers(bufferCount, bufferSize);
-  
   out->SetGain(volume);
-  // Sample rate e bit depth gestiti automaticamente dal decoder MP3
-  Serial.print(F("I2S OK ("));
-  Serial.print(btCellulareEnabled ? "BT mode" : "alta qualità");
-  Serial.print(F(", buf:"));
-  Serial.print(bufferCount);
-  Serial.print(F("x"));
+  Serial.print(F("I2S OK (buf:"));
   Serial.print(bufferSize);
   Serial.println(F(")"));
   
@@ -1574,19 +1564,13 @@ void processCommand(char* cmd, bool fromBT=false) {
 // === SETUP ===
 void setup() {
   // BT disabilitato all'avvio, si attiva con bottone lungo
-  
-  // OTTIMIZZAZIONE CPU: Aumenta frequenza per audio fluido
-  setCpuFrequencyMhz(240); // Massima frequenza (240 MHz) per prestazioni ottimali
     
   M5.begin(true, false, true);
   SPI.begin(SCK, MISO, MOSI, -1);
   Serial.begin(115200);
   
   delay(100);
-  Serial.println(F("\n=== ATOM LITE + SPK + BT (Alta Qualità) ==="));
-  Serial.print(F("CPU: "));
-  Serial.print(getCpuFrequencyMhz());
-  Serial.println(F(" MHz"));
+  Serial.println(F("\n=== ATOM LITE + SPK + BT ==="));
   Serial.print(F("RAM iniziale: "));
   Serial.println(ESP.getFreeHeap());
 
@@ -1599,13 +1583,12 @@ void setup() {
   }
   Serial.println(F("SD OK"));
 
-  // QUALITÀ AUDIO MIGLIORATA: buffer ottimizzati per audio fluido
+  // OTTIMIZZAZIONE MASSIMA: buffer ridottissimi per ATOM LITE + BT
   out = new AudioOutputI2S();
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
-  out->SetBuffers(8, 1024); // 8 buffer da 1024 byte = audio fluido e cristallino
+  out->SetBuffers(2, 256); // RIDOTTO a 256 per lasciare RAM per BT
   out->SetGain(volume);
-  // Sample rate, bit depth e canali sono gestiti automaticamente dal decoder MP3
-  Serial.println(F("I2S OK (buf 8x1024, auto sample rate)"));
+  Serial.println(F("I2S OK"));
 
   file = new AudioFileSourceSD(AUDIO_FILE);
   id3 = new AudioFileSourceID3(file);
@@ -1821,18 +1804,16 @@ void loop() {
     }
   }
 
-  // Audio loop management - OTTIMIZZATO per qualità audio
+  // Audio loop management - SEMPLIFICATO con anti-loop
   if (!playingPlaylist && !audioStarting) {
     if (mp3 && mp3->isRunning()) {
-      // Chiama mp3->loop() più volte per fluidità
       if (!mp3->loop()) mp3->stop();
-      if (mp3->isRunning()) mp3->loop(); // Secondo loop per audio più fluido
     } else if (!btCellulareEnabled && mp3 && !mp3->isRunning() && (millis() - lastAudioAttempt > 2000)) {
       // Riavvia SOLO se BT cellulare è SPENTO e sono passati almeno 2 secondi
       startRiverLoop();
     }
   }
   
-  // Delay minimo per CPU: priorità all'audio, ma evita watchdog
-  delay(1); // 1ms delay garantisce fluidità senza sovraccaricare CPU
+  // CRITICO: yield per evitare watchdog reset
+  yield();
 }
