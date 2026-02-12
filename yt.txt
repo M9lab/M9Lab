@@ -1,4 +1,0 @@
-infomezzaninelab@gmail.com
-Trieste1!
-SMTP_PASSWORD = "etnz lfiw bhmp yili"  # qui la App Password generata
-https://replicate.com/stability-ai/stable-diffusion-img2img
