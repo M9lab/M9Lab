@@ -169,7 +169,7 @@ EMAIL_HTML_BODY_DEFAULT = """<html>
     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; margin-top: 30px;'>
         <p style='color: #2C3E50; font-size: 14px; margin: 0;'>Grazie per il tuo supporto! 🚀</p>
         <p style='color: #7f8c8d; font-size: 13px; margin: 10px 0 0 0;'>
-            <strong>Team M9Lab</strong><br/>Lego Trains & Arduino Sketches
+            <strong>MezzanineLab</strong><br/>Lego Trains & Arduino Sketches
         </p>
     </div>
 </body>
