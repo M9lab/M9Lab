@@ -118,7 +118,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.08; //(max 1 => 100)
+float volume = 0.02; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -572,7 +572,7 @@ void printHelp(bool useBT=false){
     s->println(F("  playtrain=XYZ    → Annuncio treno (X=tipo 1-7, Y=bin 1-9, Z=azione 1=part/2=arr)"));
     s->println(F("                     Es: playtrain=411 (IC bin1 partenza)"));
     s->println(F("  playaudio=XXX    → Riproduce /0XXX.mp3"));    
-    s->println(F("  alert1..10       → Vari annunci alert"));
+    s->println(F("  alert1..11       → Vari annunci alert"));
     s->println(F("  meteo            → Annuncio meteo Trieste"));
     s->println(F("  rndtrn           → Test treno random"));
     s->println(F("  testdisplay      → Test comunicazione display BT"));
@@ -1028,7 +1028,7 @@ void playMeteoAnnouncement() {
         
         if (tipo == 0) {
           // Alert random
-          int alertNum = random(1, 11);
+          int alertNum = random(1, 12);
           debugPrint(F("→ ALERT"));
           debugPrintln(alertNum);
           
@@ -1047,7 +1047,8 @@ void playMeteoAnnouncement() {
                           alertNum == 5 ? 176 :
                           alertNum == 6 ? 177 :
                           alertNum == 7 ? 165 :
-                          alertNum == 9 ? 186 : 196;
+                          alertNum == 9 ? 186 :
+                          alertNum == 11 ? 197 : 196;
             playSingleFile(fileNum);
           }
         } else {
@@ -1421,7 +1422,8 @@ void processCommand(char* cmd, bool fromBT=false) {
            equalsIgnoreCase(cmd, "alert7") ||
            equalsIgnoreCase(cmd, "alert8") ||
            equalsIgnoreCase(cmd, "alert9") ||
-           equalsIgnoreCase(cmd, "alert10")) {
+           equalsIgnoreCase(cmd, "alert10") ||
+           equalsIgnoreCase(cmd, "alert11")) {
     if (fromBT) {
       s->println(F("Comando audio non disponibile via BT"));
       s->println(F("Usa comandi: vol+/vol-/vol=XX, settime, gettime, ram"));
@@ -1447,6 +1449,7 @@ void processCommand(char* cmd, bool fromBT=false) {
       }
       else if (equalsIgnoreCase(cmd, "alert9")) playSingleFile(186);
       else if (equalsIgnoreCase(cmd, "alert10")) playSingleFile(196);
+      else if (equalsIgnoreCase(cmd, "alert11")) playSingleFile(197);
     }
   }
   else if (equalsIgnoreCase(cmd, "meteo")) {
@@ -1758,7 +1761,7 @@ void loop() {
     
     if (tipo == 0) {
       // Alert random
-      int alertNum = random(1, 11);
+      int alertNum = random(1, 12);
       debugPrint(F("RND-AL"));
       debugPrintln(alertNum);
       
@@ -1780,7 +1783,8 @@ void loop() {
                       alertNum == 5 ? 176 :
                       alertNum == 6 ? 177 :
                       alertNum == 7 ? 165 :
-                      alertNum == 9 ? 186 : 196;
+                      alertNum == 9 ? 186 :
+                      alertNum == 11 ? 197 : 196;
         playSingleFile(fileNum);
       }
     } else if (tipo == 1) {
