@@ -1,3 +1,12 @@
+/*
+    Board: ESP32-WROOM-DA Module
+    Library: 
+      esp32 -> 3.3.3 (board)
+      M5Atom -> 0.1.3
+      Adafruit_GFX -> 1.12.4
+*/
+
+
 // === M9LAB DISPLAY SLAVE - v2.0 BT PASSIVO ===
 // Modalità: SERVER PASSIVO (aspetta connessioni dal Master)
 // Separatore comandi: | (pipe) per compatibilità con orari HH:MM
