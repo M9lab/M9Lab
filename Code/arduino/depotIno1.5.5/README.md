@@ -1,3 +1,12 @@
+/*
+    Board: ESP32-WROOM-DA Module
+    Library: 
+      esp32 -> 3.3.3 (board)
+      M5Atom -> 0.1.3
+      Adafruit_GFX -> 1.12.4
+*/
+
+
 # DepotIno v1.5.5.1
 
 Sistema di controllo per 3 treni LEGO Powered UP su binario con deposito e tunnel.
