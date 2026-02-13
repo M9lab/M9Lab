@@ -1,4 +1,16 @@
 /*
+    Board: M5Atom
+    Library: 
+      esp32 -> 3.3.3 (board)
+      M5Atom -> 0.1.3
+      SP8266Audio -> 2.4.1
+      SD -> 1.3.0
+      Time -> 1.6.1
+      ArduinoJson -> 7.4.2
+
+*/
+
+/*
     Description: 
     Use ATOM LITE + SPK play mp3 files from TF Card
     Before running put the music file to the TF card    
@@ -118,7 +130,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.02; //(max 1 => 100)
+float volume = 0.80; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
@@ -150,7 +162,7 @@ bool sm_ready = false;
 // === RANDOM PLAY FLAG ===
 bool randomPlayFlag = true;
 unsigned long lastRandomEvent = 0;
-unsigned long randomInterval = 60000; // ogni 60s evento casuale
+unsigned long randomInterval = 90000; // ogni 90s evento casuale
 
 // === VERBOSE MODE (debug dettagliato) ===
 bool verboseMode = false;  // OFF di default per performance ottimali
