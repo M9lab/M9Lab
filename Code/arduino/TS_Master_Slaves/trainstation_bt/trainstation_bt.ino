@@ -1,7 +1,7 @@
 /*
     Board: M5Atom
     Library: 
-      esp32 -> 3.3.3 (board)
+      esp32 -> 3.3.6 (board)
       M5Atom -> 0.1.3
       SP8266Audio -> 2.4.1
       SD -> 1.3.0
