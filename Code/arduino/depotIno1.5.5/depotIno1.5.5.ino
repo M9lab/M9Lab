@@ -6,6 +6,12 @@
       Legoino -> 1.0.0
       NimBLE-Arduino -> v1.4.1 
       FastLED -> v3.10.3 
+
+      oppure:
+      esp32 -> 3.3.6 (board)
+      Legoino -> 1.0.0 (modified for esp32v3)
+
+      Upload Speed  -> 115200
 */
 
 
