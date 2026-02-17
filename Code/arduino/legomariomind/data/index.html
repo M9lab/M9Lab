@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lego Mario Mind</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="gameArea">
+  <h1>Mastermind Mario</h1>
+  <div id="attemptInfo">Tentativo 1 / 10</div>
+  <div id="message"></div>
+  <div class="board" id="board"></div>
+</div>
+
+<div id="bottomBar">
+  <div class="colorPanel">
+    <div class="colorBtn" data-color="rosso" onclick="addColor('rosso')" style="background:red;"></div>
+    <div class="colorBtn" data-color="giallo" onclick="addColor('giallo')" style="background:yellow;"></div>
+    <div class="colorBtn" data-color="verde" onclick="addColor('verde')" style="background:green;"></div>
+    <div class="colorBtn" data-color="viola" onclick="addColor('viola')" style="background:purple;"></div>
+    <div class="colorBtn" data-color="blu" onclick="addColor('blu')" style="background:blue;"></div>
+  </div>
+  <div class="controlPanel">
+    <div class="controlBtn whiteBtn" onclick="clearRow()">ANNULLA</div>
+    <div class="controlBtn blackBtn" onclick="restartGame()">RIAVVIA</div>
+  </div>
+</div>
+
+<script src="mastermind.js"></script>
+</body>
+</html>
