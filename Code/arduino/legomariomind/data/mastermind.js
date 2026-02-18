@@ -1,18 +1,15 @@
-// Chiedi il full screen all'utente
 function goFullScreen() {
   let docEl = document.documentElement;
   if (docEl.requestFullscreen) {
     docEl.requestFullscreen();
-  } else if (docEl.webkitRequestFullscreen) { /* Safari */
+  } else if (docEl.webkitRequestFullscreen) {
     docEl.webkitRequestFullscreen();
-  } else if (docEl.msRequestFullscreen) { /* IE/Edge */
+  } else if (docEl.msRequestFullscreen) {
     docEl.msRequestFullscreen();
   }
 }
 
-// Esegui al caricamento della pagina
 window.onload = () => {
-  // In alcuni browser serve un click per attivare full screen
   document.body.addEventListener('click', goFullScreen);
 };
 
@@ -27,18 +24,15 @@ const colorMap = {
 
 let secret=[], currentRow=[], attempts=[], currentAttempt=0, gameOver=false;
 
-// WebSocket dal server ESP32
-let socket = new WebSocket(`ws://${location.host}/ws`);
+let socket = new WebSocket('ws://' + location.host + '/ws');
 
 socket.onmessage = function(event) {
   let color = event.data;
   console.log("WS Color received:", color);
 
-  // se è una funzione speciale
   if (color === "nero") { clearRow(); return; }
   if (color === "bianco") { restartGame(); return; }
 
-  // altrimenti aggiunge il colore alla riga di gioco
   addColor(color);
 };
 
@@ -58,7 +52,11 @@ function drawBoard(){
   const board=document.getElementById("board");
   board.innerHTML="";
   for(let i=0;i<10;i++){
-    const rowDiv=document.createElement("div"); rowDiv.className="row";
+    const rowDiv=document.createElement("div"); 
+    rowDiv.className="row";
+    if(i===currentAttempt && !gameOver) rowDiv.classList.add("current");
+    rowDiv.id="row"+i;
+    
     let rowData=attempts[i]||[];
     for(let j=0;j<4;j++){
       const slot=document.createElement("div"); slot.className="slot";
@@ -81,6 +79,11 @@ function drawBoard(){
     rowDiv.appendChild(feedbackDiv); board.appendChild(rowDiv);
   }
   document.getElementById("attemptInfo").innerText="Tentativo "+(currentAttempt+1)+" / 10";
+  
+  if(!gameOver && currentAttempt>0){
+    const currentRowEl=document.getElementById("row"+currentAttempt);
+    if(currentRowEl) currentRowEl.scrollIntoView({behavior:"smooth",block:"center"});
+  }
 }
 
 function updateColorButtons(){
@@ -93,11 +96,20 @@ function updateColorButtons(){
 
 function addColor(color){
   if(gameOver || currentRow.length>=4 || currentRow.includes(color)) return;
+  if(socket.readyState === WebSocket.OPEN){
+    socket.send("led:" + color);
+  }
   currentRow.push(color); updateColorButtons(); drawBoard();
   if(currentRow.length===4) setTimeout(checkGuess,200);
 }
 
-function clearRow(){ if(gameOver) return; currentRow=[]; updateColorButtons(); drawBoard(); setMessage(""); }
+function clearRow(){ 
+  if(gameOver) return; 
+  if(socket.readyState === WebSocket.OPEN){
+    socket.send("led:nero");
+  }
+  currentRow=[]; updateColorButtons(); drawBoard(); setMessage(""); 
+}
 
 function checkGuess(){
   let feedback=[], tempSecret=[...secret], tempGuess=[...currentRow];
@@ -106,10 +118,10 @@ function checkGuess(){
 
   attempts[currentAttempt]=[...currentRow]; attempts[currentAttempt].feedback=feedback;
 
-  if(feedback.filter(f=>f==="filled").length===4){ setMessage("🎉 Hai vinto!","win"); gameOver=true; }
+  if(feedback.filter(f=>f==="filled").length===4){ setMessage("Hai vinto!","win"); gameOver=true; }
   else{
     currentAttempt++; currentRow=[];
-    if(currentAttempt>=10){ setMessage("💥 Hai perso! Codice: "+secret.join(", "),"lose"); gameOver=true; }
+    if(currentAttempt>=10){ setMessage("Hai perso! Codice: "+secret.join(", "),"lose"); gameOver=true; }
   }
   updateColorButtons(); drawBoard();
 }
@@ -119,14 +131,13 @@ function setMessage(msg, type="neutral") {
 
   if(!msg) {
     el.innerText = "";
-    el.style.display = "none"; // nasconde completamente
+    el.style.display = "none";
     return;
   }
 
-  el.style.display = "block"; // mostra se c'è messaggio
+  el.style.display = "block";
   el.innerText = msg;
 
-  // reset classi
   el.classList.remove("message-neutral","message-win","message-lose");
 
   if(type==="win") el.classList.add("message-win");
@@ -135,6 +146,11 @@ function setMessage(msg, type="neutral") {
 }
 
 
-function restartGame(){ secret=[]; attempts=[]; currentRow=[]; currentAttempt=0; gameOver=false; setMessage(""); generateSecret(); updateColorButtons(); drawBoard(); }
+function restartGame(){ 
+  if(socket.readyState === WebSocket.OPEN){
+    socket.send("led:nero");
+  }
+  secret=[]; attempts=[]; currentRow=[]; currentAttempt=0; gameOver=false; setMessage(""); generateSecret(); updateColorButtons(); drawBoard(); 
+}
 
 generateSecret(); drawBoard();
