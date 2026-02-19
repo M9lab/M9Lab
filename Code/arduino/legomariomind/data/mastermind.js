@@ -1,3 +1,94 @@
+// === TRADUZIONI ===
+const translations = {
+  it: {
+    title: "Lego Mario Mind",
+    attempt: "Tentativo {n} / 10",
+    "menu.language": "Language",
+    "button.cancel": "ANNULLA",
+    "button.restart": "RIAVVIA",
+    "message.win": "Hai vinto!",
+    "message.lose": "Hai perso! Codice: {code}"
+  },
+  en: {
+    title: "Lego Mario Mind",
+    attempt: "Attempt {n} / 10",
+    "menu.language": "Language",
+    "button.cancel": "CANCEL",
+    "button.restart": "RESTART",
+    "message.win": "You won!",
+    "message.lose": "You lost! Code: {code}"
+  }
+};
+
+let currentLang = localStorage.getItem('language') || 'it';
+
+function t(key, params = {}) {
+  let text = translations[currentLang][key] || key;
+  Object.keys(params).forEach(param => {
+    text = text.replace(`{${param}}`, params[param]);
+  });
+  return text;
+}
+
+function setLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('language', lang);
+  
+  document.querySelectorAll('.menuOption').forEach(opt => {
+    opt.classList.remove('active');
+    opt.querySelector('.check').textContent = '';
+  });
+  
+  document.getElementById('lang-' + lang).classList.add('active');
+  document.querySelector('#lang-' + lang + ' .check').textContent = '✓';
+  
+  updateUI();
+  closeMenu();
+}
+
+function updateUI() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if(key === 'attempt') {
+      el.textContent = t(key, {n: currentAttempt + 1});
+    } else {
+      el.textContent = t(key);
+    }
+  });
+}
+
+function toggleMenu() {
+  const overlay = document.getElementById('menuOverlay');
+  const panel = document.getElementById('menuPanel');
+  overlay.classList.toggle('open');
+  panel.classList.toggle('open');
+}
+
+function closeMenu() {
+  const overlay = document.getElementById('menuOverlay');
+  const panel = document.getElementById('menuPanel');
+  overlay.classList.remove('open');
+  panel.classList.remove('open');
+}
+
+function openCredits() {
+  document.getElementById('creditsModal').classList.add('open');
+  closeMenu();
+}
+
+function closeCredits() {
+  document.getElementById('creditsModal').classList.remove('open');
+}
+
+function openCredits() {
+  document.getElementById('creditsModal').classList.add('open');
+  closeMenu();
+}
+
+function closeCredits() {
+  document.getElementById('creditsModal').classList.remove('open');
+}
+
 function goFullScreen() {
   let docEl = document.documentElement;
   if (docEl.requestFullscreen) {
@@ -11,6 +102,22 @@ function goFullScreen() {
 
 window.onload = () => {
   document.body.addEventListener('click', goFullScreen);
+  
+  // Inizializza lingua senza aprire menu
+  document.querySelectorAll('.menuOption').forEach(opt => {
+    opt.classList.remove('active');
+    opt.querySelector('.check').textContent = '';
+  });
+  document.getElementById('lang-' + currentLang).classList.add('active');
+  document.querySelector('#lang-' + currentLang + ' .check').textContent = '✓';
+  
+  // Assicura che il menu sia chiuso all'avvio
+  const overlay = document.getElementById('menuOverlay');
+  const panel = document.getElementById('menuPanel');
+  overlay.classList.remove('open');
+  panel.classList.remove('open');
+  
+  updateUI();
 };
 
 const colors = ["rosso","giallo","verde","viola","blu"];
@@ -60,7 +167,14 @@ function drawBoard(){
     let rowData=attempts[i]||[];
     for(let j=0;j<4;j++){
       const slot=document.createElement("div"); slot.className="slot";
-      if(i===currentAttempt){ if(currentRow[j]) slot.style.background=colorMap[currentRow[j]]; }
+      if(i===currentAttempt){ 
+        if(currentRow[j]){
+          slot.style.background=colorMap[currentRow[j]];
+          if(j === currentRow.length-1){
+            slot.classList.add("added");
+          }
+        }
+      }
       else{ if(rowData[j]) slot.style.background=colorMap[rowData[j]]; }
       rowDiv.appendChild(slot);
     }
@@ -78,7 +192,7 @@ function drawBoard(){
 
     rowDiv.appendChild(feedbackDiv); board.appendChild(rowDiv);
   }
-  document.getElementById("attemptInfo").innerText="Tentativo "+(currentAttempt+1)+" / 10";
+  document.getElementById("attemptInfo").innerText=t('attempt', {n: currentAttempt+1});
   
   if(!gameOver && currentAttempt>0){
     const currentRowEl=document.getElementById("row"+currentAttempt);
@@ -96,6 +210,14 @@ function updateColorButtons(){
 
 function addColor(color){
   if(gameOver || currentRow.length>=4 || currentRow.includes(color)) return;
+  
+  // Anima il bottone cliccato
+  const btn = document.querySelector(`.colorBtn[data-color="${color}"]`);
+  if(btn){
+    btn.classList.add("clicked");
+    setTimeout(() => btn.classList.remove("clicked"), 400);
+  }
+  
   if(socket.readyState === WebSocket.OPEN){
     socket.send("led:" + color);
   }
@@ -118,10 +240,10 @@ function checkGuess(){
 
   attempts[currentAttempt]=[...currentRow]; attempts[currentAttempt].feedback=feedback;
 
-  if(feedback.filter(f=>f==="filled").length===4){ setMessage("Hai vinto!","win"); gameOver=true; }
+  if(feedback.filter(f=>f==="filled").length===4){ setMessage(t("message.win"),"win"); gameOver=true; }
   else{
     currentAttempt++; currentRow=[];
-    if(currentAttempt>=10){ setMessage("Hai perso! Codice: "+secret.join(", "),"lose"); gameOver=true; }
+    if(currentAttempt>=10){ setMessage(t("message.lose", {code: secret.join(", ")}),"lose"); gameOver=true; }
   }
   updateColorButtons(); drawBoard();
 }

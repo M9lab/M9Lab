@@ -14,8 +14,64 @@
 <body>
 
 <div id="topBar">
-  <h1>Lego Mario Mind</h1>
-  <div id="attemptInfo">Tentativo 1 / 10</div>
+  <div id="menuBtn" onclick="toggleMenu()">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+  <div id="headerContent">
+    <h1 data-i18n="title">Lego Mario Mind</h1>
+    <div id="attemptInfo" data-i18n="attempt">Tentativo 1 / 10</div>
+  </div>
+  <div id="spacer"></div>
+</div>
+
+<div id="menuOverlay" onclick="closeMenu()"></div>
+<div id="menuPanel">
+  <div class="menuSection">
+    <h3>Language</h3>
+    <div class="menuOption" onclick="setLanguage('it')" id="lang-it">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>
+        <span>Italian</span>
+      </div>
+      <span class="check">✓</span>
+    </div>
+    <div class="menuOption" onclick="setLanguage('en')" id="lang-en">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <svg viewBox="0 0 60 30"><clipPath id="t"><path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z"/></clipPath><path d="M0,0 v30 h60 v-30 z" fill="#012169"/><path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0 L60,30 M60,0 L0,30" clip-path="url(#t)" stroke="#C8102E" stroke-width="4"/><path d="M30,0 v30 M0,15 h60" stroke="#fff" stroke-width="10"/><path d="M30,0 v30 M0,15 h60" stroke="#C8102E" stroke-width="6"/></svg>
+        <span>English</span>
+      </div>
+      <span class="check"></span>
+    </div>
+  </div>
+  <div class="menuSection">
+    <h3>Info</h3>
+    <div class="menuOption" onclick="openCredits()">
+      <span>Credits</span>
+      <span>→</span>
+    </div>
+  </div>
+</div>
+
+<div id="creditsModal" onclick="closeCredits()">
+  <div class="creditsContent" onclick="event.stopPropagation()">
+    <span class="closeCredits" onclick="closeCredits()">×</span>
+    <h2>MezzanineLab</h2>
+    <p>Where Lego meets Arduino</p>
+    <div class="socialLinks">
+      <a href="https://www.facebook.com/m9lab/" target="_blank" title="Facebook">
+        <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      </a>
+      <a href="https://www.instagram.com/mezzaninelab/" target="_blank" title="Instagram">
+        <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+      </a>
+      <a href="https://youtube.com/@mezzaninelab" target="_blank" title="YouTube">
+        <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      </a>
+    </div>
+    <p style="margin-top:25px; font-size:0.95em; color:#999;">Follow us for more creative projects!</p>
+  </div>
 </div>
 
 <div id="gameArea">
@@ -32,8 +88,8 @@
     <div class="colorBtn" data-color="blu" onclick="addColor('blu')" style="background:blue;"></div>
   </div>
   <div class="controlPanel">
-    <div class="controlBtn whiteBtn" onclick="clearRow()">ANNULLA</div>
-    <div class="controlBtn blackBtn" onclick="restartGame()">RIAVVIA</div>
+    <div class="controlBtn whiteBtn" onclick="clearRow()" data-i18n="button.cancel">ANNULLA</div>
+    <div class="controlBtn blackBtn" onclick="restartGame()" data-i18n="button.restart">RIAVVIA</div>
   </div>
 </div>
 
