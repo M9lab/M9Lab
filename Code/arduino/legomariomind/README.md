@@ -34,15 +34,17 @@ Flash Size: 4MB
 Partition Scheme: Default 4MB with spiffs
 ```
 
-### Librerie Richieste
+### Librerie richieste
 
 | Libreria | Versione | Note |
 |----------|----------|------|
 | **esp32** (board) | 2.0.17 | ⚠️ NON usare 3.x (incompatibile con ESPAsyncWebServer) |
-| **FastLED** | 3.10.3 | Gestione LED WS2812 |
+| **FastLED** | 3.10.3 | Gestione LED WS2812 (GRB) |
 | **ESPAsyncWebServer** | 3.1.0 | Server HTTP asincrono |
 | **AsyncTCP** | 1.1.4 | Dipendenza di ESPAsyncWebServer |
-| **Legoino** | 1.0.0 | Comunicazione con LEGO Mario Hub |
+| **Legoino** | 1.0.0 | Comunicazione BLE con LEGO Mario Hub (Lpf2Hub, sensore barcode/colore) |
+
+Configurazione consigliata nello sketch: **Upload Speed 115200**.
 
 ### Installazione Librerie
 
@@ -145,19 +147,16 @@ IP ESP32: 192.168.4.1
 
 ### 2. Controlli
 
-**Con Mario Hub (Barcode):**
-- 🔴 **Rosso** (21)
-- 🟡 **Giallo** (24)
-- 🟢 **Verde** (37)
-- 🟣 **Viola** (45)
-- 🔵 **Blu** (23)
-- ⚫ **Nero** (0) = ANNULLA tentativo corrente
-- ⚪ **Bianco** (255) = RIAVVIA gioco
+**Con Mario Hub (mattoncini colorati):**
+- 🔴 **Rosso** (21), 🟡 **Giallo** (24), 🟢 **Verde** (37), 🟣 **Viola** (12), 🔵 **Blu** (23) = colori di gioco
+- 🟠 **Arancio** (106) = **RIAVVIA** (nuova partita)
+- ⚪ **Bianco** (19) = **ANNULLA** (cancella riga corrente)
+- Il valore **26** (nero) viene **ignorato** (ritorna anche quando alzi Mario dal mattoncino)
 
 **Con Browser (bottoni touch):**
-- Clicca sui bottoni colorati per selezionare
-- Pulsante **ANNULLA** = cancella riga corrente
-- Pulsante **RIAVVIA** = nuovo gioco
+- Clicca sui bottoni colorati per inserire la combinazione
+- Pulsante **ANNULLA** (bianco) = cancella riga corrente
+- Pulsante **RIAVVIA** (arancio) = nuovo gioco
 
 ### 3. LED Feedback
 - **LED centrali** (tutti): Mostrano il colore selezionato
@@ -191,7 +190,16 @@ IP ESP32: 192.168.4.1
 
 ---
 
-## 🔌 Hardware Setup
+## 🔌 Pin e hardware
+
+### Riepilogo pin (ESP32)
+
+| Uso              | Pin / costante   | Note |
+|------------------|------------------|------|
+| **LED WS2812**   | **GPIO 27**      | Data In della striscia (definito come `DATA_PIN`) |
+| Numero LED       | 25               | `NUM_LEDS` |
+| LED centrale     | indice 12        | `CENTER_LED` – indicatore stato Mario (rosso/giallo/verde) |
+| WiFi / WebServer | interno          | Nessun pin aggiuntivo |
 
 ### LED WS2812 (25 LED)
 ```
@@ -204,7 +212,7 @@ GND → GND LED
 ```
  0   1   2   3   4
  5   6   7   8   9
-10  11 [12] 13  14    ← LED 12 = indicatore centrale
+10  11 [12] 13  14    ← LED 12 = indicatore centrale (stato Mario)
 15  16  17  18  19
 20  21  22  23  24
 ```
@@ -278,28 +286,54 @@ case XX:  fullColor(CRGB::ColorName);  colorName="nome"; break;
 
 ---
 
-## 🎯 Regole Mastermind
+## 🎯 Regolamento (Mastermind)
 
-1. Il codice segreto è composto da **4 colori diversi**
-2. Hai **10 tentativi** per indovinare
-3. Dopo ogni tentativo ricevi un feedback:
-   - ⚪ **Pallino bianco pieno**: Colore giusto in posizione giusta
-   - ⚪ **Pallino bianco vuoto**: Colore giusto ma posizione sbagliata
-4. Vinci indovinando tutti e 4 i colori nella posizione corretta
+### Obiettivo
+Indovinare la **combinazione segreta** di **4 colori** (tra rosso, giallo, verde, viola, blu) nell’ordine esatto.
+
+### Regole
+1. **Codice segreto**: 4 colori, ciascuno scelto tra i 5 disponibili (ripetizioni ammesse).
+2. **Tentativi**: massimo **10** tentativi.
+3. **Inserimento**:  
+   - Con **Mario**: appoggia Mario sui mattoncini colorati (o barcode) nell’ordine desiderato; ogni lettura aggiunge un colore alla riga corrente.  
+   - Con il **browser**: tocca i 5 cerchi colorati per comporre la riga.
+4. **Conferma**: quando hai inserito 4 colori, il gioco valuta automaticamente e mostra il feedback.
+5. **Feedback** (pallini a destra di ogni riga):
+   - **Pallino bianco pieno** (●): colore **corretto** e in **posizione corretta**.
+   - **Pallino bianco vuoto** (○): colore **presente** nel codice ma in **posizione sbagliata**.
+   - L’ordine dei pallini **non** indica quali posizioni sono corrette.
+6. **Vittoria**: 4 pallini pieni = hai indovinato il codice.
+7. **Sconfitta**: dopo 10 tentativi senza vittoria viene mostrato il codice segreto.
+
+### Comandi durante il gioco
+- **ANNULLA** (mattoncino bianco o pulsante bianco): cancella la riga corrente e ricomincia a inserire.
+- **RIAVVIA** (mattoncino arancio o pulsante arancio): termina la partita e ne inizia una nuova (nuovo codice segreto).
 
 ---
 
 ## 📊 Mappa Colori Mario Hub
 
-| Colore | Codice | CRGB |
-|--------|--------|------|
-| Rosso | 21 | CRGB::Red |
-| Blu | 23 | CRGB::Blue |
-| Giallo | 24 | CRGB::Yellow |
-| Verde | 37 | CRGB::Green |
-| Viola | 45 | CRGB::Purple |
-| Nero | 0 | CRGB::Black (ANNULLA) |
-| Bianco | 255 | CRGB::White (RIAVVIA) |
+Valori decimali restituiti dal sensore barcode/colore del LEGO Mario. Usati nel codice per `marioColorToLed()` e per il gioco.
+
+### Colori di gioco (combinazione)
+
+| Colore | Codice sensore | Nome inviato al browser | LED / HTML |
+|--------|----------------|-------------------------|------------|
+| 🔴 Rosso  | 21 | `rosso`  | CRGB::Red      |
+| 🟢 Verde  | 37 | `verde`  | CRGB::Green    |
+| 🔵 Blu   | 23 | `blu`    | CRGB::Blue / #0066cc in HTML |
+| 🟡 Giallo | 24 | `giallo` | CRGB::Yellow   |
+| 🟣 Viola | 12 | `viola`  | CRGB::Purple   |
+
+### Comandi speciali
+
+| Colore   | Codice | Azione   | Note |
+|----------|--------|----------|------|
+| 🟠 Arancio | 106 | **RIAVVIA** | Nuova partita; pulsante RIAVVIA è arancio |
+| ⚪ Bianco  | 19 | **ANNULLA** | Cancella la riga corrente |
+| — (nero)   | 26 | *ignorato* | Non usato; il sensore ritorna 26 anche quando alzi Mario |
+
+Lo sfondo degli slot vuoti nella griglia è **nero** (#000).
 
 ---
 

@@ -249,7 +249,7 @@ h1{
 .board{ display:flex; flex-direction:column; gap:7px; padding:8px; }
 .row{ display:grid; grid-template-columns: repeat(4, 45px) 75px; justify-content:center; align-items:center; column-gap:7px; }
 .row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:3px 0; }
-.slot{ width:36px; height:36px; border-radius:50%; background:#333; border:2px solid #555; transition: transform 0.3s ease; }
+.slot{ width:36px; height:36px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
 
 @keyframes colorAdded {
   0% { transform: scale(1); }
@@ -279,4 +279,5 @@ h1{
 .controlPanel{ display:flex; justify-content:center; gap:25px; }
 .controlBtn{ width:100px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:13px; cursor:pointer; }
 .whiteBtn{ background:white; color:black; }
+.orangeBtn{ background:#ff8800; color:black; border:2px solid #cc6600; }
 .blackBtn{ background:black; color:white; border:2px solid white; }

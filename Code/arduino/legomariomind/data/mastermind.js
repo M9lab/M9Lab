@@ -80,15 +80,6 @@ function closeCredits() {
   document.getElementById('creditsModal').classList.remove('open');
 }
 
-function openCredits() {
-  document.getElementById('creditsModal').classList.add('open');
-  closeMenu();
-}
-
-function closeCredits() {
-  document.getElementById('creditsModal').classList.remove('open');
-}
-
 function goFullScreen() {
   let docEl = document.documentElement;
   if (docEl.requestFullscreen) {
@@ -126,7 +117,7 @@ const colorMap = {
   "giallo": "yellow",
   "verde": "green",
   "viola": "purple",
-  "blu": "blue"
+  "blu": "#0066cc"
 };
 
 let secret=[], currentRow=[], attempts=[], currentAttempt=0, gameOver=false;
@@ -137,8 +128,8 @@ socket.onmessage = function(event) {
   let color = event.data;
   console.log("WS Color received:", color);
 
-  if (color === "nero") { clearRow(); return; }
-  if (color === "bianco") { restartGame(); return; }
+  if (color === "nero" || color === "bianco") { clearRow(); return; }
+  if (color === "arancio") { restartGame(); return; }
 
   addColor(color);
 };
@@ -270,7 +261,7 @@ function setMessage(msg, type="neutral") {
 
 function restartGame(){ 
   if(socket.readyState === WebSocket.OPEN){
-    socket.send("led:nero");
+    socket.send("led:arancio");
   }
   secret=[]; attempts=[]; currentRow=[]; currentAttempt=0; gameOver=false; setMessage(""); generateSecret(); updateColorButtons(); drawBoard(); 
 }

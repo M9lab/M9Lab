@@ -27,12 +27,11 @@ CRGB leds[NUM_LEDS];
 uint32_t lastColor = 0;
 uint32_t centerLedColor = CRGB::Red;
 
-// ======== MARIO LEGO ========
+// ======== MARIO LEGO (stile Mariotest funzionante) ========
 Lpf2Hub myMario;
 HubType typeD;
-bool isRemoteInitialized = false;
-bool isRemoteInitFirst = false;
-bool needsInit = true; // Flag per gestire init() con libreria patchata
+bool isBarcodeSensorInitialized = false;
+bool isVolumeSet = false;
 DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 // ======== WEBSERVER & WEBSOCKET ========
@@ -304,7 +303,7 @@ h1{
 .board{ display:flex; flex-direction:column; gap:7px; padding:8px; }
 .row{ display:grid; grid-template-columns: repeat(4, 45px) 75px; justify-content:center; align-items:center; column-gap:7px; }
 .row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:3px 0; }
-.slot{ width:36px; height:36px; border-radius:50%; background:#333; border:2px solid #555; transition: transform 0.3s ease; }
+.slot{ width:36px; height:36px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
 
 @keyframes colorAdded {
   0% { transform: scale(1); }
@@ -334,6 +333,7 @@ h1{
 .controlPanel{ display:flex; justify-content:center; gap:25px; }
 .controlBtn{ width:100px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:13px; cursor:pointer; }
 .whiteBtn{ background:white; color:black; }
+.orangeBtn{ background:#ff8800; color:black; border:2px solid #cc6600; }
 .blackBtn{ background:black; color:white; border:2px solid white; }
 </style>
 </head>
@@ -411,11 +411,11 @@ h1{
     <div class="colorBtn" data-color="giallo" onclick="addColor('giallo')" style="background:yellow;"></div>
     <div class="colorBtn" data-color="verde" onclick="addColor('verde')" style="background:green;"></div>
     <div class="colorBtn" data-color="viola" onclick="addColor('viola')" style="background:purple;"></div>
-    <div class="colorBtn" data-color="blu" onclick="addColor('blu')" style="background:blue;"></div>
+    <div class="colorBtn" data-color="blu" onclick="addColor('blu')" style="background:#0066cc;"></div>
   </div>
   <div class="controlPanel">
     <div class="controlBtn whiteBtn" onclick="clearRow()" data-i18n="button.cancel">ANNULLA</div>
-    <div class="controlBtn blackBtn" onclick="restartGame()" data-i18n="button.restart">RIAVVIA</div>
+    <div class="controlBtn orangeBtn" onclick="restartGame()" data-i18n="button.restart">RIAVVIA</div>
   </div>
 </div>
 
@@ -539,7 +539,7 @@ const colorMap = {
   "giallo": "yellow",
   "verde": "green",
   "viola": "purple",
-  "blu": "blue"
+  "blu": "#0066cc"
 };
 
 let secret=[], currentRow=[], attempts=[], currentAttempt=0, gameOver=false;
@@ -550,8 +550,8 @@ socket.onmessage = function(event) {
   let color = event.data;
   console.log("WS Color received:", color);
 
-  if (color === "nero") { clearRow(); return; }
-  if (color === "bianco") { restartGame(); return; }
+  if (color === "nero" || color === "bianco") { clearRow(); return; }
+  if (color === "arancio") { restartGame(); return; }
 
   addColor(color);
 };
@@ -683,7 +683,7 @@ function setMessage(msg, type="neutral") {
 
 function restartGame(){ 
   if(socket.readyState === WebSocket.OPEN){
-    socket.send("led:nero");
+    socket.send("led:arancio");
   }
   secret=[]; attempts=[]; currentRow=[]; currentAttempt=0; gameOver=false; setMessage(""); generateSecret(); updateColorButtons(); drawBoard(); 
 }
@@ -744,14 +744,16 @@ void DeviceCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *
 void marioColorToLed(byte color){
   String colorName = "";
 
+  // Valori reali restituiti dal sensore Mario
   switch(color){
     case 21:  fullColor(CRGB::Red);    colorName="rosso"; Serial.println("-> ROSSO"); break;
+    case 37:  fullColor(CRGB::Green);  colorName="verde"; Serial.println("-> VERDE"); break;
     case 23:  fullColor(CRGB::Blue);   colorName="blu"; Serial.println("-> BLU"); break;
     case 24:  fullColor(CRGB::Yellow); colorName="giallo"; Serial.println("-> GIALLO"); break;
-    case 37:  fullColor(CRGB::Green);  colorName="verde"; Serial.println("-> VERDE"); break;
-    case 45:  fullColor(CRGB::Purple); colorName="viola"; Serial.println("-> VIOLA"); break;
-    case 0:   fullColor(CRGB::Black);  colorName="nero"; Serial.println("-> NERO (ANNULLA)"); break;
-    case 255: fullColor(CRGB::White);  colorName="bianco"; Serial.println("-> BIANCO (RIAVVIA)"); break;
+    case 12:  fullColor(CRGB::Purple); colorName="viola"; Serial.println("-> VIOLA"); break;
+    case 19:  fullColor(CRGB::White);  colorName="bianco"; Serial.println("-> BIANCO (ANNULLA)"); break;
+    case 26:  return;  // ignorato (ritorna anche quando alzi Mario)
+    case 106: fullColor(CRGB::Orange); colorName="arancio"; Serial.println("-> ARANCIO (RIAVVIA)"); break;
     default:  
       Serial.print("-> COLORE SCONOSCIUTO: "); 
       Serial.println(color);
@@ -804,6 +806,7 @@ void setup() {
         else if(color == "verde") fullColor(CRGB::Green);
         else if(color == "viola") fullColor(CRGB::Purple);
         else if(color == "blu") fullColor(CRGB::Blue);
+        else if(color == "arancio") fullColor(CRGB::Orange);
         else if(color == "nero") fullColor(CRGB::Black);
       }
     }
@@ -811,9 +814,9 @@ void setup() {
   server.addHandler(&ws);
   server.begin();
 
-  // NON inizializzo Mario Hub qui (come nello script funzionante)
-  // L'init viene chiamato solo nel loop quando non è connesso
-  Serial.println("Setup completato. Mario init verra' chiamato nel loop.");
+  // Avvia scansione BLE per Mario Hub (come in Mariotest.ino)
+  myMario.init();
+  Serial.println("Setup completato. Scansione BLE avviata per Mario Hub.");
   delay(200);
 }
 
@@ -821,73 +824,49 @@ void setup() {
 void loop(){
   ws.cleanupClients();
 
-  // Pattern adattato per libreria patchata con _isInitializing
+  // Connessione: come in Mariotest, connectHub quando isConnecting()
   if(myMario.isConnecting()){
-    typeD = myMario.getHubType();
-    setCenterLED(CRGB::Yellow);
-    isRemoteInitFirst = false; // Reset quando trova un device
-    
-    // Mario Hub (type 7)
-    if((byte)typeD == 7){
-      if(!myMario.connectHub()){
-        Serial.println("Impossibile connettere Mario Hub");
-      } else {
-        Serial.println("Mario Hub connesso!");
-        setCenterLED(CRGB::Green);
-      }
-    }
-    
-    // Remote (type 4)
-    if((byte)typeD == 4){
-      if(!myMario.connectHub()){
-        Serial.println("Impossibile connettere Remote");
-      } else {
-        myMario.setLedColor(GREEN);
-        Serial.println("Remote connesso!");
-        setCenterLED(CRGB::Green);
-      }
+    myMario.connectHub();
+    if(myMario.isConnected()){
+      typeD = myMario.getHubType();
+      Serial.println("Connected to HUB");
+      setCenterLED(CRGB::Green);
+    } else {
+      setCenterLED(CRGB::Yellow);
+      Serial.println("Failed to connect to HUB");
     }
   }
 
-  if(myMario.isConnected() && !isRemoteInitialized){
+  // Inizializza sensore barcode solo per Mario Hub (type 7)
+  if(myMario.isConnected() && !isBarcodeSensorInitialized){
     delay(200);
-    
     if((byte)typeD == 7){
       byte portForDevice = myMario.getPortForDeviceType((byte)barcodeSensor);
-      Serial.print("Cerco porta barcode sensor: "); Serial.println(portForDevice);
+      Serial.print("check ports... barcode sensor: ");
+      Serial.println(portForDevice, DEC);
       if(portForDevice != 255){
         myMario.activatePortDevice(portForDevice, DeviceCallback);
         delay(200);
-        isRemoteInitialized = true;
-        isRemoteInitFirst = false;
+        isBarcodeSensorInitialized = true;
         Serial.println("Sensore barcode ATTIVATO! Poggia Mario su un mattoncino colorato.");
       }
-    }
-    
-    if((byte)typeD == 4){
-      isRemoteInitialized = true;
-      myMario.setLedColor(GREEN);
-      isRemoteInitFirst = false;
-      Serial.println("Remote inizializzato");
+    } else {
+      // Non è Mario Hub, considera comunque inizializzato per non bloccare il loop
+      isBarcodeSensorInitialized = true;
     }
   }
 
-  // Gestione init() con libreria patchata (_isInitializing)
+  // Volume Mario (come in Mariotest)
+  if(myMario.isConnected() && (byte)typeD == 7 && !isVolumeSet){
+    Serial.println("set volume to 50%");
+    myMario.setMarioVolume(0x32);
+    isVolumeSet = true;
+  }
+
+  // Se si disconnette, resetta flag per permettere nuova connessione
   if(!myMario.isConnected()){
-    if(!isRemoteInitFirst){
-      setCenterLED(CRGB::Red);
-      needsInit = true; // Richiedi init al prossimo check
-      isRemoteInitFirst = true;
-      isRemoteInitialized = false;
-      Serial.println("Mario disconnesso, richiedo init...");
-    }
-    
-    // Chiama init() SOLO se needsInit=true (evita chiamate ripetute durante scan)
-    if(needsInit){
-      Serial.println("Chiamo myMario.init() per avviare scansione BLE...");
-      myMario.init();
-      needsInit = false; // Non richiamare finché non si disconnette di nuovo
-      Serial.println("Scansione BLE avviata, attendo device...");
-    }
+    setCenterLED(CRGB::Red);
+    isBarcodeSensorInitialized = false;
+    isVolumeSet = false;
   }
 }
