@@ -366,3 +366,9 @@ Progetto open source per uso educativo e personale.
 ---
 
 **Buon divertimento con Lego Mario Mind! 🎮🔴**
+
+
+Altri colori papabili
+azzurro chiaro=66
+verde stazione = 26
+viola chiaro = 68
