@@ -223,8 +223,8 @@ h1{
   flex:1;
   overflow-y:hidden;
   overflow-x:hidden;
-  padding-top:75px;
-  padding-bottom:145px;
+  padding-top:65px;
+  padding-bottom:125px;
 }
 
 #message{
@@ -246,10 +246,17 @@ h1{
 .message-win{ background:#00c853; color:white; }
 .message-lose{ background:#d50000; color:white; }
 
-.board{ display:flex; flex-direction:column; gap:5px; padding:6px; }
-.row{ display:grid; grid-template-columns: repeat(4, 38px) 68px; justify-content:center; align-items:center; column-gap:5px; }
+:root{
+  --slot-size: 30px;
+  --gap-size: 5px;
+  --col-width: 38px;
+  --feedback-width: 68px;
+}
+
+.board{ display:flex; flex-direction:column; gap:var(--gap-size); padding:0; }
+.row{ display:grid; grid-template-columns: repeat(4, var(--col-width)) var(--feedback-width); justify-content:center; align-items:center; column-gap:var(--gap-size); }
 .row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:2px 0; }
-.slot{ width:30px; height:30px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
+.slot{ width:var(--slot-size); height:var(--slot-size); border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
 
 @keyframes colorAdded {
   0% { transform: scale(1); }
@@ -278,6 +285,6 @@ h1{
 }
 .controlPanel{ display:flex; justify-content:center; gap:25px; }
 .controlBtn{ width:100px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:13px; cursor:pointer; }
-.whiteBtn{ background:white; color:black; }
-.orangeBtn{ background:#ff8800; color:black; border:2px solid #cc6600; }
+.whiteBtn{ background:#009894; color:white; }
+.orangeBtn{ background:#D67923; color:white; }
 .blackBtn{ background:black; color:white; border:2px solid white; }

@@ -54,7 +54,14 @@ const translations = {
     "button.cancel": "ANNULLA",
     "button.restart": "RIAVVIA",
     "message.win": "Hai vinto!",
-    "message.lose": "Hai perso! Codice: {code}"
+    "message.lose": "Hai perso! Codice: {code}",
+    "colors": {
+      "rosso": "rosso",
+      "giallo": "giallo", 
+      "verde": "verde",
+      "viola": "viola",
+      "blu": "blu"
+    }
   },
   en: {
     title: "Lego Mario Mind",
@@ -63,7 +70,14 @@ const translations = {
     "button.cancel": "CANCEL",
     "button.restart": "RESTART",
     "message.win": "You won!",
-    "message.lose": "You lost! Code: {code}"
+    "message.lose": "You lost! Code: {code}",
+    "colors": {
+      "rosso": "red",
+      "giallo": "yellow",
+      "verde": "green",
+      "viola": "purple",
+      "blu": "blue"
+    }
   }
 };
 
@@ -75,6 +89,10 @@ function t(key, params = {}) {
     text = text.replace(`{${param}}`, params[param]);
   });
   return text;
+}
+
+function translateColor(colorName) {
+  return translations[currentLang].colors[colorName] || colorName;
 }
 
 function setLanguage(lang) {
@@ -139,15 +157,56 @@ function goFullScreen() {
   } else if (docEl.msRequestFullscreen) {
     docEl.msRequestFullscreen();
   }
+  
+  // Ricalcola dimensioni dopo un breve delay (fullscreen impiega tempo)
+  setTimeout(adjustBoardSize, 300);
+}
+
+function adjustBoardSize() {
+  const topBarHeight = 65; // padding-top di gameArea
+  const bottomBarHeight = 125; // padding-bottom di gameArea
+  const tolerance = 20; // Tolleranza aggiuntiva
+  
+  // Controlla se siamo in fullscreen
+  const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+  const fullscreenExtra = isFullscreen ? 20 : 0; // Extra 20px se in fullscreen per "nessuna connessione"
+  
+  const safetyMargin = tolerance + fullscreenExtra;
+  const availableHeight = window.innerHeight - topBarHeight - bottomBarHeight - safetyMargin;
+  
+  // Calcola dimensione ottimale pallini (10 righe + gap)
+  // padding board ora è 0, quindi non serve sottrarlo
+  const gap = 5;
+  const maxSlotSize = 36; // dimensione massima per non esagerare su schermi grandi
+  
+  let slotSize = (availableHeight - gap * 9) / 10;
+  slotSize = Math.min(slotSize, maxSlotSize); // non superare il max
+  slotSize = Math.max(slotSize, 24); // dimensione minima
+  
+  // Applica dimensioni calcolate
+  const root = document.documentElement;
+  root.style.setProperty('--slot-size', slotSize + 'px');
+  root.style.setProperty('--gap-size', gap + 'px');
+  root.style.setProperty('--col-width', (slotSize + 4) + 'px'); // +4 per bordo
+  root.style.setProperty('--feedback-width', (slotSize * 2) + 'px');
 }
 
 window.onload = () => {
   document.body.addEventListener('click', goFullScreen);
   
+  // Adatta dimensioni board al dispositivo
+  adjustBoardSize();
+  window.addEventListener('resize', adjustBoardSize);
+  
+  // Ricalcola quando entra/esce da fullscreen
+  document.addEventListener('fullscreenchange', adjustBoardSize);
+  document.addEventListener('webkitfullscreenchange', adjustBoardSize);
+  
   // Inizializza lingua senza aprire menu
   document.querySelectorAll('.menuOption').forEach(opt => {
     opt.classList.remove('active');
-    opt.querySelector('.check').textContent = '';
+    const checkSpan = opt.querySelector('.check');
+    if(checkSpan) checkSpan.textContent = '';
   });
   document.getElementById('lang-' + currentLang).classList.add('active');
   document.querySelector('#lang-' + currentLang + ' .check').textContent = '✓';
@@ -298,7 +357,8 @@ function checkGuess(){
     currentAttempt++; currentRow=[];
     if(currentAttempt>=10){ 
       // SCONFITTA!
-      setMessage(t("message.lose", {code: secret.join(", ")}),"lose"); 
+      const translatedSecret = secret.map(c => translateColor(c)).join(", ");
+      setMessage(t("message.lose", {code: translatedSecret}),"lose"); 
       gameOver=true;
       setTimeout(playLoseSound, 300); // Ritardo per sentire prima il feedback
     }

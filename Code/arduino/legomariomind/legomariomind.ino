@@ -280,8 +280,8 @@ h1{
   flex:1;
   overflow-y:hidden;
   overflow-x:hidden;
-  padding-top:75px;
-  padding-bottom:145px;
+  padding-top:65px;
+  padding-bottom:125px;
 }
 
 #message{
@@ -303,10 +303,17 @@ h1{
 .message-win{ background:#00c853; color:white; }
 .message-lose{ background:#d50000; color:white; }
 
-.board{ display:flex; flex-direction:column; gap:5px; padding:6px; }
-.row{ display:grid; grid-template-columns: repeat(4, 38px) 68px; justify-content:center; align-items:center; column-gap:5px; }
+:root{
+  --slot-size: 30px;
+  --gap-size: 5px;
+  --col-width: 38px;
+  --feedback-width: 68px;
+}
+
+.board{ display:flex; flex-direction:column; gap:var(--gap-size); padding:0; }
+.row{ display:grid; grid-template-columns: repeat(4, var(--col-width)) var(--feedback-width); justify-content:center; align-items:center; column-gap:var(--gap-size); }
 .row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:2px 0; }
-.slot{ width:30px; height:30px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
+.slot{ width:var(--slot-size); height:var(--slot-size); border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
 
 @keyframes colorAdded {
   0% { transform: scale(1); }
@@ -335,8 +342,8 @@ h1{
 }
 .controlPanel{ display:flex; justify-content:center; gap:25px; }
 .controlBtn{ width:100px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:13px; cursor:pointer; }
-.whiteBtn{ background:white; color:black; }
-.orangeBtn{ background:#ff8800; color:black; border:2px solid #cc6600; }
+.whiteBtn{ background:#009894; color:white; }
+.orangeBtn{ background:#D67923; color:white; }
 .blackBtn{ background:black; color:white; border:2px solid white; }
 </style>
 </head>
@@ -479,7 +486,14 @@ const translations = {
     "button.cancel": "ANNULLA",
     "button.restart": "RIAVVIA",
     "message.win": "Hai vinto!",
-    "message.lose": "Hai perso! Codice: {code}"
+    "message.lose": "Hai perso! Codice: {code}",
+    "colors": {
+      "rosso": "rosso",
+      "giallo": "giallo", 
+      "verde": "verde",
+      "viola": "viola",
+      "blu": "blu"
+    }
   },
   en: {
     title: "Lego Mario Mind",
@@ -488,7 +502,14 @@ const translations = {
     "button.cancel": "CANCEL",
     "button.restart": "RESTART",
     "message.win": "You won!",
-    "message.lose": "You lost! Code: {code}"
+    "message.lose": "You lost! Code: {code}",
+    "colors": {
+      "rosso": "red",
+      "giallo": "yellow",
+      "verde": "green",
+      "viola": "purple",
+      "blu": "blue"
+    }
   }
 };
 
@@ -500,6 +521,10 @@ function t(key, params = {}) {
     text = text.replace(`{${param}}`, params[param]);
   });
   return text;
+}
+
+function translateColor(colorName) {
+  return translations[currentLang].colors[colorName] || colorName;
 }
 
 function setLanguage(lang) {
@@ -564,15 +589,56 @@ function goFullScreen() {
   } else if (docEl.msRequestFullscreen) {
     docEl.msRequestFullscreen();
   }
+  
+  // Ricalcola dimensioni dopo un breve delay (fullscreen impiega tempo)
+  setTimeout(adjustBoardSize, 300);
+}
+
+function adjustBoardSize() {
+  const topBarHeight = 65; // padding-top di gameArea
+  const bottomBarHeight = 125; // padding-bottom di gameArea
+  const tolerance = 20; // Tolleranza aggiuntiva
+  
+  // Controlla se siamo in fullscreen
+  const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+  const fullscreenExtra = isFullscreen ? 20 : 0; // Extra 20px se in fullscreen per "nessuna connessione"
+  
+  const safetyMargin = tolerance + fullscreenExtra;
+  const availableHeight = window.innerHeight - topBarHeight - bottomBarHeight - safetyMargin;
+  
+  // Calcola dimensione ottimale pallini (10 righe + gap)
+  // padding board ora è 0, quindi non serve sottrarlo
+  const gap = 5;
+  const maxSlotSize = 36; // dimensione massima per non esagerare su schermi grandi
+  
+  let slotSize = (availableHeight - gap * 9) / 10;
+  slotSize = Math.min(slotSize, maxSlotSize); // non superare il max
+  slotSize = Math.max(slotSize, 24); // dimensione minima
+  
+  // Applica dimensioni calcolate
+  const root = document.documentElement;
+  root.style.setProperty('--slot-size', slotSize + 'px');
+  root.style.setProperty('--gap-size', gap + 'px');
+  root.style.setProperty('--col-width', (slotSize + 4) + 'px'); // +4 per bordo
+  root.style.setProperty('--feedback-width', (slotSize * 2) + 'px');
 }
 
 window.onload = () => {
   document.body.addEventListener('click', goFullScreen);
   
+  // Adatta dimensioni board al dispositivo
+  adjustBoardSize();
+  window.addEventListener('resize', adjustBoardSize);
+  
+  // Ricalcola quando entra/esce da fullscreen
+  document.addEventListener('fullscreenchange', adjustBoardSize);
+  document.addEventListener('webkitfullscreenchange', adjustBoardSize);
+  
   // Inizializza lingua senza aprire menu
   document.querySelectorAll('.menuOption').forEach(opt => {
     opt.classList.remove('active');
-    opt.querySelector('.check').textContent = '';
+    const checkSpan = opt.querySelector('.check');
+    if(checkSpan) checkSpan.textContent = '';
   });
   document.getElementById('lang-' + currentLang).classList.add('active');
   document.querySelector('#lang-' + currentLang + ' .check').textContent = '✓';
@@ -723,7 +789,8 @@ function checkGuess(){
     currentAttempt++; currentRow=[];
     if(currentAttempt>=10){ 
       // SCONFITTA!
-      setMessage(t("message.lose", {code: secret.join(", ")}),"lose"); 
+      const translatedSecret = secret.map(c => translateColor(c)).join(", ");
+      setMessage(t("message.lose", {code: translatedSecret}),"lose"); 
       gameOver=true;
       setTimeout(playLoseSound, 300); // Ritardo per sentire prima il feedback
     }
@@ -821,9 +888,11 @@ void marioColorToLed(byte color){
     case 23:  fullColor(CRGB::Blue);   colorName="blu"; Serial.println("-> BLU"); break;
     case 24:  fullColor(CRGB::Yellow); colorName="giallo"; Serial.println("-> GIALLO"); break;
     case 12:  fullColor(CRGB::Purple); colorName="viola"; Serial.println("-> VIOLA"); break;
-    case 19:  fullColor(CRGB::White);  colorName="bianco"; Serial.println("-> BIANCO (ANNULLA)"); break;
-    case 26:  return;  // ignorato (ritorna anche quando alzi Mario)
-    case 106: fullColor(CRGB::Orange); colorName="arancio"; Serial.println("-> ARANCIO (RIAVVIA)"); break;
+    case 66:  fullColor(0x009894);     colorName="nero"; Serial.println("-> TURCHESE (ANNULLA)"); break;
+    case 0:   return;  // ignorato (nero)
+    case 19:  return;  // ignorato (bianco vecchio)
+    case 26:  return;  // ignorato (ritorna quando alzi Mario)
+    case 106: fullColor(CRGB::Orange); colorName="bianco"; Serial.println("-> ARANCIO (RIAVVIA)"); break;
     default:  
       Serial.print("-> COLORE SCONOSCIUTO: "); 
       Serial.println(color);
