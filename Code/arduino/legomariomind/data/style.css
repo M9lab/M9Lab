@@ -221,7 +221,7 @@ h1{
 
 #gameArea{
   flex:1;
-  overflow-y:auto;
+  overflow-y:hidden;
   overflow-x:hidden;
   padding-top:75px;
   padding-bottom:145px;
@@ -246,10 +246,10 @@ h1{
 .message-win{ background:#00c853; color:white; }
 .message-lose{ background:#d50000; color:white; }
 
-.board{ display:flex; flex-direction:column; gap:7px; padding:8px; }
-.row{ display:grid; grid-template-columns: repeat(4, 45px) 75px; justify-content:center; align-items:center; column-gap:7px; }
-.row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:3px 0; }
-.slot{ width:36px; height:36px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
+.board{ display:flex; flex-direction:column; gap:5px; padding:6px; }
+.row{ display:grid; grid-template-columns: repeat(4, 38px) 68px; justify-content:center; align-items:center; column-gap:5px; }
+.row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:2px 0; }
+.slot{ width:30px; height:30px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
 
 @keyframes colorAdded {
   0% { transform: scale(1); }

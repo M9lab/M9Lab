@@ -83,7 +83,8 @@ function setLanguage(lang) {
   
   document.querySelectorAll('.menuOption').forEach(opt => {
     opt.classList.remove('active');
-    opt.querySelector('.check').textContent = '';
+    const checkSpan = opt.querySelector('.check');
+    if(checkSpan) checkSpan.textContent = '';
   });
   
   document.getElementById('lang-' + lang).classList.add('active');
@@ -97,7 +98,9 @@ function updateUI() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if(key === 'attempt') {
-      el.textContent = t(key, {n: currentAttempt + 1});
+      // Usa currentAttempt se definito, altrimenti 0
+      const attemptNum = typeof currentAttempt !== 'undefined' ? currentAttempt + 1 : 1;
+      el.textContent = t(key, {n: attemptNum});
     } else {
       el.textContent = t(key);
     }
@@ -232,10 +235,11 @@ function drawBoard(){
   }
   document.getElementById("attemptInfo").innerText=t('attempt', {n: currentAttempt+1});
   
-  if(!gameOver && currentAttempt>0){
-    const currentRowEl=document.getElementById("row"+currentAttempt);
-    if(currentRowEl) currentRowEl.scrollIntoView({behavior:"smooth",block:"center"});
-  }
+  // Auto-scroll rimosso (non più necessario con tutte le righe visibili)
+  // if(!gameOver && currentAttempt>0){
+  //   const currentRowEl=document.getElementById("row"+currentAttempt);
+  //   if(currentRowEl) currentRowEl.scrollIntoView({behavior:"smooth",block:"center"});
+  // }
 }
 
 function updateColorButtons(){

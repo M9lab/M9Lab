@@ -27,6 +27,9 @@ CRGB leds[NUM_LEDS];
 uint32_t lastColor = 0;
 uint32_t centerLedColor = CRGB::Red;
 
+// ======== BUTTON ATOM LITE ========
+#define BUTTON_PIN 39  // Pulsante centrale Atom Lite
+
 // ======== MARIO LEGO (stile Mariotest funzionante) ========
 Lpf2Hub myMario;
 HubType typeD;
@@ -275,7 +278,7 @@ h1{
 
 #gameArea{
   flex:1;
-  overflow-y:auto;
+  overflow-y:hidden;
   overflow-x:hidden;
   padding-top:75px;
   padding-bottom:145px;
@@ -300,10 +303,10 @@ h1{
 .message-win{ background:#00c853; color:white; }
 .message-lose{ background:#d50000; color:white; }
 
-.board{ display:flex; flex-direction:column; gap:7px; padding:8px; }
-.row{ display:grid; grid-template-columns: repeat(4, 45px) 75px; justify-content:center; align-items:center; column-gap:7px; }
-.row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:3px 0; }
-.slot{ width:36px; height:36px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
+.board{ display:flex; flex-direction:column; gap:5px; padding:6px; }
+.row{ display:grid; grid-template-columns: repeat(4, 38px) 68px; justify-content:center; align-items:center; column-gap:5px; }
+.row.current{ background:rgba(255,255,255,0.05); border-radius:8px; padding:2px 0; }
+.slot{ width:30px; height:30px; border-radius:50%; background:#000; border:2px solid #555; transition: transform 0.3s ease; }
 
 @keyframes colorAdded {
   0% { transform: scale(1); }
@@ -505,7 +508,8 @@ function setLanguage(lang) {
   
   document.querySelectorAll('.menuOption').forEach(opt => {
     opt.classList.remove('active');
-    opt.querySelector('.check').textContent = '';
+    const checkSpan = opt.querySelector('.check');
+    if(checkSpan) checkSpan.textContent = '';
   });
   
   document.getElementById('lang-' + lang).classList.add('active');
@@ -519,7 +523,9 @@ function updateUI() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if(key === 'attempt') {
-      el.textContent = t(key, {n: currentAttempt + 1});
+      // Usa currentAttempt se definito, altrimenti 0
+      const attemptNum = typeof currentAttempt !== 'undefined' ? currentAttempt + 1 : 1;
+      el.textContent = t(key, {n: attemptNum});
     } else {
       el.textContent = t(key);
     }
@@ -654,10 +660,11 @@ function drawBoard(){
   }
   document.getElementById("attemptInfo").innerText=t('attempt', {n: currentAttempt+1});
   
-  if(!gameOver && currentAttempt>0){
-    const currentRowEl=document.getElementById("row"+currentAttempt);
-    if(currentRowEl) currentRowEl.scrollIntoView({behavior:"smooth",block:"center"});
-  }
+  // Auto-scroll rimosso (non più necessario con tutte le righe visibili)
+  // if(!gameOver && currentAttempt>0){
+  //   const currentRowEl=document.getElementById("row"+currentAttempt);
+  //   if(currentRowEl) currentRowEl.scrollIntoView({behavior:"smooth",block:"center"});
+  // }
 }
 
 function updateColorButtons(){
@@ -833,6 +840,9 @@ void marioColorToLed(byte color){
 void setup() {
   Serial.begin(115200);
 
+  // Button
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  
   // LED
   FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
   fullColor(CRGB::White);
@@ -887,6 +897,26 @@ void setup() {
 void loop(){
   ws.cleanupClients();
 
+  // Controllo bottone centrale Atom Lite per riavviare scansione Mario
+  static bool lastButtonState = HIGH;
+  bool buttonState = digitalRead(BUTTON_PIN);
+  
+  if(buttonState == LOW && lastButtonState == HIGH){
+    // Bottone premuto
+    delay(50); // Debounce
+    Serial.println("\n=== BOTTONE PREMUTO ===");
+    Serial.println("Riavvio scansione BLE per Mario Hub...");
+    
+    // Reset flag e riavvia init
+    isBarcodeSensorInitialized = false;
+    isVolumeSet = false;
+    setCenterLED(CRGB::Blue); // LED blu per indicare scansione
+    myMario.init();
+    
+    Serial.println("Scansione BLE riavviata. Premi il bottone BT su Mario Hub.");
+  }
+  lastButtonState = buttonState;
+
   // Connessione: come in Mariotest, connectHub quando isConnecting()
   if(myMario.isConnecting()){
     myMario.connectHub();
@@ -919,10 +949,10 @@ void loop(){
     }
   }
 
-  // Volume Mario (come in Mariotest)
+  // Volume Mario DISABILITATO (0% per sentire solo audio browser)
   if(myMario.isConnected() && (byte)typeD == 7 && !isVolumeSet){
-    Serial.println("set volume to 50%");
-    myMario.setMarioVolume(0x32);
+    Serial.println("set volume to 0% (muto)");
+    myMario.setMarioVolume(0x00);
     isVolumeSet = true;
   }
 
