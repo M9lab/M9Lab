@@ -1,3 +1,50 @@
+// === AUDIO SYSTEM ===
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(frequency, duration, volume = 0.3) {
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  
+  oscillator.frequency.value = frequency;
+  oscillator.type = 'sine';
+  
+  gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+  
+  oscillator.start(audioCtx.currentTime);
+  oscillator.stop(audioCtx.currentTime + duration);
+}
+
+function playColorSelect() {
+  // Beep corto e acuto per selezione colore
+  playTone(800, 0.08, 0.2);
+}
+
+function playRowResult() {
+  // Due beep per risultato riga
+  playTone(400, 0.1, 0.25);
+  setTimeout(() => playTone(500, 0.1, 0.25), 120);
+}
+
+function playWinSound() {
+  // Sequenza vittoriosa: do-mi-sol-do
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.3, 0.3), i * 150);
+  });
+}
+
+function playLoseSound() {
+  // Sequenza discendente triste
+  const notes = [400, 350, 300, 250];
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.4, 0.25), i * 200);
+  });
+}
+
 // === TRADUZIONI ===
 const translations = {
   it: {
@@ -202,6 +249,9 @@ function updateColorButtons(){
 function addColor(color){
   if(gameOver || currentRow.length>=4 || currentRow.includes(color)) return;
   
+  // Suono selezione colore
+  playColorSelect();
+  
   // Anima il bottone cliccato
   const btn = document.querySelector(`.colorBtn[data-color="${color}"]`);
   if(btn){
@@ -231,10 +281,23 @@ function checkGuess(){
 
   attempts[currentAttempt]=[...currentRow]; attempts[currentAttempt].feedback=feedback;
 
-  if(feedback.filter(f=>f==="filled").length===4){ setMessage(t("message.win"),"win"); gameOver=true; }
+  // Suono risultato riga
+  playRowResult();
+
+  if(feedback.filter(f=>f==="filled").length===4){ 
+    // VITTORIA!
+    setMessage(t("message.win"),"win"); 
+    gameOver=true;
+    setTimeout(playWinSound, 300); // Ritardo per sentire prima il feedback
+  }
   else{
     currentAttempt++; currentRow=[];
-    if(currentAttempt>=10){ setMessage(t("message.lose", {code: secret.join(", ")}),"lose"); gameOver=true; }
+    if(currentAttempt>=10){ 
+      // SCONFITTA!
+      setMessage(t("message.lose", {code: secret.join(", ")}),"lose"); 
+      gameOver=true;
+      setTimeout(playLoseSound, 300); // Ritardo per sentire prima il feedback
+    }
   }
   updateColorButtons(); drawBoard();
 }
