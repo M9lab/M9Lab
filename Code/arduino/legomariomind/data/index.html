@@ -46,6 +46,16 @@
     </div>
   </div>
   <div class="menuSection">
+    <h3 data-i18n="menu.audio">Audio</h3>
+    <div class="menuOption" style="cursor:default;">
+      <span data-i18n="menu.marioVolume">Mario Volume</span>
+      <label class="switch">
+        <input type="checkbox" id="marioVolumeToggle" onchange="toggleMarioVolume()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+  <div class="menuSection">
     <h3>Info</h3>
     <div class="menuOption" onclick="openCredits()">
       <span>Credits</span>

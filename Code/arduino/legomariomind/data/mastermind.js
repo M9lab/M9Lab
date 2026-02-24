@@ -51,6 +51,8 @@ const translations = {
     title: "Lego Mario Mind",
     attempt: "Tentativo {n} / 10",
     "menu.language": "Language",
+    "menu.audio": "Audio",
+    "menu.marioVolume": "Volume Mario",
     "button.cancel": "ANNULLA",
     "button.restart": "RIAVVIA",
     "message.win": "Hai vinto!",
@@ -67,6 +69,8 @@ const translations = {
     title: "Lego Mario Mind",
     attempt: "Attempt {n} / 10",
     "menu.language": "Language",
+    "menu.audio": "Audio",
+    "menu.marioVolume": "Mario Volume",
     "button.cancel": "CANCEL",
     "button.restart": "RESTART",
     "message.win": "You won!",
@@ -148,6 +152,21 @@ function closeCredits() {
   document.getElementById('creditsModal').classList.remove('open');
 }
 
+function toggleMarioVolume() {
+  const toggle = document.getElementById('marioVolumeToggle');
+  const isEnabled = toggle.checked;
+  
+  // Salva preferenza
+  localStorage.setItem('marioVolume', isEnabled ? 'on' : 'off');
+  
+  // Invia comando via WebSocket
+  if(socket.readyState === WebSocket.OPEN){
+    socket.send("mariovolume:" + (isEnabled ? "on" : "off"));
+  }
+  
+  console.log("Mario Volume:", isEnabled ? "ON" : "OFF");
+}
+
 function goFullScreen() {
   let docEl = document.documentElement;
   if (docEl.requestFullscreen) {
@@ -210,6 +229,10 @@ window.onload = () => {
   });
   document.getElementById('lang-' + currentLang).classList.add('active');
   document.querySelector('#lang-' + currentLang + ' .check').textContent = '✓';
+  
+  // Inizializza toggle volume Mario (default: OFF)
+  const marioVolume = localStorage.getItem('marioVolume') || 'off';
+  document.getElementById('marioVolumeToggle').checked = (marioVolume === 'on');
   
   // Assicura che il menu sia chiuso all'avvio
   const overlay = document.getElementById('menuOverlay');

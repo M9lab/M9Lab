@@ -35,6 +35,7 @@ Lpf2Hub myMario;
 HubType typeD;
 bool isBarcodeSensorInitialized = false;
 bool isVolumeSet = false;
+bool marioVolumeEnabled = false; // Default: volume disabilitato
 DeviceType barcodeSensor = DeviceType::MARIO_HUB_BARCODE_SENSOR;
 
 // ======== WEBSERVER & WEBSOCKET ========
@@ -276,6 +277,51 @@ h1{
   color:#533483;
 }
 
+.switch{
+  position:relative;
+  display:inline-block;
+  width:50px;
+  height:26px;
+}
+
+.switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+
+.slider{
+  position:absolute;
+  cursor:pointer;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  background:#555;
+  transition:0.3s;
+  border-radius:26px;
+}
+
+.slider:before{
+  position:absolute;
+  content:"";
+  height:20px;
+  width:20px;
+  left:3px;
+  bottom:3px;
+  background:white;
+  transition:0.3s;
+  border-radius:50%;
+}
+
+input:checked + .slider{
+  background:#533483;
+}
+
+input:checked + .slider:before{
+  transform:translateX(24px);
+}
+
 #gameArea{
   flex:1;
   overflow-y:hidden;
@@ -382,6 +428,16 @@ h1{
     </div>
   </div>
   <div class="menuSection">
+    <h3 data-i18n="menu.audio">Audio</h3>
+    <div class="menuOption" style="cursor:default;">
+      <span data-i18n="menu.marioVolume">Mario Volume</span>
+      <label class="switch">
+        <input type="checkbox" id="marioVolumeToggle" onchange="toggleMarioVolume()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+  <div class="menuSection">
     <h3>Info</h3>
     <div class="menuOption" onclick="openCredits()">
       <span>Credits</span>
@@ -430,402 +486,50 @@ h1{
 </div>
 
 <script>
-// === AUDIO SYSTEM ===
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+function playTone(frequency,duration,volume=0.3){const oscillator=audioCtx.createOscillator();const gainNode=audioCtx.createGain();oscillator.connect(gainNode);gainNode.connect(audioCtx.destination);oscillator.frequency.value=frequency;oscillator.type='sine';gainNode.gain.setValueAtTime(volume,audioCtx.currentTime);gainNode.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+duration);oscillator.start(audioCtx.currentTime);oscillator.stop(audioCtx.currentTime+duration);}
+function playColorSelect(){playTone(800,0.08,0.2);}
+function playRowResult(){playTone(400,0.1,0.25);setTimeout(()=>playTone(500,0.1,0.25),120);}
 
-function playTone(frequency, duration, volume = 0.3) {
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-  
-  oscillator.frequency.value = frequency;
-  oscillator.type = 'sine';
-  
-  gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-  
-  oscillator.start(audioCtx.currentTime);
-  oscillator.stop(audioCtx.currentTime + duration);
-}
+function playWinSound(){const notes=[523,659,784,1047];notes.forEach((freq,i)=>{setTimeout(()=>playTone(freq,0.3,0.3),i*150);});}
+function playLoseSound(){const notes=[400,350,300,250];notes.forEach((freq,i)=>{setTimeout(()=>playTone(freq,0.4,0.25),i*200);});}
 
-function playColorSelect() {
-  // Beep corto e acuto per selezione colore
-  playTone(800, 0.08, 0.2);
-}
+const translations={it:{title:"Lego Mario Mind",attempt:"Tentativo {n} / 10","menu.language":"Language","menu.audio":"Audio","menu.marioVolume":"Volume Mario","button.cancel":"ANNULLA","button.restart":"RIAVVIA","message.win":"Hai vinto!","message.lose":"Hai perso! Codice: {code}","colors":{"rosso":"rosso","giallo":"giallo","verde":"verde","viola":"viola","blu":"blu"}},en:{title:"Lego Mario Mind",attempt:"Attempt {n} / 10","menu.language":"Language","menu.audio":"Audio","menu.marioVolume":"Mario Volume","button.cancel":"CANCEL","button.restart":"RESTART","message.win":"You won!","message.lose":"You lost! Code: {code}","colors":{"rosso":"red","giallo":"yellow","verde":"green","viola":"purple","blu":"blue"}}};
+let currentLang=localStorage.getItem('language')||'it';
+function t(key,params={}){let text=translations[currentLang][key]||key;Object.keys(params).forEach(param=>{text=text.replace(`{${param}}`,params[param]);});return text;}
+function translateColor(colorName){return translations[currentLang].colors[colorName]||colorName;}
+function setLanguage(lang){currentLang=lang;localStorage.setItem('language',lang);document.querySelectorAll('.menuOption').forEach(opt=>{opt.classList.remove('active');const checkSpan=opt.querySelector('.check');if(checkSpan)checkSpan.textContent='';});document.getElementById('lang-'+lang).classList.add('active');document.querySelector('#lang-'+lang+' .check').textContent='✓';updateUI();closeMenu();}
+function updateUI(){document.querySelectorAll('[data-i18n]').forEach(el=>{const key=el.getAttribute('data-i18n');if(key==='attempt'){const attemptNum=typeof currentAttempt!=='undefined'?currentAttempt+1:1;el.textContent=t(key,{n:attemptNum});}else{el.textContent=t(key);}});}
 
-function playRowResult() {
-  // Due beep per risultato riga
-  playTone(400, 0.1, 0.25);
-  setTimeout(() => playTone(500, 0.1, 0.25), 120);
-}
+function toggleMenu(){const overlay=document.getElementById('menuOverlay');const panel=document.getElementById('menuPanel');overlay.classList.toggle('open');panel.classList.toggle('open');}
+function closeMenu(){const overlay=document.getElementById('menuOverlay');const panel=document.getElementById('menuPanel');overlay.classList.remove('open');panel.classList.remove('open');}
+function openCredits(){document.getElementById('creditsModal').classList.add('open');closeMenu();}
+function closeCredits(){document.getElementById('creditsModal').classList.remove('open');}
+function toggleMarioVolume(){const toggle=document.getElementById('marioVolumeToggle');const isEnabled=toggle.checked;localStorage.setItem('marioVolume',isEnabled?'on':'off');if(socket.readyState===WebSocket.OPEN){socket.send("mariovolume:"+(isEnabled?"on":"off"));}console.log("Mario Volume:",isEnabled?"ON":"OFF");}
 
-function playWinSound() {
-  // Sequenza vittoriosa: do-mi-sol-do
-  const notes = [523, 659, 784, 1047];
-  notes.forEach((freq, i) => {
-    setTimeout(() => playTone(freq, 0.3, 0.3), i * 150);
-  });
-}
+function goFullScreen(){let docEl=document.documentElement;if(docEl.requestFullscreen){docEl.requestFullscreen();}else if(docEl.webkitRequestFullscreen){docEl.webkitRequestFullscreen();}else if(docEl.msRequestFullscreen){docEl.msRequestFullscreen();}setTimeout(adjustBoardSize,300);}
+function adjustBoardSize(){const topBarHeight=65;const bottomBarHeight=125;const tolerance=20;const isFullscreen=document.fullscreenElement||document.webkitFullscreenElement;const fullscreenExtra=isFullscreen?20:0;const safetyMargin=tolerance+fullscreenExtra;const availableHeight=window.innerHeight-topBarHeight-bottomBarHeight-safetyMargin;const gap=5;const maxSlotSize=36;let slotSize=(availableHeight-gap*9)/10;slotSize=Math.min(slotSize,maxSlotSize);slotSize=Math.max(slotSize,24);const root=document.documentElement;root.style.setProperty('--slot-size',slotSize+'px');root.style.setProperty('--gap-size',gap+'px');root.style.setProperty('--col-width',(slotSize+4)+'px');root.style.setProperty('--feedback-width',(slotSize*2)+'px');}
 
-function playLoseSound() {
-  // Sequenza discendente triste
-  const notes = [400, 350, 300, 250];
-  notes.forEach((freq, i) => {
-    setTimeout(() => playTone(freq, 0.4, 0.25), i * 200);
-  });
-}
-
-// === TRADUZIONI ===
-const translations = {
-  it: {
-    title: "Lego Mario Mind",
-    attempt: "Tentativo {n} / 10",
-    "menu.language": "Language",
-    "button.cancel": "ANNULLA",
-    "button.restart": "RIAVVIA",
-    "message.win": "Hai vinto!",
-    "message.lose": "Hai perso! Codice: {code}",
-    "colors": {
-      "rosso": "rosso",
-      "giallo": "giallo", 
-      "verde": "verde",
-      "viola": "viola",
-      "blu": "blu"
-    }
-  },
-  en: {
-    title: "Lego Mario Mind",
-    attempt: "Attempt {n} / 10",
-    "menu.language": "Language",
-    "button.cancel": "CANCEL",
-    "button.restart": "RESTART",
-    "message.win": "You won!",
-    "message.lose": "You lost! Code: {code}",
-    "colors": {
-      "rosso": "red",
-      "giallo": "yellow",
-      "verde": "green",
-      "viola": "purple",
-      "blu": "blue"
-    }
-  }
-};
-
-let currentLang = localStorage.getItem('language') || 'it';
-
-function t(key, params = {}) {
-  let text = translations[currentLang][key] || key;
-  Object.keys(params).forEach(param => {
-    text = text.replace(`{${param}}`, params[param]);
-  });
-  return text;
-}
-
-function translateColor(colorName) {
-  return translations[currentLang].colors[colorName] || colorName;
-}
-
-function setLanguage(lang) {
-  currentLang = lang;
-  localStorage.setItem('language', lang);
-  
-  document.querySelectorAll('.menuOption').forEach(opt => {
-    opt.classList.remove('active');
-    const checkSpan = opt.querySelector('.check');
-    if(checkSpan) checkSpan.textContent = '';
-  });
-  
-  document.getElementById('lang-' + lang).classList.add('active');
-  document.querySelector('#lang-' + lang + ' .check').textContent = '✓';
-  
-  updateUI();
-  closeMenu();
-}
-
-function updateUI() {
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    if(key === 'attempt') {
-      // Usa currentAttempt se definito, altrimenti 0
-      const attemptNum = typeof currentAttempt !== 'undefined' ? currentAttempt + 1 : 1;
-      el.textContent = t(key, {n: attemptNum});
-    } else {
-      el.textContent = t(key);
-    }
-  });
-}
-
-function toggleMenu() {
-  const overlay = document.getElementById('menuOverlay');
-  const panel = document.getElementById('menuPanel');
-  overlay.classList.toggle('open');
-  panel.classList.toggle('open');
-}
-
-function closeMenu() {
-  const overlay = document.getElementById('menuOverlay');
-  const panel = document.getElementById('menuPanel');
-  overlay.classList.remove('open');
-  panel.classList.remove('open');
-}
-
-function openCredits() {
-  document.getElementById('creditsModal').classList.add('open');
-  closeMenu();
-}
-
-function closeCredits() {
-  document.getElementById('creditsModal').classList.remove('open');
-}
-
-function goFullScreen() {
-  let docEl = document.documentElement;
-  if (docEl.requestFullscreen) {
-    docEl.requestFullscreen();
-  } else if (docEl.webkitRequestFullscreen) {
-    docEl.webkitRequestFullscreen();
-  } else if (docEl.msRequestFullscreen) {
-    docEl.msRequestFullscreen();
-  }
-  
-  // Ricalcola dimensioni dopo un breve delay (fullscreen impiega tempo)
-  setTimeout(adjustBoardSize, 300);
-}
-
-function adjustBoardSize() {
-  const topBarHeight = 65; // padding-top di gameArea
-  const bottomBarHeight = 125; // padding-bottom di gameArea
-  const tolerance = 20; // Tolleranza aggiuntiva
-  
-  // Controlla se siamo in fullscreen
-  const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-  const fullscreenExtra = isFullscreen ? 20 : 0; // Extra 20px se in fullscreen per "nessuna connessione"
-  
-  const safetyMargin = tolerance + fullscreenExtra;
-  const availableHeight = window.innerHeight - topBarHeight - bottomBarHeight - safetyMargin;
-  
-  // Calcola dimensione ottimale pallini (10 righe + gap)
-  // padding board ora è 0, quindi non serve sottrarlo
-  const gap = 5;
-  const maxSlotSize = 36; // dimensione massima per non esagerare su schermi grandi
-  
-  let slotSize = (availableHeight - gap * 9) / 10;
-  slotSize = Math.min(slotSize, maxSlotSize); // non superare il max
-  slotSize = Math.max(slotSize, 24); // dimensione minima
-  
-  // Applica dimensioni calcolate
-  const root = document.documentElement;
-  root.style.setProperty('--slot-size', slotSize + 'px');
-  root.style.setProperty('--gap-size', gap + 'px');
-  root.style.setProperty('--col-width', (slotSize + 4) + 'px'); // +4 per bordo
-  root.style.setProperty('--feedback-width', (slotSize * 2) + 'px');
-}
-
-window.onload = () => {
-  document.body.addEventListener('click', goFullScreen);
-  
-  // Adatta dimensioni board al dispositivo
-  adjustBoardSize();
-  window.addEventListener('resize', adjustBoardSize);
-  
-  // Ricalcola quando entra/esce da fullscreen
-  document.addEventListener('fullscreenchange', adjustBoardSize);
-  document.addEventListener('webkitfullscreenchange', adjustBoardSize);
-  
-  // Inizializza lingua senza aprire menu
-  document.querySelectorAll('.menuOption').forEach(opt => {
-    opt.classList.remove('active');
-    const checkSpan = opt.querySelector('.check');
-    if(checkSpan) checkSpan.textContent = '';
-  });
-  document.getElementById('lang-' + currentLang).classList.add('active');
-  document.querySelector('#lang-' + currentLang + ' .check').textContent = '✓';
-  
-  // Assicura che il menu sia chiuso all'avvio
-  const overlay = document.getElementById('menuOverlay');
-  const panel = document.getElementById('menuPanel');
-  overlay.classList.remove('open');
-  panel.classList.remove('open');
-  
-  updateUI();
-};
+window.onload=()=>{document.body.addEventListener('click',goFullScreen);adjustBoardSize();window.addEventListener('resize',adjustBoardSize);document.addEventListener('fullscreenchange',adjustBoardSize);document.addEventListener('webkitfullscreenchange',adjustBoardSize);document.querySelectorAll('.menuOption').forEach(opt=>{opt.classList.remove('active');const checkSpan=opt.querySelector('.check');if(checkSpan)checkSpan.textContent='';});document.getElementById('lang-'+currentLang).classList.add('active');document.querySelector('#lang-'+currentLang+' .check').textContent='✓';const marioVolume=localStorage.getItem('marioVolume')||'off';document.getElementById('marioVolumeToggle').checked=(marioVolume==='on');const overlay=document.getElementById('menuOverlay');const panel=document.getElementById('menuPanel');overlay.classList.remove('open');panel.classList.remove('open');updateUI();};
 
 const colors = ["rosso","giallo","verde","viola","blu"];
-const colorMap = {
-  "rosso": "red",
-  "giallo": "yellow",
-  "verde": "green",
-  "viola": "purple",
-  "blu": "#0066cc"
-};
-
-let secret=[], currentRow=[], attempts=[], currentAttempt=0, gameOver=false;
-
-let socket = new WebSocket('ws://' + location.host + '/ws');
-
-socket.onmessage = function(event) {
-  let color = event.data;
-  console.log("WS Color received:", color);
-
-  if (color === "nero" || color === "bianco") { clearRow(); return; }
-  if (color === "arancio") { restartGame(); return; }
-
-  addColor(color);
-};
-
-
-function generateSecret(){
-  secret=[];
-  let available=[...colors];
-  for(let i=0;i<4;i++){
-    let index=Math.floor(Math.random()*available.length);
-    secret.push(available[index]);
-    available.splice(index,1);
-  }
-  console.log("Secret:",secret);
-}
-
-function drawBoard(){
-  const board=document.getElementById("board");
-  board.innerHTML="";
-  for(let i=0;i<10;i++){
-    const rowDiv=document.createElement("div"); 
-    rowDiv.className="row";
-    if(i===currentAttempt && !gameOver) rowDiv.classList.add("current");
-    rowDiv.id="row"+i;
-    
-    let rowData=attempts[i]||[];
-    for(let j=0;j<4;j++){
-      const slot=document.createElement("div"); slot.className="slot";
-      if(i===currentAttempt){ 
-        if(currentRow[j]){
-          slot.style.background=colorMap[currentRow[j]];
-          if(j === currentRow.length-1){
-            slot.classList.add("added");
-          }
-        }
-      }
-      else{ if(rowData[j]) slot.style.background=colorMap[rowData[j]]; }
-      rowDiv.appendChild(slot);
-    }
-
-    const feedbackDiv=document.createElement("div"); feedbackDiv.className="feedback";
-    if(i<attempts.length){
-      const fb=attempts[i].feedback;
-      fb.forEach(type=>{
-        const dot=document.createElement("div"); dot.className="fbDot";
-        if(type==="filled") dot.classList.add("filled");
-        if(type==="empty") dot.classList.add("empty");
-        feedbackDiv.appendChild(dot);
-      });
-    } else { for(let k=0;k<4;k++){ const dot=document.createElement("div"); dot.className="fbDot"; feedbackDiv.appendChild(dot); } }
-
-    rowDiv.appendChild(feedbackDiv); board.appendChild(rowDiv);
-  }
-  document.getElementById("attemptInfo").innerText=t('attempt', {n: currentAttempt+1});
-  
-  // Auto-scroll rimosso (non più necessario con tutte le righe visibili)
-  // if(!gameOver && currentAttempt>0){
-  //   const currentRowEl=document.getElementById("row"+currentAttempt);
-  //   if(currentRowEl) currentRowEl.scrollIntoView({behavior:"smooth",block:"center"});
-  // }
-}
+const colorMap={"rosso":"red","giallo":"yellow","verde":"green","viola":"purple","blu":"#0066cc"};
+let secret=[],currentRow=[],attempts=[],currentAttempt=0,gameOver=false;
+let socket=new WebSocket('ws://'+location.host+'/ws');
+socket.onmessage=function(event){let color=event.data;console.log("WS Color received:",color);if(color==="nero"||color==="bianco"){clearRow();return;}if(color==="arancio"){restartGame();return;}addColor(color);};
+function generateSecret(){secret=[];let available=[...colors];for(let i=0;i<4;i++){let index=Math.floor(Math.random()*available.length);secret.push(available[index]);available.splice(index,1);}console.log("Secret:",secret);}
+function drawBoard(){const board=document.getElementById("board");board.innerHTML="";for(let i=0;i<10;i++){const rowDiv=document.createElement("div");rowDiv.className="row";if(i===currentAttempt&&!gameOver)rowDiv.classList.add("current");rowDiv.id="row"+i;let rowData=attempts[i]||[];for(let j=0;j<4;j++){const slot=document.createElement("div");slot.className="slot";if(i===currentAttempt){if(currentRow[j]){slot.style.background=colorMap[currentRow[j]];if(j===currentRow.length-1){slot.classList.add("added");}}}else{if(rowData[j])slot.style.background=colorMap[rowData[j]];}rowDiv.appendChild(slot);}const feedbackDiv=document.createElement("div");feedbackDiv.className="feedback";if(i<attempts.length){const fb=attempts[i].feedback;fb.forEach(type=>{const dot=document.createElement("div");dot.className="fbDot";if(type==="filled")dot.classList.add("filled");if(type==="empty")dot.classList.add("empty");feedbackDiv.appendChild(dot);});}else{for(let k=0;k<4;k++){const dot=document.createElement("div");dot.className="fbDot";feedbackDiv.appendChild(dot);}}rowDiv.appendChild(feedbackDiv);board.appendChild(rowDiv);}document.getElementById("attemptInfo").innerText=t('attempt',{n:currentAttempt+1});}
 
 function updateColorButtons(){
-  document.querySelectorAll(".colorBtn").forEach(btn=>{
-    const c=btn.dataset.color;
-    if(currentRow.includes(c)) btn.classList.add("disabled");
-    else btn.classList.remove("disabled");
-  });
-}
-
-function addColor(color){
-  if(gameOver || currentRow.length>=4 || currentRow.includes(color)) return;
-  
-  // Suono selezione colore
-  playColorSelect();
-  
-  // Anima il bottone cliccato
-  const btn = document.querySelector(`.colorBtn[data-color="${color}"]`);
-  if(btn){
-    btn.classList.add("clicked");
-    setTimeout(() => btn.classList.remove("clicked"), 400);
-  }
-  
-  if(socket.readyState === WebSocket.OPEN){
-    socket.send("led:" + color);
-  }
-  currentRow.push(color); updateColorButtons(); drawBoard();
-  if(currentRow.length===4) setTimeout(checkGuess,200);
-}
-
-function clearRow(){ 
-  if(gameOver) return; 
-  if(socket.readyState === WebSocket.OPEN){
-    socket.send("led:nero");
-  }
-  currentRow=[]; updateColorButtons(); drawBoard(); setMessage(""); 
-}
-
-function checkGuess(){
-  let feedback=[], tempSecret=[...secret], tempGuess=[...currentRow];
-  for(let i=0;i<4;i++){ if(tempGuess[i]===tempSecret[i]){ feedback.push("filled"); tempSecret[i]=null; tempGuess[i]=null; } }
-  for(let i=0;i<4;i++){ if(tempGuess[i]){ let idx=tempSecret.indexOf(tempGuess[i]); if(idx!==-1){ feedback.push("empty"); tempSecret[idx]=null; } } }
-
-  attempts[currentAttempt]=[...currentRow]; attempts[currentAttempt].feedback=feedback;
-
-  // Suono risultato riga
-  playRowResult();
-
-  if(feedback.filter(f=>f==="filled").length===4){ 
-    // VITTORIA!
-    setMessage(t("message.win"),"win"); 
-    gameOver=true;
-    setTimeout(playWinSound, 300); // Ritardo per sentire prima il feedback
-  }
-  else{
-    currentAttempt++; currentRow=[];
-    if(currentAttempt>=10){ 
-      // SCONFITTA!
-      const translatedSecret = secret.map(c => translateColor(c)).join(", ");
-      setMessage(t("message.lose", {code: translatedSecret}),"lose"); 
-      gameOver=true;
-      setTimeout(playLoseSound, 300); // Ritardo per sentire prima il feedback
-    }
-  }
-  updateColorButtons(); drawBoard();
-}
-
-function setMessage(msg, type="neutral") {
-  const el = document.getElementById("message");
-
-  if(!msg) {
-    el.innerText = "";
-    el.style.display = "none";
-    return;
-  }
-
-  el.style.display = "block";
-  el.innerText = msg;
-
-  el.classList.remove("message-neutral","message-win","message-lose");
-
-  if(type==="win") el.classList.add("message-win");
-  else if(type==="lose") el.classList.add("message-lose");
-  else el.classList.add("message-neutral");
-}
+document.querySelectorAll(".colorBtn").forEach(btn=>{const c=btn.dataset.color;if(currentRow.includes(c))btn.classList.add("disabled");else btn.classList.remove("disabled");});}
+function addColor(color){if(gameOver||currentRow.length>=4||currentRow.includes(color))return;playColorSelect();const btn=document.querySelector(`.colorBtn[data-color="${color}"]`);if(btn){btn.classList.add("clicked");setTimeout(()=>btn.classList.remove("clicked"),400);}if(socket.readyState===WebSocket.OPEN){socket.send("led:"+color);}currentRow.push(color);updateColorButtons();drawBoard();if(currentRow.length===4)setTimeout(checkGuess,200);}
+function clearRow(){if(gameOver)return;if(socket.readyState===WebSocket.OPEN){socket.send("led:nero");}currentRow=[];updateColorButtons();drawBoard();setMessage("");}
+function checkGuess(){let feedback=[],tempSecret=[...secret],tempGuess=[...currentRow];for(let i=0;i<4;i++){if(tempGuess[i]===tempSecret[i]){feedback.push("filled");tempSecret[i]=null;tempGuess[i]=null;}}for(let i=0;i<4;i++){if(tempGuess[i]){let idx=tempSecret.indexOf(tempGuess[i]);if(idx!==-1){feedback.push("empty");tempSecret[idx]=null;}}}attempts[currentAttempt]=[...currentRow];attempts[currentAttempt].feedback=feedback;playRowResult();if(feedback.filter(f=>f==="filled").length===4){setMessage(t("message.win"),"win");gameOver=true;setTimeout(playWinSound,300);}else{currentAttempt++;currentRow=[];if(currentAttempt>=10){const translatedSecret=secret.map(c=>translateColor(c)).join(", ");setMessage(t("message.lose",{code:translatedSecret}),"lose");gameOver=true;setTimeout(playLoseSound,300);}}updateColorButtons();drawBoard();}
+function setMessage(msg,type="neutral"){const el=document.getElementById("message");if(!msg){el.innerText="";el.style.display="none";return;}el.style.display="block";el.innerText=msg;el.classList.remove("message-neutral","message-win","message-lose");if(type==="win")el.classList.add("message-win");else if(type==="lose")el.classList.add("message-lose");else el.classList.add("message-neutral");}
 
 
-function restartGame(){ 
-  if(socket.readyState === WebSocket.OPEN){
-    socket.send("led:arancio");
-  }
-  secret=[]; attempts=[]; currentRow=[]; currentAttempt=0; gameOver=false; setMessage(""); generateSecret(); updateColorButtons(); drawBoard(); 
-}
-
-generateSecret(); drawBoard();
+function restartGame(){if(socket.readyState===WebSocket.OPEN){socket.send("led:arancio");}secret=[];attempts=[];currentRow=[];currentAttempt=0;gameOver=false;setMessage("");generateSecret();updateColorButtons();drawBoard();}
+generateSecret();drawBoard();
 </script>
 </body>
 </html>
@@ -892,7 +596,13 @@ void marioColorToLed(byte color){
     case 0:   return;  // ignorato (nero)
     case 19:  return;  // ignorato (bianco vecchio)
     case 26:  return;  // ignorato (ritorna quando alzi Mario)
-    case 106: fullColor(CRGB::Orange); colorName="bianco"; Serial.println("-> ARANCIO (RIAVVIA)"); break;
+    case 106: 
+      fullColor(CRGB::Orange); 
+      colorName="arancio"; 
+      Serial.println("-> ARANCIO (RIAVVIA)");
+      delay(300); // Mostra brevemente arancio
+      fullColor(CRGB::Black); // Spegne LED dopo riavvio
+      break;
     default:  
       Serial.print("-> COLORE SCONOSCIUTO: "); 
       Serial.println(color);
@@ -950,6 +660,24 @@ void setup() {
         else if(color == "blu") fullColor(CRGB::Blue);
         else if(color == "arancio") fullColor(CRGB::Orange);
         else if(color == "nero") fullColor(CRGB::Black);
+      }
+      else if(msg.startsWith("mariovolume:")){
+        String state = msg.substring(12);
+        if(state == "on"){
+          marioVolumeEnabled = true;
+          Serial.println("Volume Mario: ABILITATO");
+          if(myMario.isConnected() && (byte)typeD == 7){
+            myMario.setMarioVolume(0x64); // 100%
+            isVolumeSet = true;
+          }
+        } else {
+          marioVolumeEnabled = false;
+          Serial.println("Volume Mario: DISABILITATO");
+          if(myMario.isConnected() && (byte)typeD == 7){
+            myMario.setMarioVolume(0x00); // Muto
+            isVolumeSet = true;
+          }
+        }
       }
     }
   });
@@ -1018,10 +746,15 @@ void loop(){
     }
   }
 
-  // Volume Mario DISABILITATO (0% per sentire solo audio browser)
+  // Volume Mario controllato da menu (default: muto)
   if(myMario.isConnected() && (byte)typeD == 7 && !isVolumeSet){
-    Serial.println("set volume to 0% (muto)");
-    myMario.setMarioVolume(0x00);
+    if(marioVolumeEnabled){
+      Serial.println("set volume to 100%");
+      myMario.setMarioVolume(0x64);
+    } else {
+      Serial.println("set volume to 0% (muto)");
+      myMario.setMarioVolume(0x00);
+    }
     isVolumeSet = true;
   }
 
