@@ -56,7 +56,7 @@ const translations = {
     "button.cancel": "ANNULLA",
     "button.restart": "RIAVVIA",
     "message.win": "Hai vinto!",
-    "message.lose": "Hai perso! Codice: {code}",
+    "message.lose": "Hai perso!\nCodice: {code}",
     "colors": {
       "rosso": "rosso",
       "giallo": "giallo", 
@@ -74,7 +74,7 @@ const translations = {
     "button.cancel": "CANCEL",
     "button.restart": "RESTART",
     "message.win": "You won!",
-    "message.lose": "You lost! Code: {code}",
+    "message.lose": "You lost!\nCode: {code}",
     "colors": {
       "rosso": "red",
       "giallo": "yellow",

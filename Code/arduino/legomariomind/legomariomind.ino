@@ -336,10 +336,13 @@ input:checked + .slider:before{
 	left: 50%;
 	transform: translate(-50%, -50%);
 	text-align: center;
-	padding: 40px 60px;
+	max-width: 70%;
+	width: 100%;
+	font-size: 26px;
+	padding: 10px;
 	border-radius: 20px;
 	font-weight: bold;
-	font-size: 200%;
+	white-space: pre-line;
 	z-index: 1000;
 	box-shadow: 0 10px 40px rgba(0,0,0,0.8);
 	display: none;
@@ -494,7 +497,7 @@ function playRowResult(){playTone(400,0.1,0.25);setTimeout(()=>playTone(500,0.1,
 function playWinSound(){const notes=[523,659,784,1047];notes.forEach((freq,i)=>{setTimeout(()=>playTone(freq,0.3,0.3),i*150);});}
 function playLoseSound(){const notes=[400,350,300,250];notes.forEach((freq,i)=>{setTimeout(()=>playTone(freq,0.4,0.25),i*200);});}
 
-const translations={it:{title:"Lego Mario Mind",attempt:"Tentativo {n} / 10","menu.language":"Language","menu.audio":"Audio","menu.marioVolume":"Volume Mario","button.cancel":"ANNULLA","button.restart":"RIAVVIA","message.win":"Hai vinto!","message.lose":"Hai perso! Codice: {code}","colors":{"rosso":"rosso","giallo":"giallo","verde":"verde","viola":"viola","blu":"blu"}},en:{title:"Lego Mario Mind",attempt:"Attempt {n} / 10","menu.language":"Language","menu.audio":"Audio","menu.marioVolume":"Mario Volume","button.cancel":"CANCEL","button.restart":"RESTART","message.win":"You won!","message.lose":"You lost! Code: {code}","colors":{"rosso":"red","giallo":"yellow","verde":"green","viola":"purple","blu":"blue"}}};
+const translations={it:{title:"Lego Mario Mind",attempt:"Tentativo {n} / 10","menu.language":"Language","menu.audio":"Audio","menu.marioVolume":"Volume Mario","button.cancel":"ANNULLA","button.restart":"RIAVVIA","message.win":"Hai vinto!","message.lose":"Hai perso!\nCodice: {code}","colors":{"rosso":"rosso","giallo":"giallo","verde":"verde","viola":"viola","blu":"blu"}},en:{title:"Lego Mario Mind",attempt:"Attempt {n} / 10","menu.language":"Language","menu.audio":"Audio","menu.marioVolume":"Mario Volume","button.cancel":"CANCEL","button.restart":"RESTART","message.win":"You won!","message.lose":"You lost!\nCode: {code}","colors":{"rosso":"red","giallo":"yellow","verde":"green","viola":"purple","blu":"blue"}}};
 let currentLang=localStorage.getItem('language')||'it';
 function t(key,params={}){let text=translations[currentLang][key]||key;Object.keys(params).forEach(param=>{text=text.replace(`{${param}}`,params[param]);});return text;}
 function translateColor(colorName){return translations[currentLang].colors[colorName]||colorName;}
