@@ -4,7 +4,7 @@
 
 **Lego Mario Mind** è un gioco **Mastermind interattivo** che utilizza **mattoncini LEGO colorati** come controller fisico.
 
-Il sensore del **LEGO Mario Hub** legge i colori dei mattoncini o barcode e li invia all'**ESP32** via Bluetooth. L'ESP32 gestisce:
+Il sensore del **LEGO Mario Hub** legge i colori dei mattoncini o barcode e li invia all'**ATOM Matrix ESP32** via Bluetooth. L'ATOM Matrix ESP32 gestisce:
 - 🎮 **WebSocket** per comunicazione real-time con il browser
 - 💡 **LED WS2812** (25 LED) per feedback visivo dei colori
 - 📡 **Hotspot WiFi** per accesso diretto senza rete esterna
@@ -15,20 +15,20 @@ Il gioco è ottimizzato per **mobile** (400x700px) con interfaccia responsive e 
 
 ## 🔧 Componenti Hardware
 
-1. **ESP32** (PICO-D4 o compatibile con WiFi + BT)
+1. **ATOM Matrix ESP32** (M5Stack, WiFi + BT)
 2. **LEGO Mario Hub** (con sensore barcode)
 3. **LED Strip WS2812** (25 LED) - connessi al pin GPIO 27
 4. **Mattoncini LEGO colorati** o barcode LEGO Mario
-5. Alimentazione 5V per ESP32 e LED
+5. Alimentazione 5V per ATOM Matrix ESP32 e LED
 
 ---
 
-## 📋 Specifiche Tecniche ESP32
+## 📋 Specifiche Tecniche ATOM Matrix ESP32
 
 ### Arduino IDE Configuration
 
 ```
-Board: ESP32 Dev Module
+Board: M5Stack ATOM Matrix (o ESP32 Dev Module se usi core generico)
 Upload Speed: 115200
 Flash Size: 4MB
 Partition Scheme: Default 4MB with spiffs
@@ -48,12 +48,13 @@ Configurazione consigliata nello sketch: **Upload Speed 115200**.
 
 ### Installazione Librerie
 
-**1. ESP32 Board (2.0.17)**
+**1. ESP32 Board (2.0.17) – per ATOM Matrix**
 ```
 Arduino IDE → File → Preferences → Additional Boards Manager URLs:
 https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 
 Tools → Board → Boards Manager → Cerca "ESP32" → Installa versione 2.0.17
+Per ATOM Matrix: cerca "M5Stack" e installa M5Stack Board Package (se usi la scheda M5Stack ATOM Matrix).
 ```
 
 **2. Librerie Arduino (Library Manager)**
@@ -86,7 +87,7 @@ legomariomind/
 │
 ├── legomariomind.ino          # Sketch principale (HTML/CSS/JS embedded)
 ├── README.md                  # Questo file
-└── data/                      # File sorgente (NON usati da ESP32)
+└── data/                      # File sorgente (NON usati da ATOM Matrix ESP32)
     ├── index.html             # File di riferimento/test
     ├── style.css              # CSS per modifiche future
     └── mastermind.js          # JavaScript per test locale
@@ -99,7 +100,7 @@ legomariomind/
 
 ## ⚙️ Configurazione WiFi
 
-L'ESP32 crea un **Access Point** (Hotspot) con queste credenziali:
+L'ATOM Matrix ESP32 crea un **Access Point** (Hotspot) con queste credenziali:
 
 ```cpp
 SSID: legomariomind
@@ -119,21 +120,21 @@ const char* password = "legomariomind";
 
 ### 1. Preparazione Arduino IDE
 - Installa tutte le librerie (vedi sopra)
-- Seleziona: **Tools → Board → ESP32 Dev Module**
+- Seleziona: **Tools → Board → M5Stack ATOM Matrix** (o ESP32 Dev Module)
 - Seleziona: **Tools → Upload Speed → 115200**
-- Connetti ESP32 via USB
+- Connetti ATOM Matrix ESP32 via USB
 
 ### 2. Upload del Codice
 1. Apri `legomariomind.ino` nell'Arduino IDE
 2. Clicca su **Upload** (→)
-3. Se necessario, tieni premuto il pulsante **BOOT** sull'ESP32 durante l'upload
+3. Se necessario, tieni premuto il pulsante **BOOT** sull'ATOM Matrix ESP32 durante l'upload
 4. Attendi il completamento
 
 ### 3. Test Seriale
 Apri il **Serial Monitor** (115200 baud):
 ```
 Hotspot attivo!
-IP ESP32: 192.168.4.1
+IP ATOM Matrix: 192.168.4.1
 ```
 
 ---
@@ -150,12 +151,12 @@ IP ESP32: 192.168.4.1
 **Con Mario Hub (mattoncini colorati):**
 - 🔴 **Rosso** (21), 🟡 **Giallo** (24), 🟢 **Verde** (37), 🟣 **Viola** (12), 🔵 **Blu** (23) = colori di gioco
 - 🟠 **Arancio** (106) = **RIAVVIA** (nuova partita)
-- ⚪ **Bianco** (19) = **ANNULLA** (cancella riga corrente)
+- ⚪ **Turchese** (19) = **ANNULLA** (cancella riga corrente)
 - Il valore **26** (nero) viene **ignorato** (ritorna anche quando alzi Mario dal mattoncino)
 
 **Con Browser (bottoni touch):**
 - Clicca sui bottoni colorati per inserire la combinazione
-- Pulsante **ANNULLA** (bianco) = cancella riga corrente
+- Pulsante **ANNULLA** (turchese) = cancella riga corrente
 - Pulsante **RIAVVIA** (arancio) = nuovo gioco
 
 ### 3. LED Feedback
@@ -192,7 +193,7 @@ IP ESP32: 192.168.4.1
 
 ## 🔌 Pin e hardware
 
-### Riepilogo pin (ESP32)
+### Riepilogo pin (ATOM Matrix ESP32)
 
 | Uso              | Pin / costante   | Note |
 |------------------|------------------|------|
@@ -203,7 +204,7 @@ IP ESP32: 192.168.4.1
 
 ### LED WS2812 (25 LED)
 ```
-ESP32 GPIO 27 → Data In LED
+ATOM Matrix GPIO 27 → Data In LED
 5V → VCC LED
 GND → GND LED
 ```
@@ -229,7 +230,7 @@ GND → GND LED
 ### Modificare HTML/CSS/JS
 1. Edita i file in `data/` per testing
 2. Quando sei soddisfatto, copia le modifiche nel file `.ino`
-3. Ri-carica il codice sull'ESP32
+3. Ri-carica il codice sull'ATOM Matrix ESP32
 
 ### Aggiungere Nuovi Colori
 Nel file `.ino`, nella sezione Mario callback:
@@ -247,14 +248,14 @@ case XX:  fullColor(CRGB::ColorName);  colorName="nome"; break;
 ## 🐛 Troubleshooting
 
 ### Non vedo la rete WiFi "legomariomind"
-- Premi il pulsante **RESET** sull'ESP32
+- Premi il pulsante **RESET** sull'ATOM Matrix ESP32
 - Controlla il Serial Monitor: deve apparire "Hotspot attivo!"
 - Verifica di aver caricato il codice correttamente
 
 ### Mario non si connette (LED centrale rosso)
 - Accendi il LEGO Mario Hub
-- Avvicinalo all'ESP32 (< 2 metri)
-- Riavvia l'ESP32 se necessario
+- Avvicinalo all'ATOM Matrix ESP32 (< 2 metri)
+- Riavvia l'ATOM Matrix ESP32 se necessario
 
 ### I LED non si accendono
 - Verifica connessione GPIO 27
@@ -306,7 +307,7 @@ Indovinare la **combinazione segreta** di **4 colori** (tra rosso, giallo, verde
 7. **Sconfitta**: dopo 10 tentativi senza vittoria viene mostrato il codice segreto.
 
 ### Comandi durante il gioco
-- **ANNULLA** (mattoncino bianco o pulsante bianco): cancella la riga corrente e ricomincia a inserire.
+- **ANNULLA** (mattoncino turchese o pulsante turchese): cancella la riga corrente e ricomincia a inserire.
 - **RIAVVIA** (mattoncino arancio o pulsante arancio): termina la partita e ne inizia una nuova (nuovo codice segreto).
 
 ---
@@ -329,8 +330,8 @@ Valori decimali restituiti dal sensore barcode/colore del LEGO Mario. Usati nel 
 
 | Colore   | Codice | Azione   | Note |
 |----------|--------|----------|------|
-| 🟠 Arancio | 106 | **RIAVVIA** | Nuova partita; pulsante RIAVVIA è arancio |
-| ⚪ Bianco  | 19 | **ANNULLA** | Cancella la riga corrente |
+| 🟠 Arancio | 106 | **RIAVVIA** | Nuova partita; pulsante arancio nell’interfaccia |
+| Turchese   | 19 | **ANNULLA** | Cancella la riga corrente; pulsante turchese nell’interfaccia |
 | — (nero)   | 26 | *ignorato* | Non usato; il sensore ritorna 26 anche quando alzi Mario |
 
 Lo sfondo degli slot vuoti nella griglia è **nero** (#000).
@@ -349,7 +350,7 @@ Lo sfondo degli slot vuoti nella griglia è **nero** (#000).
 
 ## 👨‍💻 Crediti
 
-Progetto sviluppato per ESP32 con integrazione LEGO Mario Hub.
+Progetto sviluppato per ATOM Matrix ESP32 con integrazione LEGO Mario Hub.
 
 **Librerie utilizzate:**
 - [FastLED](https://github.com/FastLED/FastLED)
