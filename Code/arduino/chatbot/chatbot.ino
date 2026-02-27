@@ -12,9 +12,9 @@ const char* password = "qwerty123456";
 const char* replicateToken = "";
 
 // Modelli Replicate
-const char* MODELLO_TESTO = "86zptcwbhxrm80cphb19cy8qh4"; // GPT-4.1-nano
-const char* MODELLO_TTS   = "by67sg9dxdrm80cpjat9x3apxw"; // minimax/speech-02-turbo
-const char* MODELLO_STT   = "vplzxotbmrsqbd7hsbehoaugaa";  // STT Replicate
+const char* MODELLO_TESTO = ""; // GPT-4.1-nano
+const char* MODELLO_TTS   = ""; // minimax/speech-02-turbo
+const char* MODELLO_STT   = "";  // STT Replicate
 
 // ---------- VAR GLOBALI -------------
 Audio audio;
