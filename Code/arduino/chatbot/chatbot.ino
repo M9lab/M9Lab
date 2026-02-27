@@ -9,7 +9,7 @@
 // ---------- CONFIG ----------
 const char* ssid = "FSociety";
 const char* password = "qwerty123456";
-const char* replicateToken = "r8_3Wy4PCyMhULDu6EgD0SXRu0Oc7WMmtg38w3en";
+const char* replicateToken = "";
 
 // Modelli Replicate
 const char* MODELLO_TESTO = "86zptcwbhxrm80cphb19cy8qh4"; // GPT-4.1-nano
