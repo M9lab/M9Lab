@@ -29,3 +29,11 @@ python legolize.py
 ```
 
 Lo script cerca `.env` in `legolize/` o, se non esiste, in `python/`.
+
+## Raspberry Pi (schermo 1360×768)
+
+Su Linux, se esiste **`.env.raspberry`** nella cartella legolize viene caricato al posto di `.env` (come in fotomachine).
+
+1. Copia `.env.raspberry` da esempio (o rinomina/copia da `.env`) e inserisci token Replicate e SMTP.
+2. Il file è già ottimizzato per 1360×768: preview ridotte, font e padding più piccoli, QR code 200px.
+3. Avvio: `python3 legolize.py`

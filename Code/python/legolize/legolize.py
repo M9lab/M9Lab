@@ -18,12 +18,19 @@ import threading
 import traceback
 import sys
 
-# Carica .env dalla cartella legolize o dalla root python
-_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-if not os.path.exists(_env_path):
-    _env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
-load_dotenv(_env_path)
-print("Caricato: .env")
+# Carica .env: TEMPORANEO per test - se esiste .env.raspberry lo usiamo (simula Raspberry su Windows)
+# Dopo i test: rimettere condizione solo Linux per .env.raspberry
+_script_dir_env = os.path.dirname(os.path.abspath(__file__))
+_env_rasp = os.path.join(_script_dir_env, ".env.raspberry")
+if os.path.exists(_env_rasp):
+    load_dotenv(_env_rasp)
+    print("Caricato: .env.raspberry (test simulazione Raspberry 1360x768)")
+else:
+    _env_path = os.path.join(_script_dir_env, ".env")
+    if not os.path.exists(_env_path):
+        _env_path = os.path.join(os.path.dirname(_script_dir_env), ".env")
+    load_dotenv(_env_path)
+    print("Caricato: .env")
 
 system = platform.system()
 
@@ -56,6 +63,7 @@ LOGO_BG_COLOR = os.getenv("LOGO_BG_COLOR", "5BA4D1")
 def _build_replicate_prompt():
     base = (
         "Turn the person's head into an official LEGO minifigure with authentic hair.\n"
+        "The face must be in authentic LEGO minifigure style: no nose (omit/remove the nose, smooth yellow head like real LEGO).\n"
         "Place the minifigure beside LEGO railway tracks in a simple railway diorama.\n"
         "Visible studs, correct proportions.\n"
         f"Include the M9Lab logo (yellow text #{LOGO_TEXT_COLOR} on light blue #{LOGO_BG_COLOR}).\n"
@@ -140,8 +148,12 @@ STATUS_EMAIL_REQUIRED = os.getenv("STATUS_EMAIL_REQUIRED", "Inserisci un'email v
 STATUS_EMAIL_INVALID = os.getenv("STATUS_EMAIL_INVALID", "Formato email non valido")
 STATUS_EMAIL_SUCCESS = os.getenv("STATUS_EMAIL_SUCCESS", "Email inviata con successo!")
 STATUS_EMAIL_ERROR = os.getenv("STATUS_EMAIL_ERROR", "Errore invio email: {error}")
+STATUS_CAPTURE_PREVIEW = os.getenv("STATUS_CAPTURE_PREVIEW", "Clicca SPAZIO o INVIO per avviare legolizzazione, o ESC per annullare")
+
+BTN_LEGOLIZE_TEXT = os.getenv("BTN_LEGOLIZE_TEXT", "LEGOLIZZA")
 EMAIL_PLACEHOLDER = os.getenv("EMAIL_PLACEHOLDER", "Inserisci la tua email")
 EMAIL_PRIVACY_NOTICE = os.getenv("EMAIL_PRIVACY_NOTICE", "Useremo la tua email solo per questa operazione. Niente archiviazione, niente spam.")
+EVENT_TEXT = os.getenv("EVENT_TEXT", "Benvenuti al LEGO Museum! #LEGOTrains")
 
 # Colori UI
 UI_BG_COLOR = os.getenv("UI_BG_COLOR", "#5DADE2")
@@ -179,6 +191,7 @@ if PUNTAMENTO_PATH and os.path.exists(PUNTAMENTO_PATH):
 # Globali
 MODE_PREVIEW = 0
 MODE_RESULT = 1
+MODE_CAPTURE_PREVIEW = 2  # Anteprima foto scattata: Annulla o Legolizza
 mode = MODE_PREVIEW
 current_photo_path = None
 captured_frame = None
@@ -200,6 +213,7 @@ FONT_SIZE_ENGAGEMENT_TITLE = int(os.getenv("FONT_SIZE_ENGAGEMENT_TITLE", 36))
 FONT_SIZE_ENGAGEMENT_TEXT = int(os.getenv("FONT_SIZE_ENGAGEMENT_TEXT", 28))
 FONT_SIZE_ENGAGEMENT_SOCIAL = int(os.getenv("FONT_SIZE_ENGAGEMENT_SOCIAL", 24))
 FONT_SIZE_ENGAGEMENT_THANKS = int(os.getenv("FONT_SIZE_ENGAGEMENT_THANKS", 20))
+FONT_SIZE_EVENT_TEXT = int(os.getenv("FONT_SIZE_EVENT_TEXT", 60))
 
 if system == "Linux":
     EMOJI_FONT = "Noto Color Emoji"
@@ -287,6 +301,60 @@ def download_image(url, save_path):
     return save_path
 
 
+_event_text_font_cache = None
+
+
+def load_font_cached():
+    """Font per EVENT_TEXT sulla foto (come fotomachine)."""
+    global _event_text_font_cache
+    if _event_text_font_cache is None:
+        try:
+            _event_text_font_cache = ImageFont.truetype("arialbd.ttf", FONT_SIZE_EVENT_TEXT)
+        except Exception:
+            try:
+                _event_text_font_cache = ImageFont.truetype("arial.ttf", FONT_SIZE_EVENT_TEXT)
+            except Exception:
+                try:
+                    _event_text_font_cache = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_EVENT_TEXT)
+                except Exception:
+                    _event_text_font_cache = ImageFont.load_default()
+    return _event_text_font_cache
+
+
+def apply_event_text_to_image(img):
+    """Disegna EVENT_TEXT sulla foto come in fotomachine: sfondo nero semi-trasparente, outline nero, testo giallo."""
+    draw = ImageDraw.Draw(img)
+    font = load_font_cached()
+    bbox = draw.textbbox((0, 0), EVENT_TEXT, font=font)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+    final_w, final_h = img.size
+    text_x = (final_w - text_w) // 2
+    text_y = final_h - 120
+    outline_width = 3
+    padding_h = 25
+    padding_v = 20
+    bg_rect = [
+        text_x - padding_h - outline_width,
+        text_y - padding_v - outline_width + bbox[1],
+        text_x + text_w + padding_h + outline_width,
+        text_y + text_h + padding_v + outline_width + bbox[1],
+    ]
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    overlay_draw.rectangle(bg_rect, fill=(0, 0, 0, 180))
+    if img.mode != "RGBA":
+        img = img.convert("RGBA")
+    img = Image.alpha_composite(img, overlay)
+    draw = ImageDraw.Draw(img)
+    for adj_x in range(-outline_width, outline_width + 1):
+        for adj_y in range(-outline_width, outline_width + 1):
+            if adj_x != 0 or adj_y != 0:
+                draw.text((text_x + adj_x, text_y + adj_y), EVENT_TEXT, fill="black", font=font)
+    draw.text((text_x, text_y), EVENT_TEXT, fill="#FFD700", font=font)
+    return img.convert("RGB")
+
+
 # Overlay caricamento a schermo intero durante elaborazione Replicate
 _loading_overlay = None
 _loading_spinner_angle = [0]  # lista per poterla modificare nel closure
@@ -324,9 +392,12 @@ def show_loading_overlay():
     lbl = tk.Label(overlay, text=STATUS_LEGO_PROCESSING, font=("Arial", 28, "bold"),
                    fg=UI_TEXT_COLOR, bg=UI_BG_COLOR)
     lbl.place(relx=0.5, rely=0.45, anchor=tk.CENTER)
-    # Canvas per rotellina (cerchio con arco rotante)
+    # Canvas per rotellina (cerchio con arco rotante); su Raspberry 40px più in basso per non coprire il testo
     canvas = tk.Canvas(overlay, width=160, height=160, bg=UI_BG_COLOR, highlightthickness=0)
-    canvas.place(relx=0.5, rely=0.55, anchor=tk.CENTER)
+    if system == "Linux":
+        canvas.place(relx=0.5, rely=0.55, y=40, anchor=tk.CENTER)
+    else:
+        canvas.place(relx=0.5, rely=0.55, anchor=tk.CENTER)
     overlay.spinner_canvas = canvas
     _loading_overlay = overlay
     _spinner_step()
@@ -424,9 +495,38 @@ def capture_and_flash():
         else:
             flash_label.place_forget()
             flash_label.destroy()
-            process_captured_photo()
+            show_capture_preview()
 
     root.after(10, lambda: fade_flash(1.0))
+
+
+def show_capture_preview():
+    """Mostra anteprima foto scattata con istruzioni e pulsanti Annulla / Legolizza."""
+    global mode
+    mode = MODE_CAPTURE_PREVIEW
+    frame_resized = cv2.resize(captured_frame, (PREVIEW_LIVE_W, PREVIEW_LIVE_H), interpolation=cv2.INTER_LINEAR)
+    img = Image.fromarray(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB))
+    imgtk = ImageTk.PhotoImage(img)
+    preview_label.imgtk = imgtk
+    preview_label.config(image=imgtk)
+
+    status_label.config(text=STATUS_CAPTURE_PREVIEW, fg="#FFFFFF", bg="#2C3E50")
+    btn_shoot.grid_remove()
+    btn_cancel.grid(row=0, column=0, padx=10)
+    btn_legolize.grid(row=0, column=1, padx=10)
+    btn_shoot.config(state="normal")
+    root.after(100, lambda: btn_legolize.focus_set())
+
+
+def back_to_live_preview():
+    """Torna alla schermata principale (live webcam) dall'anteprima cattura."""
+    global mode
+    mode = MODE_PREVIEW
+    btn_cancel.grid_remove()
+    btn_legolize.grid_remove()
+    btn_shoot.grid(row=0, column=0, padx=10)
+    status_label.config(text=STATUS_READY, fg="#FFFFFF", bg="#2C3E50")
+    root.after(100, lambda: btn_shoot.focus_set())
 
 
 def process_captured_photo():
@@ -450,6 +550,11 @@ def process_captured_photo():
         try:
             download_image(url, output_path)
             img = Image.open(output_path).convert("RGB")
+            img = apply_event_text_to_image(img)
+            if output_path.lower().endswith(".webp"):
+                img.save(output_path, format="WEBP", quality=90)
+            else:
+                img.save(output_path, format="JPEG", quality=95)
             current_photo_path = output_path
             if root.winfo_exists():
                 root.after(0, lambda: _show_result(img, output_path))
@@ -672,6 +777,8 @@ def reset_kiosk():
     preview_frame.pack(expand=True, pady=PADDING_BUTTON, padx=PADDING_BUTTON)
     status_frame.pack(pady=PADDING_FRAME)
     btn_frame.pack(pady=PADDING_BUTTON)
+    btn_cancel.grid_remove()
+    btn_legolize.grid_remove()
     btn_shoot.grid(row=0, column=0)
     status_label.config(text=STATUS_READY, fg="#FFFFFF", bg="#2C3E50")
     btn_shoot.config(state="normal")
@@ -828,7 +935,8 @@ def create_logo_pattern():
 
 root.after(100, create_logo_pattern)
 # Tieni il canvas dietro a tutti i widget pack/place
-root.after(300, lambda: canvas_bg.lower())
+# Canvas.lower() è per gli item del canvas; per mandare la finestra dietro usare il comando Tk
+root.after(300, lambda: root.tk.call('lower', canvas_bg._w))
 
 preview_frame = tk.Frame(root, bg="#FFFFFF", bd=0, relief=tk.FLAT)
 preview_frame.pack(expand=True, pady=PADDING_BUTTON, padx=PADDING_BUTTON)
@@ -853,14 +961,21 @@ btn_shoot = tk.Button(btn_frame, text=BTN_SHOOT_TEXT, font=("Arial", FONT_SIZE_B
 btn_shoot.grid(row=0, column=0, padx=10)
 btn_cancel = tk.Button(btn_frame, text=BTN_CANCEL_TEXT, font=("Arial", FONT_SIZE_BUTTON_SECONDARY),
                        bg="#757575", fg="white", activebackground="#616161", activeforeground="white",
-                       width=15, height=1, pady=5, command=reset_kiosk,
+                       width=15, height=1, pady=5,
+                       command=lambda: back_to_live_preview() if mode == MODE_CAPTURE_PREVIEW else reset_kiosk(),
                        relief=tk.FLAT, borderwidth=0, cursor="hand2")
+btn_legolize = tk.Button(btn_frame, text=BTN_LEGOLIZE_TEXT, font=("Arial", FONT_SIZE_BUTTON_MAIN, "bold"),
+                         bg="#4CAF50", fg="white", activebackground="#45a049", activeforeground="white",
+                         width=20, height=1, pady=5, command=process_captured_photo,
+                         relief=tk.FLAT, borderwidth=0, cursor="hand2")
 
 
 def on_key_press(event):
     if event.keysym == 'Escape':
         if mode == MODE_RESULT or mode == "ENGAGEMENT":
             reset_kiosk()
+        elif mode == MODE_CAPTURE_PREVIEW:
+            back_to_live_preview()
         else:
             cap.release()
             root.destroy()
@@ -870,6 +985,10 @@ def on_key_press(event):
             return
         if event.keysym in ['space', 'Space', 'Return']:
             start_countdown()
+            return "break"
+    elif mode == MODE_CAPTURE_PREVIEW:
+        if event.keysym in ['Return', 'space', 'Space']:
+            process_captured_photo()
             return "break"
     elif mode == MODE_RESULT:
         reset_inactivity_timer()

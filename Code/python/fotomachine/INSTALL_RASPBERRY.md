@@ -39,6 +39,7 @@ Il file `.env.raspberry` è già ottimizzato per schermo 1360×768:
 
 ## 🚀 Avvio
 
+
 ### Manuale da terminale:
 ```bash
 cd /home/legofoto/lego-photo-booth
