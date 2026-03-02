@@ -1,0 +1,4 @@
+1 | 2026-03-02 09:22:39 | KO | 20260302_092149.webp | ethan.emotion@gmail.com
+2 | 2026-03-02 09:26:24 | KO | 20260302_092539.webp | ethan.emotion@gmail.com
+3 | 2026-03-02 09:42:07 | OK | 20260302_094101.webp | ethan.emotion@gmail.com
+4 | 2026-03-02 09:47:12 | OK | 20260302_094555.webp | ethan.emotion@gmail.com

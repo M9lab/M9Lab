@@ -1,0 +1,4 @@
+opencv-python>=4.10.0
+Pillow>=10.4.0
+python-dotenv>=1.0.0
+replicate>=0.25.0

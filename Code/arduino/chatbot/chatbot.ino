@@ -9,7 +9,7 @@
 // ---------- CONFIG ----------
 const char* ssid = "FSociety";
 const char* password = "qwerty123456";
-
+const char* replicateToken = "";
 
 // Modelli Replicate
 const char* MODELLO_TESTO = "86zptcwbhxrm80cphb19cy8qh4"; // GPT-4.1-nano
@@ -111,7 +111,7 @@ String sendAudioToSTT(int16_t* buffer, int len) {
 
   client.println("POST /v1/predictions HTTP/1.1");
   client.println("Host: api.replicate.com");
-  client.println("Authorization: Token " + String());
+  client.println("Authorization: Token " + String(replicateToken));
   client.println("Content-Type: application/json");
   client.print("Content-Length: "); client.println(body.length());
   client.println();
@@ -143,7 +143,7 @@ String askReplicate(String prompt) {
 
   client.println("POST /v1/predictions HTTP/1.1");
   client.println("Host: api.replicate.com");
-  client.println("Authorization: Token " + String());
+  client.println("Authorization: Token " + String(replicateToken));
   client.println("Content-Type: application/json");
   client.print("Content-Length: "); client.println(body.length());
   client.println();
@@ -179,7 +179,7 @@ String requestTTS(String txt) {
 
   client.println("POST /v1/predictions HTTP/1.1");
   client.println("Host: api.replicate.com");
-  client.println("Authorization: Token " + String());
+  client.println("Authorization: Token " + String(replicateToken));
   client.println("Content-Type: application/json");
   client.print("Content-Length: "); client.println(body.length());
   client.println();
