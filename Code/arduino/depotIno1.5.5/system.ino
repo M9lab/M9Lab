@@ -1,50 +1,65 @@
 
+#define LEGENDA_CMD_WIDTH 20   // comando + padding; l'"=" e' sempre in colonna LEGENDA_CMD_WIDTH+1
+
+static void legendaCmd(const __FlashStringHelper* cmd, int len) {
+  Serial.print(cmd);
+  for (int i = len; i < LEGENDA_CMD_WIDTH; i++) Serial.print(' ');
+  Serial.print(F("= "));   // "=" in colonna fissa, senza spazio prima
+}
+
 void printLegenda() {
 
-  // print command lists using F() macro to save RAM
-  Serial.print(F("*** M9Lab - DepotIno4 v."));
+  Serial.print(F("\n*** M9Lab - DepotIno v."));
   Serial.print(ver);
   Serial.println(F(" ***"));
-  Serial.println(F("_________________________________________________"));
-  
-  Serial.println(F("\n-----System commands:-----"));
-  Serial.println(F("help = show this message again"));
-  Serial.println(F("on = set automatic system on"));
-  Serial.println(F("off = set automatic system off"));
-  Serial.println(F("panic = shutDown all hubs and reset the system"));
-  Serial.println(F("reset = reset the system"));
-  Serial.println(F("sron = enable remote control"));
-  Serial.println(F("sroff = disable remote control"));
-  Serial.println(F("verboseon = show more status messages"));
-  Serial.println(F("verboseoff = show less status messages"));
-  
-  Serial.println(F("\n-----Log commands:-----"));
-  Serial.println(F("status = show system status"));
-  Serial.println(F("autospeedon = set speed depends battery level on"));
-  Serial.println(F("autospeedoff = set speed depends battery level off"));
+  Serial.println(F("================================================="));
 
-  Serial.println(F("\n-----Switches commands:-----"));
-  Serial.println(F("sw<X>0 = set switch X (a,b,c) straight"));
-  Serial.println(F("sw<X>1 = set switch X (a,b,c) turned"));
-  Serial.println(F("resetsw = reset all switches"));  
-  Serial.println(F("killsw = kill the main hub"));
-  Serial.println(F("sws+ = increase current switch motor speed to +5"));
-  Serial.println(F("sws- = decrease current switch motor speed to -5"));
-  Serial.println(F("sws= = reset current switch motor speed set to default (35)"));
+  Serial.println(F("\n--- System ---"));
+  legendaCmd(F("help"), 4);       Serial.println(F("show this message again"));
+  legendaCmd(F("on"), 2);        Serial.println(F("set automatic system on"));
+  legendaCmd(F("off"), 3);       Serial.println(F("set automatic system off"));
+  legendaCmd(F("panic"), 5);     Serial.println(F("shutDown all hubs and reset"));
+  legendaCmd(F("reset"), 5);     Serial.println(F("reset the system"));
+  legendaCmd(F("sron"), 4);     Serial.println(F("enable remote control"));
+  legendaCmd(F("sroff"), 5);    Serial.println(F("disable remote control"));
+  legendaCmd(F("verboseon"), 9); Serial.println(F("show more status messages"));
+  legendaCmd(F("verboseoff"), 10); Serial.println(F("show less status messages"));
+  Serial.flush();
 
-  Serial.println(F("\n-----Trains commands:-----"));
-  Serial.println(F("str1|stg1|sty1 = start RED,GREEN or YELLOW Train"));
-  Serial.println(F("str0|stg0|sty0 = stop RED,GREEN or YELLOW Train"));
-  Serial.println(F("killr|killg|killy = kill RED,GREEN or YELLOW Train"));
-  Serial.println(F("killall = kill all Trains"));
+  Serial.println(F("\n--- Status / Log ---"));
+  legendaCmd(F("status"), 6);   Serial.println(F("show system status"));
+  legendaCmd(F("autospeedon"), 11);  Serial.println(F("speed by battery level on"));
+  legendaCmd(F("autospeedoff"), 12); Serial.println(F("speed by battery level off"));
+  Serial.flush();
 
-  Serial.println(F("cts+ = increase current train speed set +5"));
-  Serial.println(F("cts- = decrease current train speed set -5"));
-  Serial.print(F("cts= = reset current train speed set to default ("));
+  Serial.println(F("\n--- Switches ---"));
+  legendaCmd(F("swa0 swb0 swc0"), 14); Serial.println(F("set switch straight"));
+  legendaCmd(F("swa1 swb1 swc1"), 14); Serial.println(F("set switch turned"));
+  legendaCmd(F("resetsw"), 7);  Serial.println(F("reset all switches"));
+  legendaCmd(F("killsw"), 6);   Serial.println(F("kill the main hub"));
+  legendaCmd(F("sws+"), 4);     Serial.println(F("switch motor speed +5"));
+  legendaCmd(F("sws-"), 4);     Serial.println(F("switch motor speed -5"));
+  legendaCmd(F("sws="), 4);     Serial.println(F("switch motor speed default (35)"));
+  Serial.flush();
+
+  Serial.println(F("\n--- Trains ---"));
+  legendaCmd(F("str1 stg1 sty1"), 14); Serial.println(F("start RED, GREEN, YELLOW"));
+  legendaCmd(F("str0 stg0 sty0"), 14); Serial.println(F("stop RED, GREEN, YELLOW"));
+  legendaCmd(F("killr killg killy"), 17); Serial.println(F("kill RED, GREEN, YELLOW"));
+  legendaCmd(F("killall"), 7);  Serial.println(F("kill all trains"));
+  legendaCmd(F("cts+"), 4);     Serial.println(F("train speed +5"));
+  legendaCmd(F("cts-"), 4);     Serial.println(F("train speed -5"));
+  legendaCmd(F("cts="), 4);     Serial.print(F("train speed default ("));
   Serial.print(initialTrainSpeed);
   Serial.println(F(")"));
+  Serial.flush();
 
-  Serial.println(F("_________________________________________________"));
+  Serial.println(F("\n--- Lights ---"));
+  legendaCmd(F("sbl1"), 4);     Serial.println(F("start blinking lights"));
+  legendaCmd(F("sbl0"), 4);     Serial.println(F("stop blinking lights"));
+
+  Serial.println(F("=================================================\n"));
+  Serial.flush();   // assicura che tutta la legenda sia inviata (evita troncamento)
 }
 
 void verboseOn() {
@@ -112,26 +127,45 @@ void panic() {
 }
 
 
+// Larghezze colonne come in intestazione (hubColor|batteryLevel|hubState|trainState|speed|)
+#define STATUS_COL_COLOR 8
+#define STATUS_COL_BATT  12
+#define STATUS_COL_HUB   8
+#define STATUS_COL_TRN   10
+#define STATUS_COL_SPD   5
+
+// Stampa intero allineato a destra in campo di larghezza w
+static void printR(int val, int w) {
+  int n = val < 0 ? -val : val;
+  int d = (val < 0) ? 1 : 0;
+  do { d++; n /= 10; } while (n);
+  for (int i = d; i < w; i++) Serial.print(' ');
+  Serial.print(val);
+}
+
 void systemStatus() {
 
   Serial.println(F("hubColor|batteryLevel|hubState|trainState|speed|"));
-  Serial.println(F("------------------------------------------------"));
+  Serial.println(F("--------+------------+--------+----------+-----+"));
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-    
-    Serial.print(myTrains[idTrain].hubColor);
+    const char* color = myTrains[idTrain].hubColor;
+    int clen = 0;
+    while (color[clen]) clen++;
+    Serial.print(color);
+    for (int i = clen; i < STATUS_COL_COLOR; i++) Serial.print(' ');
     Serial.print(F("|"));
-    Serial.print(myTrains[idTrain].batteryLevel);
+    printR(myTrains[idTrain].batteryLevel, STATUS_COL_BATT);
     Serial.print(F("|"));
-    Serial.print(myTrains[idTrain].hubState);
+    printR(myTrains[idTrain].hubState, STATUS_COL_HUB);
     Serial.print(F("|"));
-    Serial.print(myTrains[idTrain].trainState);
+    printR(myTrains[idTrain].trainState, STATUS_COL_TRN);
     Serial.print(F("|"));
-    Serial.print(myTrains[idTrain].speed);
+    printR(myTrains[idTrain].speed, STATUS_COL_SPD);
     Serial.println(F("|"));
   }
 
-  Serial.println(F("------------------------------------------------"));
+  Serial.println(F("--------+------------+--------+----------+-----+"));
 
   Serial.print(F("Switch Battery Level: "));
   Serial.println(switchBatteryLevel);
