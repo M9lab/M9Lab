@@ -38,7 +38,7 @@ void increaseSwitchSpeed(){
   }
 }
 
-void decreaseSwitchSpeed(){
+void decreaseSwitchSpeed() {
   switchVelocity -= 5;
   if (isVerbose) {
     Serial.print(F("Switch motor speed now is "));
@@ -46,7 +46,7 @@ void decreaseSwitchSpeed(){
   }
 }
 
-void resetSwitchSpeed(){
+void resetSwitchSpeed() {
   switchVelocity = 35;
   if (isVerbose) {
     Serial.print(F("Switch motor speed now is "));

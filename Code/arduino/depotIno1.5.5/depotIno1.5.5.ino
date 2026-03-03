@@ -1,6 +1,6 @@
 
 /*
-    Board: ESP32 Dev Module
+    Board: ESP32 Dev Module/M5Stack-ATOM
     Library: 
       esp32 -> 2.0.17 (board)
       Legoino -> 1.0.0
@@ -10,7 +10,6 @@
       oppure:
       esp32 -> 3.3.6 (board)
       Legoino -> 1.0.0 (modified for esp32v3)
-
       Upload Speed  -> 115200
 */
 
@@ -134,8 +133,9 @@ typedef struct {
 #define MY_SWITCH_LEN 3
 #define MY_COLOR_LEN 3
 
-// default trains speed
+// default trains speed e limite per cts+ / cts-
 const int initialTrainSpeed = 25;
+const int TRAIN_SPEED_MAX = 100;
 
 // Color Maps for trains --> 1 stop | 2 invert | 3 kill
 const byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::GREEN, (byte)Color::RED};
@@ -174,55 +174,62 @@ bool lights_blink_ison = false;
 bool lights_ison = false;
 int lights_count = 0;
 
+// Forward declaration (definita in trains.ino, usata qui e in system.ino)
+void killTrain(int idTrain, bool quick = false);
+
+// Helper: confronto comando senza allocare String (risparmio RAM)
+static bool cmdEq(const char* buf, const char* cmd) {
+  return strcmp(buf, cmd) == 0;
+}
 
 // Helper function for system commands
-bool handleSystemCommands(const String &cmd) {
-  if (cmd == "panic") { panic(); return true; }
-  if (cmd == "killsw") { killSwitch(); return true; }
-  if (cmd == "reset") { systemReset(); return true; }
-  if (cmd == "on") { systemOn(); return true; }
-  if (cmd == "off") { systemOff(); return true; }
-  if (cmd == "help") { printLegenda(); return true; }
-  if (cmd == "status") { systemStatus(); return true; }
-  if (cmd == "autospeedon") { autospeedOn(); return true; }
-  if (cmd == "autospeedoff") { autospeedOff(); return true; }
-  if (cmd == "sron") { setRemoteOn(); return true; }
-  if (cmd == "sroff") { setRemoteOff(); return true; }
-  if (cmd == "verboseon") { verboseOn(); return true; }
-  if (cmd == "verboseoff") { verboseOff(); return true; }
+bool handleSystemCommands(const char* cmd) {
+  if (cmdEq(cmd, "panic")) { panic(); return true; }
+  if (cmdEq(cmd, "killsw")) { killSwitch(); return true; }
+  if (cmdEq(cmd, "reset")) { systemReset(); return true; }
+  if (cmdEq(cmd, "on")) { systemOn(); return true; }
+  if (cmdEq(cmd, "off")) { systemOff(); return true; }
+  if (cmdEq(cmd, "help")) { printLegenda(); return true; }
+  if (cmdEq(cmd, "status")) { systemStatus(); return true; }
+  if (cmdEq(cmd, "autospeedon")) { autospeedOn(); return true; }
+  if (cmdEq(cmd, "autospeedoff")) { autospeedOff(); return true; }
+  if (cmdEq(cmd, "sron")) { setRemoteOn(); return true; }
+  if (cmdEq(cmd, "sroff")) { setRemoteOff(); return true; }
+  if (cmdEq(cmd, "verboseon")) { verboseOn(); return true; }
+  if (cmdEq(cmd, "verboseoff")) { verboseOff(); return true; }
   return false;
 }
 
 // Helper function for switch commands
-bool handleSwitchCommands(const String &cmd) {
-  if (cmd == "swa0") { setSwitch(&mySwitchControlleres[0], 0); return true; }
-  if (cmd == "swa1") { setSwitch(&mySwitchControlleres[0], 1); return true; }
-  if (cmd == "swb0") { setSwitch(&mySwitchControlleres[1], 0); return true; }
-  if (cmd == "swb1") { setSwitch(&mySwitchControlleres[1], 1); return true; }
-  if (cmd == "swc0") { setSwitch(&mySwitchControlleres[2], 0); return true; }
-  if (cmd == "swc1") { setSwitch(&mySwitchControlleres[2], 1); return true; }
-  if (cmd == "sws+") { increaseSwitchSpeed(); return true; }
-  if (cmd == "sws-") { decreaseSwitchSpeed(); return true; }
-  if (cmd == "sws=") { resetSwitchSpeed(); return true; }
-  if (cmd == "resetsw") { switchReset(); return true; }
+bool handleSwitchCommands(const char* cmd) {
+  if (cmdEq(cmd, "swa0")) { setSwitch(&mySwitchControlleres[0], 0); return true; }
+  if (cmdEq(cmd, "swa1")) { setSwitch(&mySwitchControlleres[0], 1); return true; }
+  if (cmdEq(cmd, "swb0")) { setSwitch(&mySwitchControlleres[1], 0); return true; }
+  if (cmdEq(cmd, "swb1")) { setSwitch(&mySwitchControlleres[1], 1); return true; }
+  if (cmdEq(cmd, "swc0")) { setSwitch(&mySwitchControlleres[2], 0); return true; }
+  if (cmdEq(cmd, "swc1")) { setSwitch(&mySwitchControlleres[2], 1); return true; }
+  if (cmdEq(cmd, "sws+")) { increaseSwitchSpeed(); return true; }
+  if (cmdEq(cmd, "sws-")) { decreaseSwitchSpeed(); return true; }
+  if (cmdEq(cmd, "sws=")) { resetSwitchSpeed(); return true; }
+  if (cmdEq(cmd, "resetsw")) { switchReset(); return true; }
   return false;
 }
 
 // Helper function for train commands
-bool handleTrainCommands(const String &cmd) {
-  if (cmd == "str1") { manualStartTrain(0); return true; }
-  if (cmd == "stg1") { manualStartTrain(1); return true; }
-  if (cmd == "sty1") { manualStartTrain(2); return true; }
-  if (cmd == "str0") { stopTrain(0); return true; }
-  if (cmd == "stg0") { stopTrain(1); return true; }
-  if (cmd == "sty0") { stopTrain(2); return true; }
-  if (cmd == "killr") { killTrain(0); return true; }
-  if (cmd == "killg") { killTrain(1); return true; }
-  if (cmd == "killy") { killTrain(2); return true; }
-  if (cmd == "cts+") { increaseCurrentTrainSpeed(); return true; }
-  if (cmd == "cts-") { decreaseCurrentTrainSpeed(); return true; }
-  if (cmd == "cts=") { resetCurrentTrainSpeed(); return true; }
-  if (cmd == "killall") { 
+bool handleTrainCommands(const char* cmd) {
+  if (cmdEq(cmd, "str1")) { manualStartTrain(0); return true; }
+  if (cmdEq(cmd, "stg1")) { manualStartTrain(1); return true; }
+  if (cmdEq(cmd, "sty1")) { manualStartTrain(2); return true; }
+  if (cmdEq(cmd, "str0")) { stopTrain(0); return true; }
+  if (cmdEq(cmd, "stg0")) { stopTrain(1); return true; }
+  if (cmdEq(cmd, "sty0")) { stopTrain(2); return true; }
+  if (cmdEq(cmd, "killr")) { killTrain(0); return true; }
+  if (cmdEq(cmd, "killg")) { killTrain(1); return true; }
+  if (cmdEq(cmd, "killy")) { killTrain(2); return true; }
+  if (cmdEq(cmd, "cts+")) { changeCurrentTrainSpeed(5); return true; }
+  if (cmdEq(cmd, "cts-")) { changeCurrentTrainSpeed(-5); return true; }
+  if (cmdEq(cmd, "cts=")) { resetCurrentTrainSpeed(); return true; }
+  if (cmdEq(cmd, "killall")) {
     for (int i = 0; i < MY_TRAIN_LEN; i++) { killTrain(i); }
     return true;
   }
@@ -230,28 +237,44 @@ bool handleTrainCommands(const String &cmd) {
 }
 
 // Helper function for lights commands
-bool handleLightsCommands(const String &cmd) {
-  if (cmd == "sbl1") { startBlikLights(pPortA); return true; }
-  if (cmd == "sbl0") { stopBlikLights(pPortA); return true; }
+bool handleLightsCommands(const char* cmd) {
+  if (cmdEq(cmd, "sbl1")) { startBlikLights(pPortA); return true; }
+  if (cmdEq(cmd, "sbl0")) { stopBlikLights(pPortA); return true; }
   return false;
 }
 
+// Static buffer per comandi seriali (evita allocazione String e frammentazione heap)
+#define SERIAL_CMD_MAX 16
+static char serialCmdBuf[SERIAL_CMD_MAX];
+static uint8_t serialCmdLen = 0;
+
 void readFromSerial() {
-  if (Serial.available()) {
-    String command = Serial.readStringUntil('\n');
-    command.trim();
-    Serial.print("\n>");
-    Serial.print(command);
-    Serial.print("\n\n");
-    
-    // Try each command category
-    if (handleSystemCommands(command)) return;
-    if (handleSwitchCommands(command)) return;
-    if (handleTrainCommands(command)) return;
-    if (handleLightsCommands(command)) return;
-    
-    // Command not found
-    Serial.println("\n>command not found");
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (serialCmdLen > 0) {
+        serialCmdBuf[serialCmdLen] = '\0';
+        // trim trailing spaces
+        while (serialCmdLen > 0 && (serialCmdBuf[serialCmdLen - 1] == ' ' || serialCmdBuf[serialCmdLen - 1] == '\t')) {
+          serialCmdBuf[--serialCmdLen] = '\0';
+        }
+        Serial.print(F("\n>"));
+        Serial.print(serialCmdBuf);
+        Serial.print(F("\n\n"));
+
+        if (handleSystemCommands(serialCmdBuf)) { serialCmdLen = 0; return; }
+        if (handleSwitchCommands(serialCmdBuf)) { serialCmdLen = 0; return; }
+        if (handleTrainCommands(serialCmdBuf)) { serialCmdLen = 0; return; }
+        if (handleLightsCommands(serialCmdBuf)) { serialCmdLen = 0; return; }
+
+        Serial.println(F("\n>command not found"));
+        serialCmdLen = 0;
+      }
+      return;
+    }
+    if (serialCmdLen < SERIAL_CMD_MAX - 1 && c >= ' ') {
+      serialCmdBuf[serialCmdLen++] = c;
+    }
   }
 }
 

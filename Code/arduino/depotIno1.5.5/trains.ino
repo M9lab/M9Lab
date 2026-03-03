@@ -46,9 +46,9 @@ void stopAndDoTrain(int idTrain, bool invert) {
   if (!myTrain->isConnected()) return;
 
   if (isVerbose) {
-    Serial.print("Stop & ");
-    Serial.print(invert ? "Invert" : "Go");
-    Serial.print(" ");
+    Serial.print(F("Stop & "));
+    Serial.print(invert ? F("Invert") : F("Go"));
+    Serial.print(F(" "));
     Serial.println(myTrains[idTrain].hubColor);
   }
 
@@ -66,9 +66,9 @@ void startTrain(int idTrain) {
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()){
     if (isVerbose) {
-      Serial.print("Train ");
+      Serial.print(F("Train "));
       Serial.print(myTrains[idTrain].hubColor);
-      Serial.println(" is disconnected");
+      Serial.println(F(" is disconnected"));
     }
     return;
   }
@@ -79,9 +79,9 @@ void startTrain(int idTrain) {
   myTrains[idTrain].lastcolor = sensorAcceptedColors[0];    
     
   if (isVerbose) {
-    Serial.print("Start Train ");
+    Serial.print(F("Start Train "));
     Serial.print(myTrains[idTrain].hubColor);
-    Serial.print(" Battery Level: ");
+    Serial.print(F(" Battery Level: "));
     Serial.println(myTrains[idTrain].batteryLevel);
   }
 
@@ -101,16 +101,16 @@ void startTrain(int idTrain) {
 
   mySwitchController.setLedColor(myTrains[idTrain].ledColor);
 
-  if (autoSpeedEnabled){
-    //TEST: set speed depends by battery level
+  if (autoSpeedEnabled && myTrains[idTrain].batteryLevel > 0) {
+    // Speed scaled by battery level (evita divisione per zero)
     int newspeed = (100 * myTrains[idTrain].speed) / myTrains[idTrain].batteryLevel;
     if (isVerbose) {
-      Serial.print("speed: ");
+      Serial.print(F("speed: "));
       Serial.print(myTrains[idTrain].speed);
-      Serial.print(" newspeed: ");
+      Serial.print(F(" newspeed: "));
       Serial.println(newspeed);
     }
-    myTrains[idTrain].speed = newspeed;  
+    myTrains[idTrain].speed = newspeed;
   }
   
   delayBlinkLights(pPortA);
@@ -120,9 +120,9 @@ void startTrain(int idTrain) {
   myTrain->setBasicMotorSpeed(portA, myTrains[idTrain].speed);
   
   if (isVerbose) {
-    Serial.print("Train: ");
+    Serial.print(F("Train: "));
     Serial.print(myTrains[idTrain].hubColor);
-    Serial.println(" Started!!!");
+    Serial.println(F(" Started!!!"));
   }
 }
 
@@ -132,15 +132,15 @@ void stopTrain(int idTrain) {
   
   if (!myTrain->isConnected()){
     if (isVerbose) {
-      Serial.print("Train ");
+      Serial.print(F("Train "));
       Serial.print(myTrains[idTrain].hubColor);
-      Serial.println(" is disconnected");
+      Serial.println(F(" is disconnected"));
     }
     return;
   }
   
   if (isVerbose) {
-    Serial.print("Stop ");
+    Serial.print(F("Stop "));
     Serial.println(myTrains[idTrain].hubColor);
   }
   
@@ -149,25 +149,24 @@ void stopTrain(int idTrain) {
 
 }
 
-void killTrain(int idTrain) {
+void killTrain(int idTrain, bool quick) {
 
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
   if (!myTrain->isConnected()) return;
   
   if (isVerbose) {
-    Serial.print("Kill ");
+    Serial.print(F("Kill "));
     Serial.println(myTrains[idTrain].hubColor);
   }
   
   myTrain->stopBasicMotor(portA);
   myTrain->shutDownHub();
-  myTrains[idTrain].trainState = 0;     
+  myTrains[idTrain].trainState = 0;
   myTrains[idTrain].hubState = -1;
-  
+
   activeTrain--;
   setSwitch(&mySwitchControlleres[2], 0);
-  delay(2000);
-
+  delay(quick ? 300 : 2000);  // breve se chiamato da panic
 }
 
 void invertTrain(int idTrain) {
@@ -176,7 +175,7 @@ void invertTrain(int idTrain) {
   if (!myTrain->isConnected()) return;
   
   if (isVerbose) {
-    Serial.print("Invert ");
+    Serial.print(F("Invert "));
     Serial.println(myTrains[idTrain].hubColor);
   }
   
@@ -187,38 +186,22 @@ void invertTrain(int idTrain) {
 }
 
 
-void increaseCurrentTrainSpeed(){
-  
+// Delta positivo = aumenta, negativo = diminuisce (rispetta il verso del treno). Clamp ±TRAIN_SPEED_MAX.
+void changeCurrentTrainSpeed(int delta) {
   if (lastTrainStarted == -1) return;
-
-  addspeed = myTrains[lastTrainStarted].speed < 0 ? -5 : 5; 
-  myTrains[lastTrainStarted].speed += addspeed;
-  
   Lpf2Hub *myTrain = myTrains[lastTrainStarted].hubobj;
-  myTrain->setBasicMotorSpeed(portA, myTrains[lastTrainStarted].speed);
-  
+  int s = myTrains[lastTrainStarted].speed;
+  addspeed = (s < 0) ? -delta : delta;
+  s = s + addspeed;
+  if (s > TRAIN_SPEED_MAX) s = TRAIN_SPEED_MAX;
+  if (s < -TRAIN_SPEED_MAX) s = -TRAIN_SPEED_MAX;
+  myTrains[lastTrainStarted].speed = s;
+  myTrain->setBasicMotorSpeed(portA, s);
   if (isVerbose) {
-    Serial.print("Train: ");
+    Serial.print(F("Train: "));
     Serial.print(myTrains[lastTrainStarted].hubColor);
-    Serial.print(" speed now is ");
-    Serial.println(myTrains[lastTrainStarted].speed);
-  }
-}
-
-void decreaseCurrentTrainSpeed(){
-  if (lastTrainStarted == -1) return;
-
-  addspeed = myTrains[lastTrainStarted].speed < 0 ? 5 : -5; 
-  myTrains[lastTrainStarted].speed += addspeed;
-  
-  Lpf2Hub *myTrain = myTrains[lastTrainStarted].hubobj;
-  myTrain->setBasicMotorSpeed(portA, myTrains[lastTrainStarted].speed);
-  
-  if (isVerbose) {
-    Serial.print("Train: ");
-    Serial.print(myTrains[lastTrainStarted].hubColor);
-    Serial.print(" speed now is ");
-    Serial.println(myTrains[lastTrainStarted].speed);
+    Serial.print(F(" speed now is "));
+    Serial.println(s);
   }
 }
 
@@ -228,10 +211,10 @@ void resetCurrentTrainSpeed(){
   myTrains[lastTrainStarted].speed = initialTrainSpeed;
   
   if (isVerbose) {
-    Serial.print("Train: ");
+    Serial.print(F("Train: "));
     Serial.print(myTrains[lastTrainStarted].hubColor);
-    Serial.print(" speed now is ");
+    Serial.print(F(" speed now is "));
     Serial.print(myTrains[lastTrainStarted].speed);
-    Serial.println(" (default)");
+    Serial.println(F(" (default)"));
   }
 }

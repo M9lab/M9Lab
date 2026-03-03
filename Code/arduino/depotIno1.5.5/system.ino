@@ -90,14 +90,11 @@ void systemReset() {
 }
 
 void panic() {
-    
   systemReset();
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-
     myTrains[idTrain].trainState = 0;
-    myTrains[idTrain].hubState = -1;    
-    // shutDown Hub train
-    killTrain(idTrain);
+    myTrains[idTrain].hubState = -1;
+    killTrain(idTrain, true);  // quick: delay ridotto
     Serial.print(F("Disconnected from hub "));
     Serial.print(myTrains[idTrain].hubColor);
     Serial.print(F(" -> "));

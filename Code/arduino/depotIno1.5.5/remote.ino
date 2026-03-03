@@ -22,7 +22,7 @@ void remoteColorToLed( byte buttonState, byte portNumber){
     myRemote.shutDownHub();
     isRemoteInitialized = false; 
     //isRemoteInitFirst = false;
-    Serial.println("Remote disconnected.");
+    Serial.println(F("Remote disconnected."));
   }
 
    // set velocity TODO
@@ -39,12 +39,12 @@ void scanRemoteController(){
   		{  		  
   		  if (!myRemote.connectHub())
   		  {
-  			  Serial.println("Unable to connect to hub");
+  		  Serial.println(F("Unable to connect to hub"));
   		  }
   		  else
   		  {
     			myRemote.setLedColor(GREEN);
-    			Serial.println("Remote connected.");
+    			Serial.println(F("Remote connected."));
           Serial.println(myRemote.getHubAddress().toString().c_str());
   		  }
   		}
@@ -53,7 +53,7 @@ void scanRemoteController(){
   
     if (myRemote.isConnected() && !isRemoteInitialized)
     {
-      Serial.println("Remote is initialized");
+      Serial.println(F("Remote is initialized"));
   		isRemoteInitialized = true;   		
   		delay(200); //needed because otherwise the message is to fast after the connection procedure and the message will get lost           
   		myRemote.activatePortDevice(portLeft, remoteCallback);

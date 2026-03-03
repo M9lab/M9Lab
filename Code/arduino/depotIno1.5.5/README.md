@@ -1,9 +1,10 @@
 /*
-    Board: ESP32-WROOM-DA Module
+    Board: M5Stack-ATOM
     Library: 
       esp32 -> 3.3.3 (board)
       M5Atom -> 0.1.3
       Adafruit_GFX -> 1.12.4
+      Legoino -> 1.1.0
 */
 
 
