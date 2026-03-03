@@ -161,6 +161,33 @@ UI_TEXT_COLOR = os.getenv("UI_TEXT_COLOR", "#FFFFFF")
 UI_ACCENT_COLOR = os.getenv("UI_ACCENT_COLOR", "#FFD700")
 # Cartella fotomachine per logo, puntamento e asset condivisi
 _script_dir = os.path.dirname(os.path.abspath(__file__))
+# File per persistere le chiamate Replicate rimanenti (tra un riavvio e l'altro)
+_REPLICATE_CALLS_FILE = os.path.join(_script_dir, ".replicate_calls_remaining")
+REPLICATE_CALLS_LEFT_INIT = int(os.getenv("REPLICATE_CALLS_LEFT", "150"))
+
+
+def _get_replicate_remaining():
+    """Legge chiamate rimanenti da file; se assente usa REPLICATE_CALLS_LEFT da env."""
+    try:
+        with open(_REPLICATE_CALLS_FILE, "r", encoding="utf-8") as f:
+            return int(f.read().strip())
+    except (FileNotFoundError, ValueError):
+        return REPLICATE_CALLS_LEFT_INIT
+
+
+def _decrement_replicate_remaining():
+    """Decrementa di 1, salva su file, ritorna il nuovo valore."""
+    n = _get_replicate_remaining()
+    if n > 0:
+        n -= 1
+    try:
+        with open(_REPLICATE_CALLS_FILE, "w", encoding="utf-8") as f:
+            f.write(str(n))
+    except Exception:
+        pass
+    return n
+
+
 FOTOMACHINE_DIR = os.path.normpath(os.path.join(_script_dir, "..", "fotomachine"))
 # Logo: prima in fotomachine, poi legolize, poi env
 _logo_env = os.getenv("UI_LOGO_PATH", "logo.png")
@@ -556,7 +583,12 @@ def process_captured_photo():
             else:
                 img.save(output_path, format="JPEG", quality=95)
             current_photo_path = output_path
+            # Scala di 1 le chiamate Replicate rimanenti e aggiorna label
+            remaining = _decrement_replicate_remaining()
             if root.winfo_exists():
+                root.after(0, lambda r=remaining: _replicate_remaining_label.config(
+                    text="Legolize: %d foto rimanenti" % r
+                ))
                 root.after(0, lambda: _show_result(img, output_path))
         except Exception as e:
             if root.winfo_exists():
@@ -907,6 +939,17 @@ root.protocol("WM_DELETE_WINDOW", lambda: None)
 
 canvas_bg = tk.Canvas(root, bg=UI_BG_COLOR, highlightthickness=0)
 canvas_bg.place(x=0, y=0, relwidth=1, relheight=1)
+
+# Chiamate Replicate rimanenti in alto a sinistra (piccolo, bianco)
+_replicate_remaining_label = tk.Label(
+    root,
+    text="Legolize: %d foto rimanenti" % _get_replicate_remaining(),
+    fg="#FFFFFF",
+    bg=UI_BG_COLOR,
+    font=("Arial", 10),
+    anchor="w",
+)
+_replicate_remaining_label.place(x=12, y=10, anchor="nw")
 
 
 def create_logo_pattern():

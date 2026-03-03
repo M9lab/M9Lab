@@ -6,6 +6,8 @@ output_photos/
 .env
 .env.raspberry
 email_log.txt
+# Conteggio chiamate Replicate (stato locale, non in repo)
+.replicate_calls_remaining
 
 # Python
 __pycache__/
