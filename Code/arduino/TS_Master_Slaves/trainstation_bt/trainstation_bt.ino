@@ -226,6 +226,19 @@ void StatusCallback(void *cbData, int code, const char *string) {
   (void)cbData; (void)code; (void)string;
 }
 
+// === SOFT STOP (evita click/pop alla fine riproduzione) ===
+// Muta l'uscita prima di fermare il decoder I2S, così il DAC non passa da un valore
+// qualsiasi a silenzio in modo brusco (causa del click).
+void stopAudioSoft() {
+  if (!mp3 || !mp3->isRunning()) return;
+  if (out) {
+    out->SetGain(0);           // Muta
+    delay(25);                 // Lascia svuotare i buffer I2S
+  }
+  mp3->stop();
+  if (out) out->SetGain(volume); // Ripristina volume
+}
+
 // === BLUETOOTH DISPLAY ON-DEMAND ===
 // Apre BT, invia comando, chiude BT → massima compatibilità con audio!
 // restartAudio: se true, riavvia riverloop dopo invio BT
@@ -236,8 +249,8 @@ bool sendToDisplayBT(const char* command, bool restartAudio = true) {
   bool wasRunning = false;
   if (mp3 && mp3->isRunning()) {
     debugPrintln(F("   Pauso riverloop"));
-    mp3->stop();
-    delay(100);
+    stopAudioSoft();
+    delay(75);
     wasRunning = true;
   }
   
@@ -318,7 +331,7 @@ bool sendToDisplayBT(const char* command, bool restartAudio = true) {
 
 // === UTILS ===
 void playFile(const char* filename) {
-  if (mp3 && mp3->isRunning()) mp3->stop();
+  if (mp3 && mp3->isRunning()) stopAudioSoft();
   
   // OTTIMIZZAZIONE: delete solo se esistenti
   if (file) { delete file; file = nullptr; }
@@ -818,10 +831,10 @@ void startRiverLoop() {
     return;
   }
   
-  // Ferma se in esecuzione
+  // Ferma se in esecuzione (soft stop evita click)
   if (mp3->isRunning()) {
-    mp3->stop();
-    delay(50);
+    stopAudioSoft();
+    delay(25);
   }
   
   playFile(AUDIO_FILE);
@@ -991,8 +1004,8 @@ void playMeteoAnnouncement() {
   // FERMA RIVERLOOP prima di caricare dati (evita glitch durante WiFi)
   if (mp3 && mp3->isRunning()) {
     debugPrintln(F("Fermo riverloop per caricamento meteo..."));
-    mp3->stop();
-    delay(100);
+    stopAudioSoft();
+    delay(75);
   }
   
   // === CONTROLLO TIMING: Recupera solo se sono passati 30 minuti ===
@@ -1201,8 +1214,8 @@ void reinitAudio() {
   
   // Pulisci oggetti audio esistenti completamente
   if (mp3) {
-    if (mp3->isRunning()) mp3->stop();
-    delay(100);
+    if (mp3->isRunning()) stopAudioSoft();
+    delay(75);
     delete mp3;
     mp3 = nullptr;
   }
@@ -1358,12 +1371,12 @@ void toggleBluetooth() {
       return;
     }
     
-    // Ferma audio completamente
+    // Ferma audio completamente (soft stop evita click)
     Serial.println(F("Fermo audio..."));
     if (mp3 && mp3->isRunning()) {
-      mp3->stop();
+      stopAudioSoft();
     }
-    delay(200);
+    delay(175);
     
     Serial.println(F("Attivo Bluetooth cellulare..."));
     
@@ -1823,7 +1836,7 @@ void loop() {
   // Audio loop management - SEMPLIFICATO con anti-loop
   if (!playingPlaylist && !audioStarting) {
     if (mp3 && mp3->isRunning()) {
-      if (!mp3->loop()) mp3->stop();
+      if (!mp3->loop()) stopAudioSoft();  // soft stop evita click a fine traccia
     } else if (!btCellulareEnabled && mp3 && !mp3->isRunning() && (millis() - lastAudioAttempt > 2000)) {
       // Riavvia SOLO se BT cellulare è SPENTO e sono passati almeno 2 secondi
       startRiverLoop();
