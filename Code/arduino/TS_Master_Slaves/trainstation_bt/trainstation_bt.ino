@@ -886,7 +886,7 @@ void playSingleFile(int num) {
   unsigned long startPlay = millis();
   while (mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) {
     if (!mp3->loop()) break;
-    delay(1);
+    if (mp3->isRunning()) mp3->loop();
     yield();
   }
   
@@ -1195,8 +1195,8 @@ void playPlaylist() {
     
     unsigned long startPlay = millis();
     while(mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) { 
-      if(!mp3->loop()) break; 
-      delay(5);
+      if(!mp3->loop()) break;
+      if(mp3->isRunning()) mp3->loop();
       yield();
     }
   }
