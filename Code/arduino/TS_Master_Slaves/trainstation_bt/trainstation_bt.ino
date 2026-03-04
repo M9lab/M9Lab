@@ -990,9 +990,10 @@ int getWeatherAudioCode(int weatherCode) {
     case 0: return 311; // cielo sereno
     case 1: case 2: case 3: return 312; // parzialmente nuvoloso
     case 45: case 48: return 314; // nebbia
-    case 51: case 53: case 55: // drizzle
-    case 61: case 63: case 65: // pioggia
+    case 51: case 53: case 55: return 313; // drizzle
+    case 61: case 63: case 65: return 313; // pioggia
     case 80: case 81: case 82: return 313; // pioggia
+    case 73: case 75: case 85: case 86: return 313; // neve
     case 95: case 96: case 99: return 315; // temporale
     default: return 316; // condizioni variabili
   }
