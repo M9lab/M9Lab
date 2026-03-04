@@ -138,6 +138,8 @@ float volume = 0.08; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
+// NOTA: File MP3 ottimizzati a 128 kbps CBR Mono 44.1kHz per performance uniformi
+
 // === BLUETOOTH DISPLAY (ON-DEMAND) ===
 // MAC del Display Slave: 80:F3:DA:BB:F8:02
 uint8_t displayMAC[] = {0x80, 0xF3, 0xDA, 0xBB, 0xF8, 0x02};
@@ -886,7 +888,7 @@ void playSingleFile(int num) {
   unsigned long startPlay = millis();
   while (mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) {
     if (!mp3->loop()) break;
-    if (mp3->isRunning()) mp3->loop();
+    delay(1);
     yield();
   }
   
@@ -1195,8 +1197,8 @@ void playPlaylist() {
     
     unsigned long startPlay = millis();
     while(mp3 && mp3->isRunning() && (millis() - startPlay < 120000)) { 
-      if(!mp3->loop()) break;
-      if(mp3->isRunning()) mp3->loop();
+      if(!mp3->loop()) break; 
+      delay(1);  // Ridotto da 5ms a 1ms (file ora uniformi 128kbps CBR)
       yield();
     }
   }
@@ -1253,15 +1255,8 @@ void reinitAudio() {
     return;
   }
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
-  
-  // Buffer MINIMALI con BT cellulare attivo per massimizzare RAM disponibile
-  int bufferSize = btCellulareEnabled ? 128 : 512;
-  int bufferCount = btCellulareEnabled ? 2 : 2;
-  out->SetBuffers(bufferCount, bufferSize);
   out->SetGain(volume);
-  Serial.print(F("I2S OK (buf:"));
-  Serial.print(bufferSize);
-  Serial.println(F(")"));
+  Serial.println(F("I2S OK"));
   
   delay(100);
   
@@ -1615,10 +1610,9 @@ void setup() {
   }
   Serial.println(F("SD OK"));
 
-  // OTTIMIZZAZIONE MASSIMA: buffer ridottissimi per ATOM LITE + BT
+  // Buffer audio standard
   out = new AudioOutputI2S();
   out->SetPinout(I2S_BCLK, I2S_LRCL, I2S_DOUT);
-  out->SetBuffers(2, 256); // RIDOTTO a 256 per lasciare RAM per BT
   out->SetGain(volume);
   Serial.println(F("I2S OK"));
 
