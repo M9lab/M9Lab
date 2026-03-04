@@ -1,13 +1,17 @@
 /*
-    Board: M5Atom
+    Board: ESP32 Dev Module
     Library: 
       esp32 -> 3.3.6 (board)
       M5Atom -> 0.1.3
-      SP8266Audio -> 2.4.1
+      ESP8266Audio -> 2.4.1
       SD -> 1.3.0
       Time -> 1.6.1
       ArduinoJson -> 7.4.2
 
+
+    se da errori compialazione
+    Partition Scheme → Huge APP (3MB No OTA/1MB SPIFFS)
+    Upload Speed → 115200
 */
 
 /*
@@ -130,7 +134,7 @@ AudioFileSourceID3 *id3 = nullptr;
 AudioOutputI2S *out = nullptr;
 AudioGeneratorMP3 *mp3 = nullptr;
 
-float volume = 0.80; //(max 1 => 100)
+float volume = 0.08; //(max 1 => 100)
 bool playingPlaylist = false;
 unsigned long lastCommandTime = 0;
 
