@@ -36,4 +36,11 @@ Su Linux, se esiste **`.env.raspberry`** nella cartella legolize viene caricato 
 
 1. Copia `.env.raspberry` da esempio (o rinomina/copia da `.env`) e inserisci token Replicate e SMTP.
 2. Il file è già ottimizzato per 1360×768: preview ridotte, font e padding più piccoli, QR code 200px.
-3. Avvio: `python3 legolize.py`
+3. **Raspberry 3**: in `.env.raspberry` è impostato `LEGOLIZE_LOW_RESOURCE=1`, che riduce uso di CPU/RAM:
+   - Preview a ~7 FPS invece di 20 (`PREVIEW_INTERVAL_MS=150`)
+   - Interpolazione OpenCV più veloce (INTER_NEAREST)
+   - Font countdown caricato una sola volta
+   - Sfondo a tiled logo disattivabile (`SKIP_LOGO_PATTERN=1`), meno tile se attivo
+   - Buffer webcam = 1, rotellina caricamento meno frequente
+4. Avvio: `python3 legolize.py`
+5. **Errore "no display name"**: se lo script parte da systemd o SSH senza display, viene impostato `DISPLAY=:0` automaticamente. Se il Pi non ha monitor collegato, avvia con: `xvfb-run python3 legolize.py` (installa prima `sudo apt install xvfb`).

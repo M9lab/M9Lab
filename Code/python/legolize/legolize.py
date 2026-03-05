@@ -3,8 +3,15 @@
 Legolize: cattura foto dalla webcam (1024x683, 3:2), invia a Replicate per legolizzare,
 mostra risultato e invio email. Stesso flusso e grafica di fotomachine, senza fotomontaggio.
 """
+# Check dipendenze obbligatorie (Windows, Linux, macOS)
+try:
+    import cv2  # type: ignore[import-untyped]
+    import replicate  # type: ignore[import-untyped]
+except ModuleNotFoundError as e:
+    print(f"Modulo mancante: {e.name}")
+    exit(1)
+
 import tkinter as tk
-import cv2  # type: ignore[import-untyped]
 from PIL import Image, ImageTk, ImageDraw, ImageFont  # type: ignore[import-untyped]
 import os
 import urllib.request
@@ -242,6 +249,14 @@ FONT_SIZE_ENGAGEMENT_SOCIAL = int(os.getenv("FONT_SIZE_ENGAGEMENT_SOCIAL", 24))
 FONT_SIZE_ENGAGEMENT_THANKS = int(os.getenv("FONT_SIZE_ENGAGEMENT_THANKS", 20))
 FONT_SIZE_EVENT_TEXT = int(os.getenv("FONT_SIZE_EVENT_TEXT", 60))
 
+# Ottimizzazioni Raspberry Pi / risorse limitate (riduce CPU e RAM)
+LEGOLIZE_LOW_RESOURCE = os.getenv("LEGOLIZE_LOW_RESOURCE", "0").strip().lower() in ("1", "true", "yes")
+PREVIEW_INTERVAL_MS = int(os.getenv("PREVIEW_INTERVAL_MS", "150" if LEGOLIZE_LOW_RESOURCE else "50"))
+SPINNER_INTERVAL_MS = int(os.getenv("SPINNER_INTERVAL_MS", "100" if LEGOLIZE_LOW_RESOURCE else "50"))
+SKIP_LOGO_PATTERN = os.getenv("SKIP_LOGO_PATTERN", "1" if LEGOLIZE_LOW_RESOURCE else "0").strip().lower() in ("1", "true", "yes")
+# Interpolazione OpenCV: INTER_NEAREST più veloce, INTER_LINEAR migliore qualità
+_PREVIEW_CV_INTERPOLATION = cv2.INTER_NEAREST if LEGOLIZE_LOW_RESOURCE else cv2.INTER_LINEAR
+
 if system == "Linux":
     EMOJI_FONT = "Noto Color Emoji"
 else:
@@ -260,6 +275,11 @@ if not cap.isOpened():
 
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, WEBCAM_CAPTURE_W)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, WEBCAM_CAPTURE_H)
+# Buffer piccolo = meno memoria e latenza (utile su Raspberry)
+try:
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+except Exception:
+    pass
 actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(f"Webcam: {actual_w}x{actual_h} (3:2)")
@@ -278,7 +298,6 @@ def call_replicate_legolize(input_path, on_success, on_error):
 
     def run():
         try:
-            import replicate  # type: ignore[import-untyped]
             print(f"[Replicate] Modello: {REPLICATE_MODEL}", flush=True)
             # Il client Replicate richiede file aperto per upload; teniamo aperto per tutta la run
             f = open(input_path, "rb")
@@ -329,6 +348,7 @@ def download_image(url, save_path):
 
 
 _event_text_font_cache = None
+_countdown_font_cache = None
 
 
 def load_font_cached():
@@ -346,6 +366,20 @@ def load_font_cached():
                 except Exception:
                     _event_text_font_cache = ImageFont.load_default()
     return _event_text_font_cache
+
+
+def load_countdown_font():
+    """Font per countdown in preview (caricato una sola volta)."""
+    global _countdown_font_cache
+    if _countdown_font_cache is None:
+        try:
+            _countdown_font_cache = ImageFont.truetype("arial.ttf", FONT_SIZE_COUNTDOWN)
+        except Exception:
+            try:
+                _countdown_font_cache = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_COUNTDOWN)
+            except Exception:
+                _countdown_font_cache = ImageFont.load_default()
+    return _countdown_font_cache
 
 
 def apply_event_text_to_image(img):
@@ -402,7 +436,7 @@ def _spinner_step():
             start=_loading_spinner_angle[0], extent=100,
             style=tk.ARC, outline=UI_ACCENT_COLOR, width=6, tags="spinner"
         )
-        _loading_overlay.after_id = _loading_overlay.after(50, _spinner_step)
+        _loading_overlay.after_id = _loading_overlay.after(SPINNER_INTERVAL_MS, _spinner_step)
     except Exception:
         pass
 
@@ -450,7 +484,7 @@ def update_preview():
     if mode == MODE_PREVIEW:
         ret, frame = cap.read()
         if ret:
-            frame_resized = cv2.resize(frame, (PREVIEW_LIVE_W, PREVIEW_LIVE_H), interpolation=cv2.INTER_LINEAR)
+            frame_resized = cv2.resize(frame, (PREVIEW_LIVE_W, PREVIEW_LIVE_H), interpolation=_PREVIEW_CV_INTERPOLATION)
             img = Image.fromarray(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB))
             if _puntamento_pil is not None:
                 pw, ph = _puntamento_pil.size
@@ -462,13 +496,7 @@ def update_preview():
             if hasattr(root, 'countdown_active') and root.countdown_active:
                 draw = ImageDraw.Draw(img)
                 text = str(root.countdown_number)
-                try:
-                    font = ImageFont.truetype("arial.ttf", FONT_SIZE_COUNTDOWN)
-                except Exception:
-                    try:
-                        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", FONT_SIZE_COUNTDOWN)
-                    except Exception:
-                        font = ImageFont.load_default()
+                font = load_countdown_font()
                 bbox = draw.textbbox((0, 0), text, font=font)
                 text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
                 x = (PREVIEW_LIVE_W - text_w) // 2
@@ -482,7 +510,7 @@ def update_preview():
             preview_label.imgtk = imgtk
             preview_label.config(image=imgtk)
     if root.winfo_exists():
-        root.after(50, update_preview)
+        root.after(PREVIEW_INTERVAL_MS, update_preview)
 
 
 def start_countdown():
@@ -531,7 +559,7 @@ def show_capture_preview():
     """Mostra anteprima foto scattata con istruzioni e pulsanti Annulla / Legolizza."""
     global mode
     mode = MODE_CAPTURE_PREVIEW
-    frame_resized = cv2.resize(captured_frame, (PREVIEW_LIVE_W, PREVIEW_LIVE_H), interpolation=cv2.INTER_LINEAR)
+    frame_resized = cv2.resize(captured_frame, (PREVIEW_LIVE_W, PREVIEW_LIVE_H), interpolation=_PREVIEW_CV_INTERPOLATION)
     img = Image.fromarray(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB))
     imgtk = ImageTk.PhotoImage(img)
     preview_label.imgtk = imgtk
@@ -908,6 +936,10 @@ def send_email():
 
 
 # ================= GUI =================
+# Su Linux senza DISPLAY (es. avvio da systemd/SSH) usa il display locale per il kiosk
+if system == "Linux" and not os.environ.get("DISPLAY"):
+    os.environ["DISPLAY"] = ":0"
+
 root = tk.Tk()
 root.configure(bg=UI_BG_COLOR)
 
@@ -953,11 +985,15 @@ _replicate_remaining_label.place(x=12, y=10, anchor="nw")
 
 
 def create_logo_pattern():
+    """Sfondo a tiled logo. Su Raspberry/low resource può essere disattivato con SKIP_LOGO_PATTERN=1."""
+    if SKIP_LOGO_PATTERN:
+        return
     try:
         if os.path.exists(UI_LOGO_PATH):
             logo_pil = Image.open(UI_LOGO_PATH).convert("RGBA")
-            logo_pil = logo_pil.resize((180, 180), Image.LANCZOS)
-            logo_pil = logo_pil.rotate(45, expand=True, resample=Image.BICUBIC)
+            resample = Image.BILINEAR if LEGOLIZE_LOW_RESOURCE else Image.LANCZOS
+            logo_pil = logo_pil.resize((180, 180), resample)
+            logo_pil = logo_pil.rotate(45, expand=True, resample=Image.BILINEAR if LEGOLIZE_LOW_RESOURCE else Image.BICUBIC)
             alpha = logo_pil.split()[3]
             alpha = alpha.point(lambda p: int(p * UI_LOGO_OPACITY))
             logo_pil.putalpha(alpha)
@@ -965,8 +1001,9 @@ def create_logo_pattern():
                 canvas_bg.logo_images = []
             rw, rh = logo_pil.size
             sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-            for y in range(-rh, sh + rh, 220):
-                for x in range(-rw, sw + rw, 220):
+            step = 320 if LEGOLIZE_LOW_RESOURCE else 220
+            for y in range(-rh, sh + rh, step):
+                for x in range(-rw, sw + rw, step):
                     logo_tk = ImageTk.PhotoImage(logo_pil)
                     canvas_bg.create_image(x, y, image=logo_tk, anchor="nw")
                     canvas_bg.logo_images.append(logo_tk)
