@@ -25,21 +25,19 @@ import threading
 import traceback
 import sys
 
-# Carica .env: TEMPORANEO per test - se esiste .env.raspberry lo usiamo (simula Raspberry su Windows)
-# Dopo i test: rimettere condizione solo Linux per .env.raspberry
+# Carica .env: su Linux se esiste .env.raspberry lo usiamo, altrimenti .env
 _script_dir_env = os.path.dirname(os.path.abspath(__file__))
+system = platform.system()
 _env_rasp = os.path.join(_script_dir_env, ".env.raspberry")
-if os.path.exists(_env_rasp):
+_env_path = os.path.join(_script_dir_env, ".env")
+if not os.path.exists(_env_path):
+    _env_path = os.path.join(os.path.dirname(_script_dir_env), ".env")
+if system == "Linux" and os.path.exists(_env_rasp):
     load_dotenv(_env_rasp)
-    print("Caricato: .env.raspberry (test simulazione Raspberry 1360x768)")
+    print("Caricato: .env.raspberry")
 else:
-    _env_path = os.path.join(_script_dir_env, ".env")
-    if not os.path.exists(_env_path):
-        _env_path = os.path.join(os.path.dirname(_script_dir_env), ".env")
     load_dotenv(_env_path)
     print("Caricato: .env")
-
-system = platform.system()
 
 # ================= DIMENSIONI: width 1024, aspect ratio 3:2 =================
 # Preview LIVE e RESULT: 3:2
@@ -62,18 +60,18 @@ REPLICATE_TOKEN = os.getenv("replicateToken") or os.getenv("REPLICATE_API_TOKEN"
 _model_ref = os.getenv("REPLICATE_MODEL") or os.getenv("modelID") or os.getenv("REPLICATE_MODEL_ID") or ""
 # Se e' solo un hash (senza /) non e' valido, usa default
 REPLICATE_MODEL = _model_ref if "/" in _model_ref else "openai/gpt-image-1.5"
-# Colori logo per il prompt (render LEGO)
-LOGO_TEXT_COLOR = os.getenv("LOGO_TEXT_COLOR", "F5EA25")
-LOGO_BG_COLOR = os.getenv("LOGO_BG_COLOR", "5BA4D1")
+
+# Logo su immagine risultato (logo.png in alto a dx)
+LOGO_RESULT_SIZE = int(os.getenv("LOGO_RESULT_SIZE", "100"))
+LOGO_RESULT_MARGIN = int(os.getenv("LOGO_RESULT_MARGIN", "20"))
 
 
 def _build_replicate_prompt():
     base = (
-        "Turn the person's head into an official LEGO minifigure with authentic hair.\n"
+        "Turn all the person's head into an official LEGO minifigure with authentic hair.\n"
         "The face must be in authentic LEGO minifigure style: no nose (omit/remove the nose, smooth yellow head like real LEGO).\n"
         "Place the minifigure beside LEGO railway tracks in a simple railway diorama.\n"
         "Visible studs, correct proportions.\n"
-        f"Include the M9Lab logo (yellow text #{LOGO_TEXT_COLOR} on light blue #{LOGO_BG_COLOR}).\n"
         "Macro photo style, natural lighting.\n"
         "No cartoon or digital art style."
     )
@@ -416,6 +414,23 @@ def apply_event_text_to_image(img):
     return img.convert("RGB")
 
 
+def apply_logo_to_result(img):
+    """Incolla logo.png in alto a destra sull'immagine risultato (100x100, 20px dal bordo)."""
+    if not os.path.exists(UI_LOGO_PATH):
+        return img
+    try:
+        logo = Image.open(UI_LOGO_PATH).convert("RGBA")
+        logo = logo.resize((LOGO_RESULT_SIZE, LOGO_RESULT_SIZE), Image.LANCZOS)
+        w, h = img.size
+        x = w - LOGO_RESULT_SIZE - LOGO_RESULT_MARGIN
+        y = LOGO_RESULT_MARGIN
+        img_rgba = img.convert("RGBA")
+        img_rgba.paste(logo, (x, y), logo)
+        return img_rgba.convert("RGB")
+    except Exception:
+        return img
+
+
 # Overlay caricamento a schermo intero durante elaborazione Replicate
 _loading_overlay = None
 _loading_spinner_angle = [0]  # lista per poterla modificare nel closure
@@ -449,7 +464,6 @@ def show_loading_overlay():
     overlay = tk.Frame(root, bg=UI_BG_COLOR)
     overlay.place(x=0, y=0, relwidth=1, relheight=1)
     overlay.lift()
-    # Testo
     lbl = tk.Label(overlay, text=STATUS_LEGO_PROCESSING, font=("Arial", 28, "bold"),
                    fg=UI_TEXT_COLOR, bg=UI_BG_COLOR)
     lbl.place(relx=0.5, rely=0.45, anchor=tk.CENTER)
@@ -468,7 +482,7 @@ def hide_loading_overlay():
     """Rimuove l'overlay di caricamento."""
     global _loading_overlay
     if _loading_overlay is not None:
-        if hasattr(_loading_overlay, 'after_id') and _loading_overlay.after_id:
+        if hasattr(_loading_overlay, "after_id") and _loading_overlay.after_id:
             try:
                 _loading_overlay.after_cancel(_loading_overlay.after_id)
             except Exception:
@@ -606,6 +620,7 @@ def process_captured_photo():
             download_image(url, output_path)
             img = Image.open(output_path).convert("RGB")
             img = apply_event_text_to_image(img)
+            img = apply_logo_to_result(img)
             if output_path.lower().endswith(".webp"):
                 img.save(output_path, format="WEBP", quality=90)
             else:
@@ -633,7 +648,11 @@ def process_captured_photo():
 
     def _show_replicate_error(err_msg):
         hide_loading_overlay()
-        status_label.config(text=STATUS_LEGO_ERROR.format(error=err_msg), fg="#FFFFFF", bg="#E74C3C")
+        if "429" in err_msg or "too many requests" in err_msg.lower():
+            # 429: niente messaggio a video (va da solo e funziona)
+            pass
+        else:
+            status_label.config(text=STATUS_LEGO_ERROR.format(error=err_msg), fg="#FFFFFF", bg="#E74C3C")
         btn_shoot.config(state="normal")
 
     call_replicate_legolize(input_path, on_success, on_error)
