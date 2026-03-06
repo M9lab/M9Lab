@@ -25,6 +25,11 @@ import threading
 import traceback
 import sys
 
+try:
+    from replicate.exceptions import ReplicateError
+except ImportError:
+    ReplicateError = Exception
+
 # Carica .env: su Linux se esiste .env.raspberry lo usiamo, altrimenti .env
 _script_dir_env = os.path.dirname(os.path.abspath(__file__))
 system = platform.system()
@@ -65,6 +70,10 @@ REPLICATE_MODEL = _model_ref if "/" in _model_ref else "openai/gpt-image-1.5"
 LOGO_RESULT_SIZE = int(os.getenv("LOGO_RESULT_SIZE", "100"))
 LOGO_RESULT_MARGIN = int(os.getenv("LOGO_RESULT_MARGIN", "20"))
 
+# Step 2 (capture preview): Invio = railway, Spazio = party (solo questa riga del prompt cambia)
+SCENE_LINE_RAILWAY = "Place the minifigure beside LEGO railway tracks in a simple railway diorama.\n"
+SCENE_LINE_PARTY = "Place the minifigure in a party full of LEGO candies.\n"
+
 
 def _build_replicate_prompt():
     base = (
@@ -89,7 +98,22 @@ def _build_replicate_prompt():
 #    return os.getenv("REPLICATE_LEGO_PROMPT", base)    
 
 REPLICATE_LEGO_PROMPT = _build_replicate_prompt()
-REPLICATE_QUALITY = os.getenv("REPLICATE_QUALITY", "medium")
+# Prompt party per Spazio: se .env ha sovrascritto il prompt, usiamo un default completo con scena party
+_default_party_prompt = (
+    "Turn all the person's head into an official LEGO minifigure with authentic hair.\n"
+    "The face must be in authentic LEGO minifigure style: no nose (omit/remove the nose, smooth yellow head like real LEGO).\n"
+    + SCENE_LINE_PARTY
+    + "Visible studs, correct proportions.\n"
+    "Macro photo style, natural lighting.\n"
+    "No cartoon or digital art style."
+)
+REPLICATE_LEGO_PROMPT_PARTY = os.getenv("REPLICATE_LEGO_PROMPT_PARTY", _default_party_prompt)
+# gpt-image-1.5 accetta solo "auto", "low", "high" (medium -> auto per evitare 400). Default: low.
+REPLICATE_QUALITY_DEFAULT = "low"
+_quality_raw = os.getenv("REPLICATE_QUALITY", REPLICATE_QUALITY_DEFAULT)
+REPLICATE_QUALITY = "auto" if _quality_raw.strip().lower() == "medium" else _quality_raw.strip().lower()
+if REPLICATE_QUALITY not in ("auto", "low", "high"):
+    REPLICATE_QUALITY = REPLICATE_QUALITY_DEFAULT
 REPLICATE_OUTPUT_FORMAT = os.getenv("REPLICATE_OUTPUT_FORMAT", "webp")
 
 # Email
@@ -284,26 +308,37 @@ print(f"Webcam: {actual_w}x{actual_h} (3:2)")
 print(f"Output: {PHOTO_W}x{PHOTO_H} (3:2)")
 
 
-def call_replicate_legolize(input_path, on_success, on_error):
-    """Chiama Replicate per legolizzare l'immagine. Esegue in thread, callback sulla main thread."""
+def call_replicate_legolize(input_path, on_success, on_error, prompt=None):
+    """Chiama Replicate per legolizzare l'immagine. Esegue in thread, callback sulla main thread.
+    prompt: se None usa REPLICATE_LEGO_PROMPT (railway), altrimenti il prompt passato (es. party)."""
     if not REPLICATE_TOKEN:
         on_error("replicateToken deve essere impostato in .env")
         return
     if not REPLICATE_MODEL:
         on_error("REPLICATE_MODEL (nome modello, es. openai/gpt-image-1.5) deve essere in .env")
         return
+    if prompt is None:
+        prompt = REPLICATE_LEGO_PROMPT
+    prompt = (prompt or "").strip() or REPLICATE_LEGO_PROMPT.strip() or _default_party_prompt
     os.environ["REPLICATE_API_TOKEN"] = REPLICATE_TOKEN
 
     def run():
+        def main_thread_success(url):
+            if root.winfo_exists():
+                root.after(0, lambda u=url: on_success(u))
+
+        def main_thread_error(msg):
+            if root.winfo_exists():
+                root.after(0, lambda m=msg: on_error(m))
+
         try:
             print(f"[Replicate] Modello: {REPLICATE_MODEL}", flush=True)
-            # Il client Replicate richiede file aperto per upload; teniamo aperto per tutta la run
             f = open(input_path, "rb")
             try:
                 output = replicate.run(
                     REPLICATE_MODEL,
                     input={
-                        "prompt": REPLICATE_LEGO_PROMPT,
+                        "prompt": prompt,
                         "quality": REPLICATE_QUALITY,
                         "background": "auto",
                         "moderation": "auto",
@@ -319,17 +354,21 @@ def call_replicate_legolize(input_path, on_success, on_error):
                 f.close()
             if output and len(output) > 0:
                 url = output[0]
-                if isinstance(url, str):
-                    on_success(url)
-                else:
-                    on_success(str(url))
+                main_thread_success(str(url) if not isinstance(url, str) else url)
             else:
-                on_error("Nessuna immagine restituita da Replicate")
+                main_thread_error("Nessuna immagine restituita da Replicate")
+        except ReplicateError as e:
+            err_str = str(e)
+            if "429" not in err_str:
+                print("[Replicate] ERRORE:", file=sys.stderr, flush=True)
+                traceback.print_exc(file=sys.stderr)
+            main_thread_error(err_str)
         except Exception as e:
-            # Debug: stampa traceback completo in console
             print("[Replicate] ERRORE:", file=sys.stderr, flush=True)
             traceback.print_exc(file=sys.stderr)
-            on_error(str(e))
+            main_thread_error(str(e))
+        except BaseException as e:
+            main_thread_error(str(e))
 
     t = threading.Thread(target=run, daemon=True)
     t.start()
@@ -441,8 +480,9 @@ def _spinner_step():
         return
     try:
         canvas = getattr(_loading_overlay, "spinner_canvas", None)
-        if canvas is None:
+        if canvas is None or not canvas.winfo_exists():
             return
+        _loading_overlay.lift()
         _loading_spinner_angle[0] = (_loading_spinner_angle[0] + 12) % 360
         canvas.delete("spinner")
         cx, cy, r = 80, 80, 50
@@ -452,6 +492,8 @@ def _spinner_step():
             style=tk.ARC, outline=UI_ACCENT_COLOR, width=6, tags="spinner"
         )
         _loading_overlay.after_id = _loading_overlay.after(SPINNER_INTERVAL_MS, _spinner_step)
+        if root.winfo_exists():
+            root.update_idletasks()
     except Exception:
         pass
 
@@ -584,7 +626,8 @@ def show_capture_preview():
     btn_cancel.grid(row=0, column=0, padx=10)
     btn_legolize.grid(row=0, column=1, padx=10)
     btn_shoot.config(state="normal")
-    root.after(100, lambda: btn_legolize.focus_set())
+    # Focus su root così Invio/Spazio vanno a on_key_press (railway/party); click su Legolizza = railway
+    root.after(100, lambda: root.focus_set())
 
 
 def back_to_live_preview():
@@ -598,7 +641,8 @@ def back_to_live_preview():
     root.after(100, lambda: btn_shoot.focus_set())
 
 
-def process_captured_photo():
+def process_captured_photo(prompt=None):
+    """prompt=None = railway (Invio), REPLICATE_LEGO_PROMPT_PARTY = party (Spazio)."""
     global current_photo_path, captured_frame
     frame = captured_frame
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -655,7 +699,7 @@ def process_captured_photo():
             status_label.config(text=STATUS_LEGO_ERROR.format(error=err_msg), fg="#FFFFFF", bg="#E74C3C")
         btn_shoot.config(state="normal")
 
-    call_replicate_legolize(input_path, on_success, on_error)
+    call_replicate_legolize(input_path, on_success, on_error, prompt=prompt)
 
 
 def show_result(image_pil):
@@ -1079,15 +1123,19 @@ def on_key_press(event):
             cap.release()
             root.destroy()
         return
-    if mode == MODE_PREVIEW:
+    # Seconda schermata (conferma legolizzazione) prima della prima (scatta foto)
+    if mode == MODE_CAPTURE_PREVIEW:
+        if event.keysym == 'Return':
+            process_captured_photo()  # Invio = railway
+            return "break"
+        if event.keysym in ['space', 'Space']:
+            process_captured_photo(prompt=REPLICATE_LEGO_PROMPT_PARTY)  # Spazio = party
+            return "break"
+    elif mode == MODE_PREVIEW:
         if not (btn_shoot.winfo_ismapped() and btn_shoot['state'] == 'normal'):
             return
         if event.keysym in ['space', 'Space', 'Return']:
             start_countdown()
-            return "break"
-    elif mode == MODE_CAPTURE_PREVIEW:
-        if event.keysym in ['Return', 'space', 'Space']:
-            process_captured_photo()
             return "break"
     elif mode == MODE_RESULT:
         reset_inactivity_timer()
