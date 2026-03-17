@@ -144,9 +144,9 @@ const byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Co
 // Trains Maps
 // hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
 Train myTrains[MY_TRAIN_LEN] = {
-    { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed , 0, 0, -1, 0, 100, "01", RED}
+    { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed+5 , 0, 0, -1, 0, 100, "01", RED}
   , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", initialTrainSpeed , 0, 0, -1, 0, 100, "00", GREEN}
-  , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed , 0, 0, -1, 0, 100, "10", YELLOW}
+  , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed+10 , 0, 0, -1, 0, 100, "10", YELLOW}
 };
 
 // Switch Maps

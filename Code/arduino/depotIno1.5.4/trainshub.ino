@@ -1,7 +1,7 @@
 
 void scanHub( int idTrain) {
 
-  delay(80);  // dà respiro allo stack NimBLE tra un hub e l'altro (evita abort)
+  delay(75);  // dà respiro allo stack NimBLE tra un hub e l'altro (evita abort)
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
   //battery update
@@ -21,23 +21,24 @@ void scanHub( int idTrain) {
       Serial.println("Now connected with hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
 
       // set the name
-      /*
+      
       char hubName[myTrains[idTrain].hubColor.length() + 1];
       myTrains[idTrain].hubColor.toCharArray(hubName, myTrains[idTrain].hubColor.length() + 1);
-      myTrain->setHubName(hubName);
-      */
+      //myTrain->setHubName(hubName);
+      
       
       myTrains[idTrain].trainState = 0;
       myTrains[idTrain].hubState = 0;
 
       // activate Property Update
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BUTTON, hubButtonCallback);      
+      delay(50);
       myTrain->activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallback);
       
       myTrain->setLedColor(PURPLE);
       
     } else {
-      Serial.println("Failed to connect with hub " +  myTrains[idTrain].hubColor);
+      //Serial.println("Failed to connect with hub " +  myTrains[idTrain].hubColor);
     }
 
     
@@ -74,6 +75,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
             byte portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
             if (portForDevice != 255) {
               // activate hub button to receive updates
+              delay(50);
               myHub->activatePortDevice(portB, colorDistanceSensorCallback);
               delay(200);
             }

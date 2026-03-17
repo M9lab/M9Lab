@@ -264,6 +264,7 @@ void loop() {
       // check for all trains     
       for (int i = 0; i < MY_TRAIN_LEN; i++) {        
         if (! myTrains[i].hubobj->isConnected()) {
+          delay(100);
          scanHub(i);
         } else{
           checkIntervalisExpired(i);
