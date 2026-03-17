@@ -1,4 +1,3 @@
-
 void scanSwitchController() {
 
   if (!mySwitchController.isConnecting()){
@@ -13,7 +12,6 @@ void scanSwitchController() {
       mySwitchController.setHubName(hubName);
       mySwitchController.activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallbackSwitch);
       fullColor(CRGB::Cyan);
-
     } else {
       Serial.println("Failed to connect to Switch Controller");
     }

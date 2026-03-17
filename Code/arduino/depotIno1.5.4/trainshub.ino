@@ -1,6 +1,7 @@
 
 void scanHub( int idTrain) {
 
+  delay(80);  // dà respiro allo stack NimBLE tra un hub e l'altro (evita abort)
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
   //battery update

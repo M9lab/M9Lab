@@ -1,9 +1,19 @@
 
 // This sketch manages 3 trains (A, B, C) on a track that goes from the depot to the tunnel
 // trains depart one at a time randomly or manually (remotelly is optional)
-// use lego poweredup with the Legoino library by Cornelius Munz (https://github.com/corneliusmunz/legoino) ver 1.1.0 (ex ver 1.0.1)
+// use lego poweredup with the Legoino library by Cornelius Munz (https://github.com/corneliusmunz/legoino) 
 // needs 3 city hubs for trains (engine + color sensor) and a technic hub (3 engines) for exchanges and 1 kit lights.
 // DepotIno - 2022 Code by Stefx
+
+
+/*
+    Board: ESP32 Dev Module
+    Library: 
+      esp32 -> 2.0.17 (board)
+      Legoino -> 1.0.0
+      NimBLE-Arduino -> v1.4.1 
+      FastLED -> v3.10.3 
+*/
 
 /* note
 1) set max device (default=3) in C:\Users\stefano.ferrara\Documents\Arduino\libraries\NimBLE-Arduino\src\nimconfig.h #define CONFIG_BT_NIMBLE_MAX_CONNECTIONS X
@@ -261,7 +271,7 @@ void loop() {
       }
     
       // do the automatic train start is activated
-      if (isAutoEnabled) randomStartTrain();    
+      if (isAutoEnabled) randomStartTrain();
 
       // check bliking light interval
       //if (lights_blink_ison) blinkLights(pPortA);     
