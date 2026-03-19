@@ -104,6 +104,8 @@ void systemReset() {
     myTrains[idTrain].lastcolor = 0;
     myTrains[idTrain].colorPreviousMillis = 0;
     myTrains[idTrain].exitcount = 0;
+    myTrains[idTrain].colorConsecutiveCount = 0;
+    myTrains[idTrain].colorConsecutiveValue = -1;
   }
   switchReset();
 }

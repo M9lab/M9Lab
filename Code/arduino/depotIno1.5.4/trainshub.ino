@@ -94,8 +94,10 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
             myHub->shutDownHub();
             Serial.println("Disconnected from hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
             
-            myTrains[idTrain].hubState = -1;     
-            activeTrain--;         
+            myTrains[idTrain].hubState = -1;
+            myTrains[idTrain].colorConsecutiveCount = 0;
+            myTrains[idTrain].colorConsecutiveValue = -1;
+            activeTrain--;
             stopTrain(idTrain);            
 
           }
@@ -116,34 +118,38 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
   if (idTrain == -1) return;
   if (myTrains[idTrain].hubState != 1) return;
 
-  if (deviceType == DeviceType::COLOR_DISTANCE_SENSOR) {            
-    
+  if (deviceType == DeviceType::COLOR_DISTANCE_SENSOR) {
+
     int color = myHub->parseColor(pData);
-    
-    if (myTrains[idTrain].lastcolor == color || !checkIfSensorColorIsAccepted(color) || color==0 || color==255) return;
+    if (!checkIfSensorColorIsAccepted(color) || color == 0 || color == 255) return;
 
-      myTrains[idTrain].lastcolor = color;
-    
-      Serial.print("Color ");
-      Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
-      //Serial.println(COLOR_STRING[color]);     
-      Serial.println(LegoinoCommon::ColorStringFromColor(color).c_str()); 
-    
-      myHub->setLedColor((Color)color);
-    
-      // set hub LED color to detected color of sensor and set motor speed dependent on color
-      // stop | invert | kill -> sensorAcceptedColors
-      if (color == sensorAcceptedColors[0]) stopTrain(idTrain); 
-      else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true); 
-      else if (color == sensorAcceptedColors[2]) killTrain(idTrain); 
-      
-      //other functions not used
-      /*
-      startTrain(idTrain);
-      stopAndDoTrain(idTrain, false);
-      invertTrain(idTrain);
-      */
+    // require COLOR_CONFIRM_COUNT consecutive same readings before acting
+    int &count = myTrains[idTrain].colorConsecutiveCount;
+    int &value = myTrains[idTrain].colorConsecutiveValue;
+    if (color == value)
+      count++;
+    else {
+      value = color;
+      count = 1;
+    }
 
+    myHub->setLedColor((Color)color);
+
+    if (count < COLOR_CONFIRM_COUNT) return;
+
+    // confirmed: 2 consecutive same color
+    count = 0;
+    value = -1;
+    myTrains[idTrain].lastcolor = color;
+
+    Serial.print("Color ");
+    Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
+    Serial.println(LegoinoCommon::ColorStringFromColor(color).c_str());
+
+    // stop | invert | kill -> sensorAcceptedColors
+    if (color == sensorAcceptedColors[0]) stopTrain(idTrain);
+    else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true);
+    else if (color == sensorAcceptedColors[2]) pendingKillTrain = idTrain;
   }
 }
 

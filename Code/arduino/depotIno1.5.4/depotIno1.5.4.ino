@@ -85,6 +85,7 @@ int beforeStartInterval = 5000; //how much wait before start the train
 int lastTrainStarted = -1;
 int lastTrainRandomStarted = -1;
 int unsigned addspeed =0;
+int pendingKillTrain = -1;  // defer kill to loop() to avoid blocking BLE callback
 
 // create a hub instance for switch
 Lpf2Hub mySwitchController;
@@ -117,6 +118,8 @@ typedef struct {
   char switchPosition[3];
   Color ledColor;
   int exitcount;
+  int colorConsecutiveCount;   // confirm N same readings before acting
+  int colorConsecutiveValue;   // color being counted (-1 = none)
 } Train;
 
 // Switches structure
@@ -130,6 +133,7 @@ typedef struct {
 #define MY_TRAIN_LEN 3
 #define MY_SWITCH_LEN 3
 #define MY_COLOR_LEN 3
+#define COLOR_CONFIRM_COUNT 2  // require N consecutive same color before stop/invert/kill
 
 // default trains speed
 int initialTrainSpeed = 25;
@@ -139,11 +143,11 @@ byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::G
 // other color not used: (byte)Color::BLUE, (byte)Color::WHITE
 
 // Trains Maps
-// hubobj - hubColor  -  hubAddress - speed - lastcolor - colorPreviousMillis - hubState (-1 = off, 0=ready, 1=active) - trainstate (0 > tospeed) - batteryLevel - switchPosition - ledColor
+// hubobj - hubColor - hubAddress - speed - lastcolor - colorPreviousMillis - hubState - trainstate - batteryLevel - switchPosition - ledColor - exitcount - colorConsecutiveCount - colorConsecutiveValue
 Train myTrains[MY_TRAIN_LEN] = {
-    { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed +5, 0, 0, -1, 0, 100, "01", RED,0}
-  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", initialTrainSpeed , 0, 0, -1, 0, 100, "00", GREEN,0}
-  , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed +10, 0, 0, -1, 0, 100, "10", YELLOW,0}
+    { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed +5, 0, 0, -1, 0, 100, "01", RED,0, 0, -1}
+  , { &myTrainHub_TC, "Green",   "90:84:2b:16:9a:1f", initialTrainSpeed , 0, 0, -1, 0, 100, "00", GREEN,0, 0, -1}
+  , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed +10, 0, 0, -1, 0, 100, "10", YELLOW,0, 0, -1}
 };
 
 // Switch Maps
@@ -269,6 +273,14 @@ void loop() {
         } else{
           checkIntervalisExpired(i);
         }     
+      }
+
+      // process deferred kill (from color sensor callback) to avoid blocking BLE
+      if (pendingKillTrain >= 0) {
+        int id = pendingKillTrain;
+        pendingKillTrain = -1;
+        killTrain(id);
+        delay(2000);
       }
     
       // do the automatic train start is activated
