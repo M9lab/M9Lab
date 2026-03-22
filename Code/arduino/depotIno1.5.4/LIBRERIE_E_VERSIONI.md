@@ -1,51 +1,46 @@
-# depotIno1.5.4 – Librerie e versioni
+# depotIno1.5.4 — Libraries & versions
 
-**Ultima versione funzionante** con le **vecchie librerie**. Non modificare questo codice per workaround su librerie nuove; usare **depotIno1.5.5** per provare ESP32 v3 e Legoino aggiornato.
+Sketch architecture, workflow, and Serial commands: **[README.md](README.md)**.
 
----
-
-## Riepilogo (obbligatorio per 1.5.4)
-
-| Componente | Versione |
-|------------|----------|
-| **Board ESP32** | **2.0.17** |
-| **Legoino** | **1.0.0** (originale, non patchato) |
-| **NimBLE-Arduino** | **1.4.1** (o compatibile con Legoino 1.0.0) |
-| **FastLED** | **3.10.3** (o compatibile) |
+**Known-good baseline** with the **older** library stack. Do not patch this sketch for newer-library workarounds; use **depotIno1.5.5** to try ESP32 v3 and updated Legoino.
 
 ---
 
-## Perché queste versioni
+## Summary (required for 1.5.4)
 
-- **ESP32 2.0.17**: core stabile con cui lo sketch è stato testato.
-- **Legoino 1.0.0**: versione originale; nessun fix per ESP32 v3, nessun workaround nel codice.
-- **NimBLE-Arduino**: dipendenza di Legoino su ESP32; usare la versione indicata nella documentazione Legoino 1.0.0 (tipicamente 1.4.x).
-
----
-
-## Configurazione NimBLE
-
-In `NimBLE-Arduino/src/nimconfig.h`:
-
-- `#define CONFIG_BT_NIMBLE_MAX_CONNECTIONS` → valore **almeno 5** (3 treni + 1 switch + 1 remote).
+| Component | Version |
+|-----------|---------|
+| **ESP32 board** | **2.0.17** |
+| **Legoino** | **1.0.0** (original, unpatched) |
+| **NimBLE-Arduino** | **1.4.1** (or compatible with Legoino 1.0.0) |
+| **FastLED** | **3.10.3** (or compatible) |
 
 ---
 
-## Installazione rapida
+## Why these versions
 
-1. **Board**: Tools → Board → Boards Manager → **esp32** → installa **2.0.17**.
-2. **Legoino**: installa **1.0.0** (Library Manager o ZIP originale).
-3. **NimBLE-Arduino**: **1.4.1** (da GitHub o Library Manager).
-4. **FastLED**: **3.10.3** (o compatibile).
-5. Modifica **nimconfig.h** come sopra.
+- **ESP32 2.0.17:** stable core used for testing.
+- **Legoino 1.0.0:** original; no ESP32 v3 fixes, no workarounds in this sketch.
+- **NimBLE-Arduino:** Legoino dependency on ESP32; use version matching Legoino 1.0.0 docs (typically 1.4.x).
+
+---
+
+## NimBLE configuration
+
+In `NimBLE-Arduino/src/nimconfig.h`: set `#define CONFIG_BT_NIMBLE_MAX_CONNECTIONS` to **at least 5** (3 trains + 1 switch + 1 remote).
+
+---
+
+## Quick install
+
+1. **Board:** Boards Manager → **esp32** → install **2.0.17**.
+2. **Legoino:** **1.0.0** (Library Manager or original ZIP).
+3. **NimBLE-Arduino:** **1.4.1**.
+4. **FastLED:** **3.10.3** (or compatible).
+5. Edit **nimconfig.h** as above.
 
 ---
 
 ## depotIno1.5.5
 
-Su **depotIno1.5.5** si provano:
-- Board ESP32 v3.x
-- Legoino 1.1.0 (o patchata per v3)
-- Miglioramenti e fix al codice
-
-Mantenere **depotIno1.5.4** invariato come baseline funzionante con 2.0.17 + Legoino 1.0.0.
+On **depotIno1.5.5** you can try ESP32 v3.x, Legoino 1.1.0 (or patched for v3), and newer fixes. Keep **depotIno1.5.4** as the known-good baseline with 2.0.17 + Legoino 1.0.0.

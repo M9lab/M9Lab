@@ -1,8 +1,10 @@
 
 void randomStartTrain() {
 
+  if (killDoneMillis != 0 && (millis() - killDoneMillis < KILL_COOLDOWN_MS)) return;
+
   if (checkIfAllTrainIsStopped()) {
-	  
+
     int randIdTrain = random(0, MY_TRAIN_LEN);
     
     if (activeTrain > 1 && lastTrainRandomStarted == randIdTrain) return;
@@ -68,7 +70,7 @@ void startTrain(int idTrain) {
 
   lastTrainStarted =idTrain;
    
-  // avoid immediate stop by discarge stop color 
+  // avoid immediate stop by discarding initial stop color (YELLOW)
   myTrains[idTrain].lastcolor = sensorAcceptedColors[0];    
     
   _println("Start Train " + myTrains[idTrain].hubColor + " Battery Level: "  + myTrains[idTrain].batteryLevel);    
@@ -80,7 +82,7 @@ void startTrain(int idTrain) {
   }
   
 
-  // Battery Level Switch   
+  // Battery Level Switch
   if( myTrains[idTrain].batteryLevel<trainBatteryLevelLimit){
     setSwitch(&mySwitchControlleres[2], 1);
   }else{
@@ -89,14 +91,13 @@ void startTrain(int idTrain) {
 
   mySwitchController.setLedColor(myTrains[idTrain].ledColor);
 
-  if (autoSpeedEnabled){
-    //TEST: set speed depends by battery level
-    float newspeed = (int) ((100*myTrains[idTrain].speed) / myTrains[idTrain].batteryLevel);
+  if (autoSpeedEnabled && myTrains[idTrain].batteryLevel > 0) {
+    float newspeed = (int) ((100 * myTrains[idTrain].speed) / myTrains[idTrain].batteryLevel);
     Serial.println("speed:");
     Serial.println(myTrains[idTrain].speed);
     Serial.println("newspeed:");
     Serial.println(newspeed);
-    myTrains[idTrain].speed = newspeed;  
+    myTrains[idTrain].speed = newspeed;
   }
   
   delayBlinkLights(pPortA);

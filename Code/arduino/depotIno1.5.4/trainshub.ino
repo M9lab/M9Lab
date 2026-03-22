@@ -1,7 +1,7 @@
 
 void scanHub( int idTrain) {
 
-  delay(75);  // dà respiro allo stack NimBLE tra un hub e l'altro (evita abort)
+  delay(75);  // NimBLE stack breathing room between hubs (avoid abort)
   Lpf2Hub *myTrain = myTrains[idTrain].hubobj;
 
   //battery update
@@ -45,39 +45,47 @@ void scanHub( int idTrain) {
   }
 }
 
+int getHubIdByHub(Lpf2Hub *hub) {
+  for (int i = 0; i < MY_TRAIN_LEN; i++) {
+    if (myTrains[i].hubobj == hub) return i;
+  }
+  return -1;
+}
+
 void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pData) {
 
   Lpf2Hub *myHub = (Lpf2Hub *)hub;
-  int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());
-  if (idTrain == -1) return;  
+  int idTrain = getHubIdByHub(myHub);
+  if (idTrain == -1) return;
 
-  if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){    
-    myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);      
-    //_println("Train " + myTrains[idTrain].hubColor + " Battery Level Updated: "  + myTrains[idTrain].batteryLevel);
-  }  
+  if (hubProperty == HubPropertyReference::BATTERY_VOLTAGE){
+    myTrains[idTrain].batteryLevel = myHub->parseBatteryLevel(pData);
+  }
 
   if (hubProperty == HubPropertyReference::BUTTON)
   {
     ButtonState buttonState = myHub->parseHubButton(pData);
     if (buttonState == ButtonState::PRESSED)
     {
-      // auto start
-      //myHub->setBasicMotorSpeed(portA, 15);
-
       switch (myTrains[idTrain].hubState) {
 
         case 0: //ready -> active
           {
-
-            Serial.println("Hub " + myTrains[idTrain].hubColor + " is ready");
-            myTrains[idTrain].hubState = 1;            
+            Serial.print("Hub ");
+            Serial.print(myTrains[idTrain].hubColor);
+            Serial.println(" is ready");
+            myTrains[idTrain].hubState = 1;
             activeTrain++;
-            byte portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
+            // use hub-reported sensor port (A or B); do not hardcode portB
+            byte portForDevice = 255;
+            for (int attempt = 0; attempt < 8 && portForDevice == 255; attempt++) {
+              if (attempt > 0) delay(40);
+              portForDevice = myHub->getPortForDeviceType((byte)DeviceType::COLOR_DISTANCE_SENSOR);
+            }
             if (portForDevice != 255) {
-              // activate hub button to receive updates
-              delay(50);
-              myHub->activatePortDevice(portB, colorDistanceSensorCallback);
-              delay(200);
+              delay(10);
+              myHub->activatePortDevice(portForDevice, colorDistanceSensorCallback);
+              delay(20);
             }
 
             myHub->setLedColor(CYAN);
@@ -88,11 +96,12 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
         case 1: //active -> turnoff
           {
             myHub->setLedColor(RED);
-            // disconnect color sensor
-            //myHub->deactivatePortDevice(portB, colorDistanceSensorCallback);
-            delay(100);
+            delay(10);
             myHub->shutDownHub();
-            Serial.println("Disconnected from hub " + myTrains[idTrain].hubColor + " -> "  + myTrains[idTrain].hubAddress);
+            Serial.print("Disconnected from hub ");
+            Serial.print(myTrains[idTrain].hubColor);
+            Serial.print(" -> ");
+            Serial.println(myTrains[idTrain].hubAddress);
             
             myTrains[idTrain].hubState = -1;
             myTrains[idTrain].colorConsecutiveCount = 0;
@@ -114,7 +123,7 @@ void hubButtonCallback(void *hub, HubPropertyReference hubProperty, uint8_t *pDa
 void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceType, uint8_t *pData) {
 
   Lpf2Hub *myHub = (Lpf2Hub *)hub;
-  int idTrain = getHubIdByAddress(myHub->getHubAddress().toString().c_str());
+  int idTrain = getHubIdByHub(myHub);
   if (idTrain == -1) return;
   if (myTrains[idTrain].hubState != 1) return;
 
@@ -137,19 +146,22 @@ void colorDistanceSensorCallback(void *hub, byte portNumber, DeviceType deviceTy
 
     if (count < COLOR_CONFIRM_COUNT) return;
 
-    // confirmed: 2 consecutive same color
+    // confirmed: consecutive same color
     count = 0;
     value = -1;
     myTrains[idTrain].lastcolor = color;
 
-    Serial.print("Color ");
-    Serial.print("Hub " + myTrains[idTrain].hubColor + ":");
+    Serial.print("Color Hub ");
+    Serial.print(myTrains[idTrain].hubColor);
+    Serial.print(": ");
     Serial.println(LegoinoCommon::ColorStringFromColor(color).c_str());
 
-    // stop | invert | kill -> sensorAcceptedColors
-    if (color == sensorAcceptedColors[0]) stopTrain(idTrain);
-    else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true);
-    else if (color == sensorAcceptedColors[2]) pendingKillTrain = idTrain;
+    // stop/invert/kill only when auto layout is on ("on"); read and log always for debug
+    if (isAutoEnabled) {
+      if (color == sensorAcceptedColors[0]) stopTrain(idTrain);
+      else if (color == sensorAcceptedColors[1]) stopAndDoTrain(idTrain, true);
+      else if (color == sensorAcceptedColors[2]) pendingKillTrain = idTrain;
+    }
   }
 }
 

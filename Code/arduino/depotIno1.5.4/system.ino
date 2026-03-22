@@ -8,8 +8,8 @@ void printLegenda() {
   Serial.println("");
   Serial.println("-----System commands:-----");
   Serial.println("help = show this message again");
-  Serial.println("on = set automatic system on");
-  Serial.println("off = set automatic system off");
+  Serial.println("on = start automatic diorama (do after: switch + trains connected + hubs ready)");
+  Serial.println("off = stop automatic diorama");
   Serial.println("panic = shutDown all hubs and reset the system");
   Serial.println("reset = reset the system");
   Serial.println("sron = enable remote control");
@@ -135,15 +135,26 @@ void panic() {
 
 void systemStatus() {
 
+  Serial.println("----- Switch (main hub) -----");
+  Serial.print("Switch: ");
+  Serial.println(mySwitchController.isConnected() ? "connected" : "disconnected");
+  if (mySwitchController.isConnected()) {
+    Serial.print("  batteryLevel: ");
+    Serial.println(switchBatteryLevel);
+    Serial.print("  motorSpeed: ");
+    Serial.println(switchVelocity);
+  }
+  Serial.println("----------------------------------------------------");
+
   Serial.println("hubColor|batteryLevel|hubState|trainState|speed|out|");
   Serial.println("----------------------------------------------------");
 
   for (int idTrain = 0; idTrain < MY_TRAIN_LEN; idTrain++) {
-    
-    _print_withspaces(myTrains[idTrain].hubColor,"hubColor");    
-    _print_withspaces(String(myTrains[idTrain].batteryLevel),"batteryLevel");    
-    _print_withspaces(String(myTrains[idTrain].hubState),"hubState");    
-    _print_withspaces(String(myTrains[idTrain].trainState),"trainState");    
+
+    _print_withspaces(myTrains[idTrain].hubColor,"hubColor");
+    _print_withspaces(String(myTrains[idTrain].batteryLevel),"batteryLevel");
+    _print_withspaces(String(myTrains[idTrain].hubState),"hubState");
+    _print_withspaces(String(myTrains[idTrain].trainState),"trainState");
     _print_withspaces(String(myTrains[idTrain].speed),"speed");
     _print_withspaces(String(myTrains[idTrain].exitcount),"out");
 
@@ -152,17 +163,11 @@ void systemStatus() {
 
   Serial.println("----------------------------------------------------");
 
-  Serial.print("Switch Battery Level: ");
-  Serial.println(switchBatteryLevel);
-
-  Serial.print("Switch Motor Speed: ");
-  Serial.println(switchVelocity);
-
   Serial.print("Automatic mode on: ");
   Serial.println(isAutoEnabled);
 
   Serial.print("Automatic speed on: ");
-  Serial.println(autoSpeedEnabled);  
+  Serial.println(autoSpeedEnabled);
 
 }
 

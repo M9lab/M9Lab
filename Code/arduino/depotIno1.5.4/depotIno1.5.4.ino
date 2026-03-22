@@ -1,9 +1,14 @@
-
-// This sketch manages 3 trains (A, B, C) on a track that goes from the depot to the tunnel
-// trains depart one at a time randomly or manually (remotelly is optional)
-// use lego poweredup with the Legoino library by Cornelius Munz (https://github.com/corneliusmunz/legoino) 
-// needs 3 city hubs for trains (engine + color sensor) and a technic hub (3 engines) for exchanges and 1 kit lights.
-// DepotIno - 2022 Code by Stefx
+// Manages 3 trains (A,B,C) on depot–tunnel track; random or manual depart (remote optional).
+// LEGO Powered Up + Legoino — https://github.com/corneliusmunz/legoino
+// Hardware: 3 City hubs (motor + color sensor) + Technic hub (3 motors for turnouts) + kit lights.
+// DepotIno — Stefx, 2022
+//
+// --- Usage flow ---
+// 1) Connect main switch hub -> "Connected to Switch Controller"
+// 2) Connect train hub(s) over BLE -> "Now connected with hub Red/Green/Yellow"
+// 3) Arm trains: press button on each hub -> "Hub X is ready"
+// 4) Start auto layout: Serial command "on"
+// Then: roulette -> start -> read colors (stop/invert/kill) -> loop
 
 
 /*
@@ -23,7 +28,6 @@
 	sudo modprobe cp210x
 */
 
-//TEST: crash on start if trains is no connected
 //TEST: set speed depends by battery level
 
 
@@ -71,8 +75,10 @@ CRGB leds[NUM_LEDS];
 /* end led part */
 
 #include "Lpf2Hub.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-// create a hub instance for train
+// Train hub instances
 Lpf2Hub myTrainHub_TA;
 Lpf2Hub myTrainHub_TB;
 Lpf2Hub myTrainHub_TC;
@@ -85,9 +91,11 @@ int beforeStartInterval = 5000; //how much wait before start the train
 int lastTrainStarted = -1;
 int lastTrainRandomStarted = -1;
 int unsigned addspeed =0;
-int pendingKillTrain = -1;  // defer kill to loop() to avoid blocking BLE callback
+int pendingKillTrain = -1;  // defer kill in loop() to avoid blocking BLE callback
+unsigned long killDoneMillis = 0;  // cooldown after kill
+#define KILL_COOLDOWN_MS 2000
 
-// create a hub instance for switch
+// Switch (main) hub
 Lpf2Hub mySwitchController;
 byte pPortD = (byte)ControlPlusHubPort::D; //0 -> A) White (D)
 byte pPortC = (byte)ControlPlusHubPort::C; //1 -> B) Blue (C)
@@ -98,11 +106,16 @@ int switchVelocity = 35;
 int switchBatteryLevel = 100;
 String switchControllerAddress = "90:84:2b:51:ba:b0";
 int trainBatteryLevelLimit = 10;
+bool pendingSwitchSetup = false;
+unsigned long switchConnectDoneMillis = 0;
+#define SWITCH_POST_CONNECT_DELAY_MS 500
 
 // global flags
 bool isAutoEnabled = false;
 bool isVerbose = true;
 bool autoSpeedEnabled = false;
+unsigned long bootMillis = 0;
+#define AUTO_START_MIN_DELAY_MS 15000  // never auto-start before this after boot (must send "on" first)
 
 // Trains structure
 typedef struct {
@@ -138,11 +151,11 @@ typedef struct {
 // default trains speed
 int initialTrainSpeed = 25;
 
-// Color Maps for trains --> 1 stop | 2 invert | 3 kill
+// Color maps for trains -> 1 stop | 2 invert | 3 kill
 byte sensorAcceptedColors[MY_COLOR_LEN] = { (byte)Color::YELLOW,  (byte)Color::GREEN, (byte)Color::RED};
 // other color not used: (byte)Color::BLUE, (byte)Color::WHITE
 
-// Trains Maps
+// Trains maps
 // hubobj - hubColor - hubAddress - speed - lastcolor - colorPreviousMillis - hubState - trainstate - batteryLevel - switchPosition - ledColor - exitcount - colorConsecutiveCount - colorConsecutiveValue
 Train myTrains[MY_TRAIN_LEN] = {
     { &myTrainHub_TB, "Red",     "90:84:2b:1c:be:cf", initialTrainSpeed +5, 0, 0, -1, 0, 100, "01", RED,0, 0, -1}
@@ -150,10 +163,10 @@ Train myTrains[MY_TRAIN_LEN] = {
   , { &myTrainHub_TA, "Yellow" , "90:84:2b:04:a8:c5", initialTrainSpeed +10, 0, 0, -1, 0, 100, "10", YELLOW,0, 0, -1}
 };
 
-// Switch Maps
-//port  - color  -  status (0= straight 1= change) - invert
+// Switch maps
+// port - color - status (0= straight 1= change) - invert
 Switches mySwitchControlleres[MY_SWITCH_LEN] = {
-  { &pPortD, "White" , 0, 0 }, //first switch
+  { &pPortD, "White" , 0, 0 }, // first switch
   { &pPortC, "Blu" , 0, 1}, // second switch
   { &pPortB, "Red" , 0, 0 } // battery shed switch
 };
@@ -179,10 +192,11 @@ int lights_count = 0;
 void readFromSerial() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
+    command.trim();
     Serial.println("");
     Serial.println(">" + command);
     Serial.println("");
-    
+
     // system
     if (command == "panic") panic();
     else if (command == "killsw") killSwitch();
@@ -209,7 +223,7 @@ void readFromSerial() {
     else if (command == "sws-") decreaseSwitchSpeed();
     else if (command == "sws=") resetSwitchSpeed();
 	
-    //lights
+  	//lights
   	else if (command == "sbl1") startBlikLights(pPortA);
   	else if (command == "sbl0") stopBlikLights(pPortA);  	
   	
@@ -241,56 +255,62 @@ void readFromSerial() {
   }
 }
 
+#define APP_CORE 0  // run all BLE/switch/train logic on same core as BT controller (avoid bt.c assert)
+
+static void mainTask(void* pv) {
+  for (;;) {
+    readFromSerial();
+    while (Serial.available() == 0) {
+      if (! mySwitchController.isConnected()) {
+        scanSwitchController();
+      } else {
+        runSwitchPostConnectIfNeeded();
+
+        if (isRemoteActive && ! myRemote.isConnected()) scanRemoteController();
+
+        for (int i = 0; i < MY_TRAIN_LEN; i++) {
+          if (! myTrains[i].hubobj->isConnected()) {
+            delay(100);
+            scanHub(i);
+          } else {
+            checkIntervalisExpired(i);
+          }
+        }
+
+        if (killDoneMillis != 0 && (millis() - killDoneMillis >= KILL_COOLDOWN_MS)) {
+          killDoneMillis = 0;
+        }
+
+        if (pendingKillTrain >= 0) {
+          int id = pendingKillTrain;
+          pendingKillTrain = -1;
+          killTrain(id);
+          killDoneMillis = millis();
+        }
+
+        if (isAutoEnabled && (millis() - bootMillis >= AUTO_START_MIN_DELAY_MS)) randomStartTrain();
+
+        vTaskDelay(1);  // yield to IDLE0 on core 0 so task watchdog does not trigger
+      }
+    }
+  }
+}
+
 void setup() {
 
-  FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);  
-  FastLED.setBrightness(20);  
+  bootMillis = millis();
+  isAutoEnabled = false;  // auto start only after user sends "on"
+
+  FastLED.addLeds<WS2812, DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(20);
   delay(3000);
   Serial.begin(115200);
-  printLegenda();  
+  printLegenda();
   fullColor(CRGB::Purple);
 
+  xTaskCreatePinnedToCore(mainTask, "main", 8192, NULL, 1, NULL, APP_CORE);
 }
 
 void loop() {
-
-  readFromSerial();
-  
-  while (Serial.available() == 0) {      
-    //check for switch controller
-    if (! mySwitchController.isConnected()){
-      scanSwitchController();      
-    }else{
-
-      // remote controller
-      if (isRemoteActive && ! myRemote.isConnected()) scanRemoteController();
-
-      // check for all trains     
-      for (int i = 0; i < MY_TRAIN_LEN; i++) {        
-        if (! myTrains[i].hubobj->isConnected()) {
-          delay(100);
-         scanHub(i);
-        } else{
-          checkIntervalisExpired(i);
-        }     
-      }
-
-      // process deferred kill (from color sensor callback) to avoid blocking BLE
-      if (pendingKillTrain >= 0) {
-        int id = pendingKillTrain;
-        pendingKillTrain = -1;
-        killTrain(id);
-        delay(2000);
-      }
-    
-      // do the automatic train start is activated
-      if (isAutoEnabled) randomStartTrain();
-
-      // check bliking light interval
-      //if (lights_blink_ison) blinkLights(pPortA);     
-      
-    }    
-	
-  }
-
+  delay(10);
 }

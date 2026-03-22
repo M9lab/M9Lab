@@ -2,21 +2,33 @@ void scanSwitchController() {
 
   if (!mySwitchController.isConnecting()){
     mySwitchController.init(switchControllerAddress.c_str(), 1);
-    //mySwitchController.init();
     delay(1000);
-  }else{  
+  } else {
     mySwitchController.connectHub();
     if (mySwitchController.isConnected()) {
       Serial.println("Connected to Switch Controller");
-      char hubName[] = "Switch";
-      mySwitchController.setHubName(hubName);
-      mySwitchController.activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallbackSwitch);
       fullColor(CRGB::Cyan);
+      // defer BLE setup to avoid assert (interrupt_hlevel_disable from wrong core)
+      pendingSwitchSetup = true;
+      switchConnectDoneMillis = millis();
     } else {
       Serial.println("Failed to connect to Switch Controller");
     }
   }
+}
 
+void doSwitchPostConnectSetup() {
+  if (!mySwitchController.isConnected()) return;
+  char hubName[] = "Switch";
+  mySwitchController.setHubName(hubName);
+  mySwitchController.activateHubPropertyUpdate(HubPropertyReference::BATTERY_VOLTAGE, hubButtonCallbackSwitch);
+}
+
+void runSwitchPostConnectIfNeeded() {
+  if (!pendingSwitchSetup) return;
+  if (millis() - switchConnectDoneMillis < SWITCH_POST_CONNECT_DELAY_MS) return;
+  pendingSwitchSetup = false;
+  doSwitchPostConnectSetup();
 }
 
 void killSwitch(){
